@@ -17,6 +17,9 @@ jobs:
       uses: actions/setup-go@v2
       with:
         go-version: ${{ matrix.go-version }}
+
+    - name: Checkout code
+      uses: actions/checkout@v2
         
     - name: Cache deps
       uses: actions/cache@v2
