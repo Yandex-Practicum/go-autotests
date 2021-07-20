@@ -29,7 +29,14 @@ jobs:
         restore-keys: |
           ${{ runner.os }}-go-
 
-    - name: Test
+    - name: Vet
       run: |
-        go test -v ./...
-        go test -race -v ./...
+        go vet ./...
+
+    - name: Compile statictest
+      run: |
+        go build -o=cmd/statictest/statictest cmd/statictest/main.go
+
+    - name: Compile shortenertest
+      run: |
+        go test -c -o=cmd/shortenertest/shortenertest ./cmd/shortenertest/...
