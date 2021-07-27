@@ -14,6 +14,9 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// TestIteration1 tests that:
+// - http server is alive
+// - handlers conforms lesson API requirements
 func TestIteration1(t *testing.T) {
 	// create HTTP client without redirects support
 	errRedirectBlocked := errors.New("HTTP redirect blocked")
