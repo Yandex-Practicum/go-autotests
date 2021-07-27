@@ -119,7 +119,7 @@ func TestIteration3(t *testing.T) {
 		}
 
 		importSpecs := astutil.Imports(fset, sf)
-		if importsKnownHTTPFrameworks(importSpecs) {
+		if importsKnownPackage(importSpecs, knownHTTPFrameworks) {
 			return importFound
 		}
 
@@ -138,7 +138,7 @@ func TestIteration3(t *testing.T) {
 	t.Errorf("unexpected error: %s", err)
 }
 
-func importsKnownHTTPFrameworks(imports [][]*ast.ImportSpec) bool {
+func importsKnownPackage(imports [][]*ast.ImportSpec, knownPackages []string) bool {
 	for _, paragraph := range imports {
 		for _, importSpec := range paragraph {
 			for _, knownImport := range knownHTTPFrameworks {

@@ -12,7 +12,7 @@ var config = struct {
 		if val := os.Getenv("TARGET_HTTP_ADDRESS"); val != "" {
 			return val
 		}
-		return "http://localhost:8080/"
+		return "http://localhost:8080"
 	}(),
 
 	SourceRoot: func() string {

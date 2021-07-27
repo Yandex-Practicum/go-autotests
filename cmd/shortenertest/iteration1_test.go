@@ -16,7 +16,7 @@ import (
 
 // TestIteration1 tests that:
 // - http server is alive
-// - handlers conforms lesson API requirements
+// - handlers conforms lesson requirements
 func TestIteration1(t *testing.T) {
 	// create HTTP client without redirects support
 	errRedirectBlocked := errors.New("HTTP redirect blocked")
