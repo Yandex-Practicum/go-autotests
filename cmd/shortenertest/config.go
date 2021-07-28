@@ -6,7 +6,8 @@ import (
 
 var config = struct {
 	TargetAddress string
-	SourceRoot string
+	SourceRoot    string
+	GobFilePath   string
 }{
 	TargetAddress: func() string {
 		if val := os.Getenv("TARGET_HTTP_ADDRESS"); val != "" {
@@ -20,5 +21,12 @@ var config = struct {
 			return val
 		}
 		return "."
+	}(),
+
+	GobFilePath: func() string {
+		if val := os.Getenv("GOB_FILE_PATH"); val != "" {
+			return val
+		}
+		return "urls.gob"
 	}(),
 }
