@@ -8,8 +8,8 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// TestIteration6 checks that student uses persistent gob file
-func TestIteration6(t *testing.T) {
+// TestGobFile checks that student uses persistent gob file
+func TestGobFile(t *testing.T) {
 	require.FileExists(t, config.GobFilePath)
 
 	fstat, err := os.Stat(config.GobFilePath)

@@ -90,8 +90,8 @@ var (
 	}
 )
 
-// TestIteration3 checks that students code uses known 3rd party HTTP framework
-func TestIteration3(t *testing.T) {
+// TestUsesHTTPFramework checks that students code uses known 3rd party HTTP framework
+func TestUsesHTTPFramework(t *testing.T) {
 	fset := token.NewFileSet()
 
 	err := filepath.WalkDir(config.SourceRoot, func(path string, d fs.DirEntry, err error) error {
@@ -141,7 +141,7 @@ func TestIteration3(t *testing.T) {
 func importsKnownPackage(imports [][]*ast.ImportSpec, knownPackages []string) bool {
 	for _, paragraph := range imports {
 		for _, importSpec := range paragraph {
-			for _, knownImport := range knownHTTPFrameworks {
+			for _, knownImport := range knownPackages {
 				if strings.Contains(importSpec.Path.Value, knownImport) {
 					return true
 				}

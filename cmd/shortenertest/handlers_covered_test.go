@@ -12,8 +12,8 @@ var (
 	testFileFound = errors.New("test file found")
 )
 
-// TestIteration2 checks that students code contains test files
-func TestIteration2(t *testing.T) {
+// TestHandlersCovered checks that students code contains test files
+func TestHandlersCovered(t *testing.T) {
 	err := filepath.WalkDir(config.SourceRoot, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return err
