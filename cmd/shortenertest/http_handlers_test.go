@@ -14,7 +14,10 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestIteration1(t *testing.T) {
+// TestBasicHandlers tests that:
+// - http server is alive
+// - server exposes shorten and expand handlers
+func TestBasicHandlers(t *testing.T) {
 	// create HTTP client without redirects support
 	errRedirectBlocked := errors.New("HTTP redirect blocked")
 	httpc := resty.New().
@@ -34,6 +37,57 @@ func TestIteration1(t *testing.T) {
 	}
 
 	shortenURL := string(resp.Body())
+
+	assert.Equal(t, http.StatusCreated, resp.StatusCode())
+	assert.NoError(t, func() error {
+		_, err := url.Parse(shortenURL)
+		return err
+	}())
+
+	// expand URL
+	resp, err = httpc.R().Get(shortenURL)
+	if !errors.Is(err, errRedirectBlocked) && !assert.NoError(t, err) {
+		return
+	}
+
+	assert.Equal(t, http.StatusTemporaryRedirect, resp.StatusCode())
+	assert.Equal(t, targetURL, resp.Header().Get("Location"))
+}
+
+type shortenRequest struct {
+	URL string `json:"url"`
+}
+
+type shortenResponse struct {
+	Result string `json:"result"`
+}
+
+func TestAPIHandler(t *testing.T) {
+	endpointURL := config.TargetAddress + "/api/shorten"
+	targetURL := generateTestURL(t)
+
+	// create HTTP client without redirects support
+	errRedirectBlocked := errors.New("HTTP redirect blocked")
+	httpc := resty.New().
+		SetRedirectPolicy(resty.RedirectPolicyFunc(func(_ *http.Request, _ []*http.Request) error {
+			return errRedirectBlocked
+		}),
+		)
+
+	var result shortenResponse
+
+	resp, err := httpc.R().
+		SetHeader("Content-Type", "application/json").
+		SetBody(&shortenRequest{
+			URL: targetURL,
+		}).
+		SetResult(&result).
+		Post(endpointURL)
+	if !assert.NoError(t, err) {
+		return
+	}
+
+	shortenURL := result.Result
 
 	assert.Equal(t, http.StatusCreated, resp.StatusCode())
 	assert.NoError(t, func() error {
