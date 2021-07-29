@@ -62,7 +62,7 @@ func TestUsesJSONEncoder(t *testing.T) {
 	}
 
 	if err == nil {
-		t.Error("No import of known HTTP framework has been found")
+		t.Error("No import of known json encoding library has been found")
 		return
 	}
 
