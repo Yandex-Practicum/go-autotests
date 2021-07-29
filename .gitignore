@@ -16,3 +16,7 @@ vendor/
 
 # Ignore IDE
 .idea/
+
+# Ignore artifacts
+cmd/shortenertest/shortnertest
+cmd/statictest/statictest
