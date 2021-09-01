@@ -2,6 +2,7 @@ package main
 
 import (
 	"crypto/rand"
+	"encoding/json"
 	"errors"
 	"math/big"
 	mathrand "math/rand"
@@ -21,10 +22,11 @@ func TestBasicHandlers(t *testing.T) {
 	// create HTTP client without redirects support
 	errRedirectBlocked := errors.New("HTTP redirect blocked")
 	httpc := resty.New().
-		SetRedirectPolicy(resty.RedirectPolicyFunc(func(_ *http.Request, _ []*http.Request) error {
-			return errRedirectBlocked
-		}),
-	)
+		SetRedirectPolicy(
+			resty.RedirectPolicyFunc(func(_ *http.Request, _ []*http.Request) error {
+				return errRedirectBlocked
+			}),
+		)
 
 	// shorten URL
 	targetURL := generateTestURL(t)
@@ -69,20 +71,24 @@ func TestAPIHandler(t *testing.T) {
 	// create HTTP client without redirects support
 	errRedirectBlocked := errors.New("HTTP redirect blocked")
 	httpc := resty.New().
-		SetRedirectPolicy(resty.RedirectPolicyFunc(func(_ *http.Request, _ []*http.Request) error {
-			return errRedirectBlocked
-		}),
+		SetRedirectPolicy(
+			resty.RedirectPolicyFunc(func(_ *http.Request, _ []*http.Request) error {
+				return errRedirectBlocked
+			}),
 		)
-
-	var result shortenResponse
 
 	resp, err := httpc.R().
 		SetHeader("Content-Type", "application/json").
 		SetBody(&shortenRequest{
 			URL: targetURL,
 		}).
-		SetResult(&result).
 		Post(endpointURL)
+	if !assert.NoError(t, err) {
+		return
+	}
+
+	var result shortenResponse
+	err = json.Unmarshal(resp.Body(), &result)
 	if !assert.NoError(t, err) {
 		return
 	}
@@ -116,7 +122,7 @@ func generateTestURL(t *testing.T) string {
 	var letters = "0123456789abcdefghijklmnopqrstuvwxyz"
 
 	minLen, maxLen := 5, 15
-	domainLen := mathrand.Intn(maxLen - minLen) + minLen
+	domainLen := mathrand.Intn(maxLen-minLen) + minLen
 
 	lettersLen := big.NewInt(int64(len(letters)))
 
