@@ -71,6 +71,7 @@ func TestAPIHandler(t *testing.T) {
 	// create HTTP client without redirects support
 	errRedirectBlocked := errors.New("HTTP redirect blocked")
 	httpc := resty.New().
+		SetCloseConnection(true).
 		SetRedirectPolicy(
 			resty.RedirectPolicyFunc(func(_ *http.Request, _ []*http.Request) error {
 				return errRedirectBlocked
