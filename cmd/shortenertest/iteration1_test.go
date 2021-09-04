@@ -64,6 +64,16 @@ func (suite *Iteration1Suite) TearDownSuite() {
 	}
 	if exitCode > 0 {
 		suite.T().Logf("server has exited with non-zero exit code: %s", err)
+
+		// try to read stderr
+		ctx, cancel := context.WithTimeout(context.Background(), 500*time.Millisecond)
+		defer cancel()
+
+		out := suite.serverProcess.Stderr(ctx)
+		if len(out) > 0 {
+			suite.T().Logf("server process stderr log obtained:\n\n%s", string(out))
+		}
+
 		return
 	}
 }

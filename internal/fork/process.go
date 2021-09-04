@@ -87,20 +87,14 @@ func (p *BackgroundProcess) WaitPort(ctx context.Context, network, port string) 
 
 // Stdout reads and returns next portion of bytes from stdout.
 // This function may block until next newline is present in output
-func (p *BackgroundProcess) Stdout() []byte {
-	if p.stdout.Scan() {
-		return p.stdout.Bytes()
-	}
-	return nil
+func (p *BackgroundProcess) Stdout(ctx context.Context) []byte {
+	return readOutput(ctx, p.stdout)
 }
 
 // Stderr reads and returns next portion of bytes from stderr.
 // This function may block until next newline is present in output
-func (p *BackgroundProcess) Stderr() []byte {
-	if p.stderr.Scan() {
-		return p.stderr.Bytes()
-	}
-	return nil
+func (p *BackgroundProcess) Stderr(ctx context.Context) []byte {
+	return readOutput(ctx, p.stderr)
 }
 
 // Stop attempts to send given signals to process one by one.
@@ -127,4 +121,22 @@ func (p *BackgroundProcess) Stop(signals ...os.Signal) (exitCode int, err error)
 // String returns a human-readable representation of process command.
 func (p *BackgroundProcess) String() string {
 	return p.cmd.String()
+}
+
+// readOutput reads process output in a non-blocking way
+func readOutput(ctx context.Context, output *bufio.Scanner) []byte {
+	outChan := make(chan []byte, 1)
+	go func() {
+		output.Scan()
+		outChan <- output.Bytes()
+	}()
+
+	for {
+		select {
+		case <-ctx.Done():
+			return nil
+		case out := <-outChan:
+			return out
+		}
+	}
 }
