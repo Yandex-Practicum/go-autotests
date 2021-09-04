@@ -14,10 +14,6 @@ import (
 	"github.com/stretchr/testify/suite"
 )
 
-var (
-	testFileFound = errors.New("test file found")
-)
-
 // Iteration2Suite is a suite of autotests
 type Iteration2Suite struct {
 	suite.Suite
@@ -49,13 +45,13 @@ func (suite *Iteration2Suite) TestFilesPresence() {
 		}
 
 		if strings.HasSuffix(d.Name(), "_test.go") {
-			return testFileFound
+			return errUsageFound
 		}
 
 		return nil
 	})
 
-	if errors.Is(err, testFileFound) {
+	if errors.Is(err, errUsageFound) {
 		return
 	}
 

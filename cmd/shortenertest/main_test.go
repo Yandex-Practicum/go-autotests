@@ -19,3 +19,7 @@ func TestIteration1(t *testing.T) {
 func TestIteration2(t *testing.T) {
 	suite.Run(t, new(Iteration2Suite))
 }
+
+func TestIteration3(t *testing.T) {
+	suite.Run(t, new(Iteration3Suite))
+}
