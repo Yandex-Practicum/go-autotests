@@ -8,10 +8,14 @@ import (
 )
 
 func TestMain(m *testing.M) {
-	ParseConfig()
+	ParseFlags()
 	os.Exit(m.Run())
 }
 
 func TestIteration1(t *testing.T) {
 	suite.Run(t, new(Iteration1Suite))
+}
+
+func TestIteration2(t *testing.T) {
+	suite.Run(t, new(Iteration2Suite))
 }

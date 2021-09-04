@@ -29,7 +29,7 @@ func (suite *Iteration1Suite) SetupSuite() {
 
 	// start server
 	{
-		p := fork.NewBackgroundProcess(context.Background(), config.TargetBinary)
+		p := fork.NewBackgroundProcess(context.Background(), flagTargetBinaryPath)
 
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
@@ -78,6 +78,9 @@ func (suite *Iteration1Suite) TearDownSuite() {
 	}
 }
 
+// Test attempts to:
+// - generate and send ransom URL to shorten handler
+// - fetch original URL by sending shorten URL to expand handler
 func (suite *Iteration1Suite) TestHandlers() {
 	originalURL := generateTestURL(suite.T())
 	var shortenURL string
