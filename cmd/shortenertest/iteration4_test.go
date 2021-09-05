@@ -4,6 +4,7 @@ package main
 import (
 	"context"
 	"errors"
+	"flag"
 	"io/fs"
 	"net/http"
 	"net/url"
@@ -22,6 +23,9 @@ import (
 type Iteration4Suite struct {
 	suite.Suite
 
+	flagTargetSourcePath string
+	flagTargetBinaryPath string
+
 	serverAddress string
 	serverProcess *fork.BackgroundProcess
 
@@ -30,6 +34,11 @@ type Iteration4Suite struct {
 
 // SetupSuite bootstraps suite dependencies
 func (suite *Iteration4Suite) SetupSuite() {
+	// suite flags
+	flag.StringVar(&suite.flagTargetSourcePath, "source-path", "", "path to target HTTP server source")
+	flag.StringVar(&suite.flagTargetBinaryPath, "binary-path", "", "path to target HTTP server binary")
+	flag.Parse()
+
 	suite.knownEncodingLibs = []string{
 		"encoding/json",
 		"github.com/mailru/easyjson",
@@ -40,7 +49,7 @@ func (suite *Iteration4Suite) SetupSuite() {
 
 	// start server
 	{
-		p := fork.NewBackgroundProcess(context.Background(), flagTargetBinaryPath)
+		p := fork.NewBackgroundProcess(context.Background(), suite.flagTargetBinaryPath)
 
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
@@ -91,7 +100,7 @@ func (suite *Iteration4Suite) TearDownSuite() {
 
 // TestEncoderUsage attempts to recursively find usage of known HTTP frameworks in given sources
 func (suite *Iteration4Suite) TestEncoderUsage() {
-	err := filepath.WalkDir(flagTargetSourcePath, func(path string, d fs.DirEntry, err error) error {
+	err := filepath.WalkDir(suite.flagTargetSourcePath, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}
@@ -128,24 +137,16 @@ func (suite *Iteration4Suite) TestEncoderUsage() {
 	}
 
 	if err == nil {
-		suite.T().Errorf("No usage of known encoding libraries has been found in %s", flagTargetSourcePath)
+		suite.T().Errorf("No usage of known encoding libraries has been found in %s", suite.flagTargetSourcePath)
 		return
 	}
 	suite.T().Errorf("unexpected error: %s", err)
 }
 
 // TestJSONHandler attempts to:
-// - generate and send ransom URL to JSON API handler
+// - generate and send random URL to JSON API handler
 // - fetch original URL by sending shorten URL to expand handler
 func (suite *Iteration4Suite) TestJSONHandler() {
-	type shortenRequest struct {
-		URL string `json:"url"`
-	}
-
-	type shortenResponse struct {
-		Result string `json:"result"`
-	}
-
 	// create HTTP client without redirects support
 	errRedirectBlocked := errors.New("HTTP redirect blocked")
 	httpc := resty.New().
@@ -161,6 +162,14 @@ func (suite *Iteration4Suite) TestJSONHandler() {
 	var shortenURL string
 
 	suite.Run("shorten", func() {
+		type shortenRequest struct {
+			URL string `json:"url"`
+		}
+
+		type shortenResponse struct {
+			Result string `json:"result"`
+		}
+
 		var result shortenResponse
 
 		resp, err := httpc.R().
@@ -172,7 +181,7 @@ func (suite *Iteration4Suite) TestJSONHandler() {
 			Post("/api/shorten")
 		suite.Require().NoError(err)
 
-		shortenURL = string(resp.Body())
+		shortenURL = result.Result
 
 		suite.Assert().Equal(http.StatusCreated, resp.StatusCode())
 		suite.Assert().NoError(func() error {

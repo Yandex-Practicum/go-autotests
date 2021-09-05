@@ -4,6 +4,7 @@ package main
 import (
 	"context"
 	"errors"
+	"flag"
 	"net/http"
 	"net/url"
 	"syscall"
@@ -19,17 +20,22 @@ import (
 type Iteration1Suite struct {
 	suite.Suite
 
-	serverAddress string
-	serverProcess *fork.BackgroundProcess
+	flagTargetBinaryPath string
+	serverAddress        string
+	serverProcess        *fork.BackgroundProcess
 }
 
 // SetupSuite bootstraps suite dependencies
 func (suite *Iteration1Suite) SetupSuite() {
+	// suite flags
+	flag.StringVar(&suite.flagTargetBinaryPath, "binary-path", "", "path to target HTTP server binary")
+	flag.Parse()
+
 	suite.serverAddress = "http://localhost:8080"
 
 	// start server
 	{
-		p := fork.NewBackgroundProcess(context.Background(), flagTargetBinaryPath)
+		p := fork.NewBackgroundProcess(context.Background(), suite.flagTargetBinaryPath)
 
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
@@ -79,7 +85,7 @@ func (suite *Iteration1Suite) TearDownSuite() {
 }
 
 // TestHandlers attempts to:
-// - generate and send ransom URL to shorten handler
+// - generate and send random URL to shorten handler
 // - fetch original URL by sending shorten URL to expand handler
 func (suite *Iteration1Suite) TestHandlers() {
 	originalURL := generateTestURL(suite.T())

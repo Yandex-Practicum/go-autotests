@@ -4,6 +4,7 @@ package main
 import (
 	"context"
 	"errors"
+	"flag"
 	"io/fs"
 	"os/exec"
 	"path/filepath"
@@ -17,11 +18,17 @@ import (
 // Iteration2Suite is a suite of autotests
 type Iteration2Suite struct {
 	suite.Suite
-	coverRegex *regexp.Regexp
+
+	flagTargetSourcePath string
+	coverRegex           *regexp.Regexp
 }
 
 // SetupSuite bootstraps suite dependencies
 func (suite *Iteration2Suite) SetupSuite() {
+	// suite flags
+	flag.StringVar(&suite.flagTargetSourcePath, "source-path", "", "path to target HTTP server source")
+	flag.Parse()
+
 	regex, err := regexp.Compile(`coverage: (\d+.\d)% of statements`)
 	suite.Require().NoError(err)
 
@@ -30,7 +37,7 @@ func (suite *Iteration2Suite) SetupSuite() {
 
 // TestFilesPresence attempts to recursively find at least one Go test file in source path
 func (suite *Iteration2Suite) TestFilesPresence() {
-	err := filepath.WalkDir(flagTargetSourcePath, func(path string, d fs.DirEntry, err error) error {
+	err := filepath.WalkDir(suite.flagTargetSourcePath, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}
@@ -56,7 +63,7 @@ func (suite *Iteration2Suite) TestFilesPresence() {
 	}
 
 	if err == nil {
-		suite.T().Errorf("No test files have been found in %s", flagTargetSourcePath)
+		suite.T().Errorf("No test files have been found in %s", suite.flagTargetSourcePath)
 		return
 	}
 	suite.T().Errorf("unexpected error: %s", err)
@@ -64,7 +71,7 @@ func (suite *Iteration2Suite) TestFilesPresence() {
 
 // TestServerCoverage attempts to obtain and parse coverage report using standard Go tooling
 func (suite *Iteration2Suite) TestServerCoverage() {
-	sourcePath := strings.TrimRight(flagTargetSourcePath, "/") + "/..."
+	sourcePath := strings.TrimRight(suite.flagTargetSourcePath, "/") + "/..."
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
