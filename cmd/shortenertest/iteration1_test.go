@@ -88,6 +88,7 @@ func (suite *Iteration1Suite) TestHandlers() {
 	// create HTTP client without redirects support
 	errRedirectBlocked := errors.New("HTTP redirect blocked")
 	httpc := resty.New().
+		SetHostURL(suite.serverAddress).
 		SetRedirectPolicy(
 			resty.RedirectPolicyFunc(func(_ *http.Request, _ []*http.Request) error {
 				return errRedirectBlocked
@@ -97,7 +98,7 @@ func (suite *Iteration1Suite) TestHandlers() {
 	suite.Run("shorten", func() {
 		resp, err := httpc.R().
 			SetBody(originalURL).
-			Post(suite.serverAddress)
+			Post("/")
 		suite.Require().NoError(err)
 
 		shortenURL = string(resp.Body())

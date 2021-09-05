@@ -138,25 +138,38 @@ func (suite *Iteration4Suite) TestEncoderUsage() {
 // - generate and send ransom URL to JSON API handler
 // - fetch original URL by sending shorten URL to expand handler
 func (suite *Iteration4Suite) TestJSONHandler() {
-	suite.T().Skip("implement me")
-	return
+	type shortenRequest struct {
+		URL string `json:"url"`
+	}
 
-	originalURL := generateTestURL(suite.T())
-	var shortenURL string
+	type shortenResponse struct {
+		Result string `json:"result"`
+	}
 
 	// create HTTP client without redirects support
 	errRedirectBlocked := errors.New("HTTP redirect blocked")
 	httpc := resty.New().
+		SetHostURL(suite.serverAddress).
 		SetRedirectPolicy(
 			resty.RedirectPolicyFunc(func(_ *http.Request, _ []*http.Request) error {
 				return errRedirectBlocked
 			}),
 		)
 
+	// declare and generate URLs
+	originalURL := generateTestURL(suite.T())
+	var shortenURL string
+
 	suite.Run("shorten", func() {
+		var result shortenResponse
+
 		resp, err := httpc.R().
-			SetBody(originalURL).
-			Post(suite.serverAddress)
+			SetHeader("Content-Type", "application/json").
+			SetBody(&shortenRequest{
+				URL: originalURL,
+			}).
+			SetResult(&result).
+			Post("/api/shorten")
 		suite.Require().NoError(err)
 
 		shortenURL = string(resp.Body())
