@@ -91,7 +91,7 @@ func (suite *Iteration3Suite) SetupSuite() {
 	}
 }
 
-// Test attempts to recursively find usage of known HTTP frameworks in given sources
+// TestFrameworkUsage attempts to recursively find usage of known HTTP frameworks in given sources
 func (suite *Iteration3Suite) TestFrameworkUsage() {
 	err := filepath.WalkDir(flagTargetSourcePath, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {

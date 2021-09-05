@@ -4,8 +4,11 @@ package main
 import (
 	"context"
 	"errors"
+	"io/fs"
 	"net/http"
 	"net/url"
+	"path/filepath"
+	"strings"
 	"syscall"
 	"time"
 
@@ -15,16 +18,24 @@ import (
 	"github.com/Yandex-Practicum/go-autotests/internal/fork"
 )
 
-// Iteration1Suite is a suite of autotests
-type Iteration1Suite struct {
+// Iteration4Suite is a suite of autotests
+type Iteration4Suite struct {
 	suite.Suite
 
 	serverAddress string
 	serverProcess *fork.BackgroundProcess
+
+	knownEncodingLibs []string
 }
 
 // SetupSuite bootstraps suite dependencies
-func (suite *Iteration1Suite) SetupSuite() {
+func (suite *Iteration4Suite) SetupSuite() {
+	suite.knownEncodingLibs = []string{
+		"encoding/json",
+		"github.com/mailru/easyjson",
+		"github.com/pquerna/ffjson",
+	}
+
 	suite.serverAddress = "http://localhost:8080"
 
 	// start server
@@ -52,7 +63,7 @@ func (suite *Iteration1Suite) SetupSuite() {
 }
 
 // TearDownSuite teardowns suite dependencies
-func (suite *Iteration1Suite) TearDownSuite() {
+func (suite *Iteration4Suite) TearDownSuite() {
 	if suite.serverProcess == nil {
 		return
 	}
@@ -78,10 +89,58 @@ func (suite *Iteration1Suite) TearDownSuite() {
 	}
 }
 
-// TestHandlers attempts to:
-// - generate and send ransom URL to shorten handler
+// TestEncoderUsage attempts to recursively find usage of known HTTP frameworks in given sources
+func (suite *Iteration4Suite) TestEncoderUsage() {
+	err := filepath.WalkDir(flagTargetSourcePath, func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+
+		if d.IsDir() {
+			// skip vendor directory
+			if d.Name() == "vendor" || d.Name() == ".git" {
+				return filepath.SkipDir
+			}
+			// dive into regular directory
+			return nil
+		}
+
+		// skip test files or non-Go files
+		if !strings.HasSuffix(d.Name(), ".go") || strings.HasSuffix(d.Name(), "_test.go") {
+			return nil
+		}
+
+		spec, err := importsKnownPackage(suite.T(), path, suite.knownEncodingLibs)
+		if err != nil {
+			// log error and continue traversing
+			suite.T().Logf("error inspecting file %s: %s", path, err)
+			return nil
+		}
+		if spec != nil && spec.Name.String() != "_" {
+			return errUsageFound
+		}
+
+		return nil
+	})
+
+	if errors.Is(err, errUsageFound) {
+		return
+	}
+
+	if err == nil {
+		suite.T().Errorf("No usage of known encoding libraries has been found in %s", flagTargetSourcePath)
+		return
+	}
+	suite.T().Errorf("unexpected error: %s", err)
+}
+
+// TestJSONHandler attempts to:
+// - generate and send ransom URL to JSON API handler
 // - fetch original URL by sending shorten URL to expand handler
-func (suite *Iteration1Suite) TestHandlers() {
+func (suite *Iteration4Suite) TestJSONHandler() {
+	suite.T().Skip("implement me")
+	return
+
 	originalURL := generateTestURL(suite.T())
 	var shortenURL string
 

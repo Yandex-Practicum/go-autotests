@@ -28,7 +28,7 @@ func (suite *Iteration2Suite) SetupSuite() {
 	suite.coverRegex = regex
 }
 
-// Test attempts to recursively find at least one Go test file in source path
+// TestFilesPresence attempts to recursively find at least one Go test file in source path
 func (suite *Iteration2Suite) TestFilesPresence() {
 	err := filepath.WalkDir(flagTargetSourcePath, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
@@ -62,7 +62,7 @@ func (suite *Iteration2Suite) TestFilesPresence() {
 	suite.T().Errorf("unexpected error: %s", err)
 }
 
-// Test attempts to obtain and parse coverage report using standard Go tooling
+// TestServerCoverage attempts to obtain and parse coverage report using standard Go tooling
 func (suite *Iteration2Suite) TestServerCoverage() {
 	sourcePath := strings.TrimRight(flagTargetSourcePath, "/") + "/..."
 
