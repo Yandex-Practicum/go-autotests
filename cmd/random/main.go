@@ -9,6 +9,7 @@ import (
 var cmds = []cmd{
 	unusedPortCmd,
 	domainCmd,
+	tempfileCmd,
 }
 
 type cmd struct {

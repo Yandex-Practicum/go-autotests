@@ -10,6 +10,7 @@ var (
 	flagServerHost       string
 	flagServerPort       string
 	flagServerBaseURL    string
+	flagFileStoragePath  string
 )
 
 func init() {
@@ -18,4 +19,5 @@ func init() {
 	flag.StringVar(&flagServerHost, "server-host", "", "host of target HTTP address")
 	flag.StringVar(&flagServerPort, "server-port", "", "port of target HTTP address")
 	flag.StringVar(&flagServerBaseURL, "server-base-url", "", "base URL of target HTTP address")
+	flag.StringVar(&flagFileStoragePath, "file-storage-path", "", "path to persistent file storage")
 }
