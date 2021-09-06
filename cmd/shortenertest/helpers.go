@@ -1,12 +1,15 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"go/ast"
 	"go/parser"
 	"go/token"
+	"net"
 	"strings"
 	"testing"
+	"time"
 
 	"golang.org/x/tools/go/ast/astutil"
 
@@ -41,4 +44,22 @@ func importsKnownPackage(t *testing.T, filepath string, knownPackages []string) 
 	}
 
 	return nil, nil
+}
+
+// dialContextFunc is a function that is suitable to be setted as an (*http.Transport).DialContext
+type dialContextFunc = func(ctx context.Context, network, addr string) (net.Conn, error)
+
+// mockResolver returns dialContextFunc that intercepts network requests
+// and resolves given address as custom IP address
+func mockResolver(network, requestAddress, responseIP string) dialContextFunc {
+	dialer := &net.Dialer{
+		Timeout:   time.Second,
+		KeepAlive: 30 * time.Second,
+	}
+	return func(ctx context.Context, net, addr string) (net.Conn, error) {
+		if net == network && addr == requestAddress {
+			addr = responseIP
+		}
+		return dialer.DialContext(ctx, net, addr)
+	}
 }

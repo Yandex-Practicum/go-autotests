@@ -4,7 +4,6 @@ package main
 import (
 	"context"
 	"errors"
-	"flag"
 	"net/http"
 	"net/url"
 	"syscall"
@@ -20,22 +19,25 @@ import (
 type Iteration5Suite struct {
 	suite.Suite
 
-	flagTargetBinaryPath string
-	flagServerAddress    string
-
 	serverProcess *fork.BackgroundProcess
 }
 
 // SetupSuite bootstraps suite dependencies
 func (suite *Iteration5Suite) SetupSuite() {
-	// suite flags
-	flag.StringVar(&suite.flagTargetBinaryPath, "binary-path", "", "path to target HTTP server binary")
-	flag.StringVar(&suite.flagServerAddress, "server-address", "", "address of target HTTP address")
-	flag.Parse()
+	// check required flags
+	suite.Require().NotEmpty(flagTargetBinaryPath, "-binary-path flag required")
+	suite.Require().NotEmpty(flagServerHost, "-server-host flag required")
+	suite.Require().NotEmpty(flagServerPort, "-server-port flag required")
+	suite.Require().NotEmpty(flagServerBaseURL, "-server-base-url flag required")
 
 	// start server
 	{
-		p := fork.NewBackgroundProcess(context.Background(), suite.flagTargetBinaryPath)
+		p := fork.NewBackgroundProcess(context.Background(), flagTargetBinaryPath,
+			fork.WithEnv(
+				"SERVER_ADDRESS="+flagServerHost,
+				"BASE_URL="+flagServerBaseURL,
+			),
+		)
 
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
@@ -92,10 +94,20 @@ func (suite *Iteration5Suite) TestHandlers() {
 	originalURL := generateTestURL(suite.T())
 	var shortenURLs []string
 
-	// create HTTP client without redirects support
+	// create HTTP client without redirects support and custom resolver
 	errRedirectBlocked := errors.New("HTTP redirect blocked")
-	httpc := resty.New().
-		SetHostURL(suite.flagServerAddress).
+
+	restyClient := resty.New()
+	transport := restyClient.GetClient().Transport.(*http.Transport)
+
+	// mock all network requests to be resolved at localhost
+	requestAddress := flagServerHost + ":" + flagServerPort
+	responseIP := "127.0.0.1:" + flagServerPort
+	transport.DialContext = mockResolver("tcp", requestAddress, responseIP)
+
+	httpc := restyClient.
+		SetTransport(transport).
+		SetHostURL(flagServerBaseURL).
 		SetRedirectPolicy(
 			resty.RedirectPolicyFunc(func(_ *http.Request, _ []*http.Request) error {
 				return errRedirectBlocked

@@ -8,7 +8,7 @@ import (
 
 var cmds = []cmd{
 	unusedPortCmd,
-	httpHostCmd,
+	domainCmd,
 }
 
 type cmd struct {

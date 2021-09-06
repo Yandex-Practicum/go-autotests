@@ -4,7 +4,6 @@ package main
 import (
 	"context"
 	"errors"
-	"flag"
 	"net/http"
 	"net/url"
 	"syscall"
@@ -20,22 +19,20 @@ import (
 type Iteration1Suite struct {
 	suite.Suite
 
-	flagTargetBinaryPath string
-	serverAddress        string
-	serverProcess        *fork.BackgroundProcess
+	serverAddress string
+	serverProcess *fork.BackgroundProcess
 }
 
 // SetupSuite bootstraps suite dependencies
 func (suite *Iteration1Suite) SetupSuite() {
-	// suite flags
-	flag.StringVar(&suite.flagTargetBinaryPath, "binary-path", "", "path to target HTTP server binary")
-	flag.Parse()
+	// check required flags
+	suite.Require().NotEmpty(flagTargetBinaryPath, "-binary-path flag required")
 
 	suite.serverAddress = "http://localhost:8080"
 
 	// start server
 	{
-		p := fork.NewBackgroundProcess(context.Background(), suite.flagTargetBinaryPath)
+		p := fork.NewBackgroundProcess(context.Background(), flagTargetBinaryPath)
 
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()

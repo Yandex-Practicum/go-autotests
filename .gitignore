@@ -20,3 +20,4 @@ vendor/
 # Ignore artifacts
 cmd/shortenertest/shortnertest
 cmd/statictest/statictest
+cmd/random/random

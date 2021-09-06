@@ -4,7 +4,6 @@ package main
 import (
 	"context"
 	"errors"
-	"flag"
 	"io/fs"
 	"net/http"
 	"net/url"
@@ -23,9 +22,6 @@ import (
 type Iteration4Suite struct {
 	suite.Suite
 
-	flagTargetSourcePath string
-	flagTargetBinaryPath string
-
 	serverAddress string
 	serverProcess *fork.BackgroundProcess
 
@@ -34,10 +30,9 @@ type Iteration4Suite struct {
 
 // SetupSuite bootstraps suite dependencies
 func (suite *Iteration4Suite) SetupSuite() {
-	// suite flags
-	flag.StringVar(&suite.flagTargetSourcePath, "source-path", "", "path to target HTTP server source")
-	flag.StringVar(&suite.flagTargetBinaryPath, "binary-path", "", "path to target HTTP server binary")
-	flag.Parse()
+	// check required flags
+	suite.Require().NotEmpty(flagTargetSourcePath, "-source-path flag required")
+	suite.Require().NotEmpty(flagTargetBinaryPath, "-binary-path flag required")
 
 	suite.knownEncodingLibs = []string{
 		"encoding/json",
@@ -49,7 +44,7 @@ func (suite *Iteration4Suite) SetupSuite() {
 
 	// start server
 	{
-		p := fork.NewBackgroundProcess(context.Background(), suite.flagTargetBinaryPath)
+		p := fork.NewBackgroundProcess(context.Background(), flagTargetBinaryPath)
 
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
@@ -100,7 +95,7 @@ func (suite *Iteration4Suite) TearDownSuite() {
 
 // TestEncoderUsage attempts to recursively find usage of known HTTP frameworks in given sources
 func (suite *Iteration4Suite) TestEncoderUsage() {
-	err := filepath.WalkDir(suite.flagTargetSourcePath, func(path string, d fs.DirEntry, err error) error {
+	err := filepath.WalkDir(flagTargetSourcePath, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}
@@ -137,7 +132,7 @@ func (suite *Iteration4Suite) TestEncoderUsage() {
 	}
 
 	if err == nil {
-		suite.T().Errorf("No usage of known encoding libraries has been found in %s", suite.flagTargetSourcePath)
+		suite.T().Errorf("No usage of known encoding libraries has been found in %s", flagTargetSourcePath)
 		return
 	}
 	suite.T().Errorf("unexpected error: %s", err)

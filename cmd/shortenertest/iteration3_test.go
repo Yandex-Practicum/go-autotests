@@ -3,7 +3,6 @@ package main
 // Basic imports
 import (
 	"errors"
-	"flag"
 	"io/fs"
 	"path/filepath"
 	"strings"
@@ -15,15 +14,13 @@ import (
 type Iteration3Suite struct {
 	suite.Suite
 
-	flagTargetSourcePath string
-	knownFrameworks      []string
+	knownFrameworks []string
 }
 
 // SetupSuite bootstraps suite dependencies
 func (suite *Iteration3Suite) SetupSuite() {
-	// suite flags
-	flag.StringVar(&suite.flagTargetSourcePath, "source-path", "", "path to target HTTP server source")
-	flag.Parse()
+	// check required flags
+	suite.Require().NotEmpty(flagTargetSourcePath, "-source-path flag required")
 
 	suite.knownFrameworks = []string{
 		"aahframework.org",
@@ -100,7 +97,7 @@ func (suite *Iteration3Suite) SetupSuite() {
 
 // TestFrameworkUsage attempts to recursively find usage of known HTTP frameworks in given sources
 func (suite *Iteration3Suite) TestFrameworkUsage() {
-	err := filepath.WalkDir(suite.flagTargetSourcePath, func(path string, d fs.DirEntry, err error) error {
+	err := filepath.WalkDir(flagTargetSourcePath, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}
@@ -137,7 +134,7 @@ func (suite *Iteration3Suite) TestFrameworkUsage() {
 	}
 
 	if err == nil {
-		suite.T().Errorf("No usage of known HTTP framework has been found in %s", suite.flagTargetSourcePath)
+		suite.T().Errorf("No usage of known HTTP framework has been found in %s", flagTargetSourcePath)
 		return
 	}
 	suite.T().Errorf("unexpected error: %s", err)
