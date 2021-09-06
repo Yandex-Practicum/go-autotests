@@ -6,6 +6,7 @@ import (
 	"errors"
 	"net/http"
 	"net/url"
+	"os"
 	"syscall"
 	"time"
 
@@ -16,7 +17,7 @@ import (
 )
 
 // Iteration5Suite is a suite of autotests
-type Iteration5Suite struct {
+type Iteration7Suite struct {
 	suite.Suite
 
 	serverAddress string
@@ -25,10 +26,11 @@ type Iteration5Suite struct {
 }
 
 // SetupSuite bootstraps suite dependencies
-func (suite *Iteration5Suite) SetupSuite() {
+func (suite *Iteration7Suite) SetupSuite() {
 	// check required flags
 	suite.Require().NotEmpty(flagTargetBinaryPath, "-binary-path non-empty flag required")
 	suite.Require().NotEmpty(flagServerPort, "-server-port non-empty flag required")
+	suite.Require().NotEmpty(flagFileStoragePath, "-file-storage-path non-empty flag required")
 
 	// start server
 	{
@@ -36,9 +38,10 @@ func (suite *Iteration5Suite) SetupSuite() {
 		suite.serverBaseURL = "http://" + suite.serverAddress
 
 		p := fork.NewBackgroundProcess(context.Background(), flagTargetBinaryPath,
-			fork.WithEnv(
-				"SERVER_ADDRESS="+suite.serverAddress,
-				"BASE_URL="+suite.serverBaseURL,
+			fork.WithEnv("SERVER_ADDRESS="+suite.serverAddress),
+			fork.WithArgs(
+				"-b="+suite.serverBaseURL,
+				"-f="+flagFileStoragePath,
 			),
 		)
 
@@ -62,37 +65,16 @@ func (suite *Iteration5Suite) SetupSuite() {
 }
 
 // TearDownSuite teardowns suite dependencies
-func (suite *Iteration5Suite) TearDownSuite() {
-	if suite.serverProcess == nil {
-		return
-	}
-
-	exitCode, err := suite.serverProcess.Stop(syscall.SIGINT, syscall.SIGKILL)
-	if err != nil {
-		suite.T().Logf("unable to stop server via OS signals: %s", err)
-		return
-	}
-	if exitCode > 0 {
-		suite.T().Logf("server has exited with non-zero exit code: %s", err)
-
-		// try to read stderr
-		ctx, cancel := context.WithTimeout(context.Background(), 500*time.Millisecond)
-		defer cancel()
-
-		out := suite.serverProcess.Stderr(ctx)
-		if len(out) > 0 {
-			suite.T().Logf("server process stderr log obtained:\n\n%s", string(out))
-		}
-
-		return
-	}
+func (suite *Iteration7Suite) TearDownSuite() {
+	suite.stopServer()
 }
 
-// TestEnvVars attempts to:
+// TestFlags attempts to:
 // - generate and send random URL to shorten handler
 // - generate and send random URL to shorten API handler
 // - fetch original URLs by sending shorten URLs to expand handler one by one
-func (suite *Iteration5Suite) TestEnvVars() {
+// - check if persistent file exists and not empty
+func (suite *Iteration7Suite) TestFlags() {
 	originalURL := generateTestURL(suite.T())
 	var shortenURLs []string
 
@@ -174,4 +156,41 @@ func (suite *Iteration5Suite) TestEnvVars() {
 			suite.Assert().Equalf(originalURL, resp.Header().Get("Location"), "URL to expand: %s", shortenURL)
 		}
 	})
+
+	suite.Run("check_file", func() {
+		// stop server in case of file flushed on exit
+		suite.stopServer()
+
+		suite.Assert().FileExists(flagFileStoragePath)
+		b, err := os.ReadFile(flagFileStoragePath)
+		suite.Require().NoError(err)
+		suite.Assert().NotEmpty(b)
+	})
+}
+
+// TearDownSuite teardowns suite dependencies
+func (suite *Iteration7Suite) stopServer() {
+	if suite.serverProcess == nil {
+		return
+	}
+
+	exitCode, err := suite.serverProcess.Stop(syscall.SIGINT, syscall.SIGKILL)
+	if err != nil && !errors.Is(err, os.ErrProcessDone) {
+		suite.T().Logf("unable to stop server via OS signals: %s", err)
+		return
+	}
+	if exitCode > 0 {
+		suite.T().Logf("server has exited with non-zero exit code: %s", err)
+
+		// try to read stderr
+		ctx, cancel := context.WithTimeout(context.Background(), 500*time.Millisecond)
+		defer cancel()
+
+		out := suite.serverProcess.Stderr(ctx)
+		if len(out) > 0 {
+			suite.T().Logf("server process stderr log obtained:\n\n%s", string(out))
+		}
+
+		return
+	}
 }
