@@ -24,7 +24,7 @@ type Iteration2Suite struct {
 // SetupSuite bootstraps suite dependencies
 func (suite *Iteration2Suite) SetupSuite() {
 	// check required flags
-	suite.Require().NotEmpty(flagTargetSourcePath, "-source-path flag required")
+	suite.Require().NotEmpty(flagTargetSourcePath, "-source-path non-empty flag required")
 
 	regex, err := regexp.Compile(`coverage: (\d+.\d)% of statements`)
 	suite.Require().NoError(err)

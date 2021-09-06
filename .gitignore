@@ -18,6 +18,6 @@ vendor/
 .idea/
 
 # Ignore artifacts
-cmd/shortenertest/shortnertest
+cmd/shortenertest/shortenertest
 cmd/statictest/statictest
 cmd/random/random

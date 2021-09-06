@@ -26,7 +26,7 @@ type Iteration1Suite struct {
 // SetupSuite bootstraps suite dependencies
 func (suite *Iteration1Suite) SetupSuite() {
 	// check required flags
-	suite.Require().NotEmpty(flagTargetBinaryPath, "-binary-path flag required")
+	suite.Require().NotEmpty(flagTargetBinaryPath, "-binary-path non-empty flag required")
 
 	suite.serverAddress = "http://localhost:8080"
 

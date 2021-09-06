@@ -19,23 +19,26 @@ import (
 type Iteration5Suite struct {
 	suite.Suite
 
+	serverAddress string
+	serverBaseURL string
 	serverProcess *fork.BackgroundProcess
 }
 
 // SetupSuite bootstraps suite dependencies
 func (suite *Iteration5Suite) SetupSuite() {
 	// check required flags
-	suite.Require().NotEmpty(flagTargetBinaryPath, "-binary-path flag required")
-	suite.Require().NotEmpty(flagServerHost, "-server-host flag required")
-	suite.Require().NotEmpty(flagServerPort, "-server-port flag required")
-	suite.Require().NotEmpty(flagServerBaseURL, "-server-base-url flag required")
+	suite.Require().NotEmpty(flagTargetBinaryPath, "-binary-path non-empty flag required")
+	suite.Require().NotEmpty(flagServerPort, "-server-port non-empty flag required")
 
 	// start server
 	{
+		suite.serverAddress = "localhost:" + flagServerPort
+		suite.serverBaseURL = "http://" + suite.serverAddress
+
 		p := fork.NewBackgroundProcess(context.Background(), flagTargetBinaryPath,
 			fork.WithEnv(
-				"SERVER_ADDRESS="+flagServerHost,
-				"BASE_URL="+flagServerBaseURL,
+				"SERVER_ADDRESS="+suite.serverAddress,
+				"BASE_URL="+suite.serverBaseURL,
 			),
 		)
 
@@ -48,10 +51,9 @@ func (suite *Iteration5Suite) SetupSuite() {
 			return
 		}
 
-		port := "8080"
-		err = p.WaitPort(ctx, "tcp", port)
+		err = p.WaitPort(ctx, "tcp", flagServerPort)
 		if err != nil {
-			suite.T().Errorf("unable to wait for port %s to become available: %s", port, err)
+			suite.T().Errorf("unable to wait for port %s to become available: %s", flagServerPort, err)
 			return
 		}
 
@@ -101,13 +103,12 @@ func (suite *Iteration5Suite) TestHandlers() {
 	transport := restyClient.GetClient().Transport.(*http.Transport)
 
 	// mock all network requests to be resolved at localhost
-	requestAddress := flagServerHost + ":" + flagServerPort
-	responseIP := "127.0.0.1:" + flagServerPort
-	transport.DialContext = mockResolver("tcp", requestAddress, responseIP)
+	resolveIP := "127.0.0.1:" + flagServerPort
+	transport.DialContext = mockResolver("tcp", suite.serverAddress, resolveIP)
 
 	httpc := restyClient.
 		SetTransport(transport).
-		SetHostURL(flagServerBaseURL).
+		SetHostURL(suite.serverBaseURL).
 		SetRedirectPolicy(
 			resty.RedirectPolicyFunc(func(_ *http.Request, _ []*http.Request) error {
 				return errRedirectBlocked

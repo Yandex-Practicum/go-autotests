@@ -20,7 +20,7 @@ type Iteration3Suite struct {
 // SetupSuite bootstraps suite dependencies
 func (suite *Iteration3Suite) SetupSuite() {
 	// check required flags
-	suite.Require().NotEmpty(flagTargetSourcePath, "-source-path flag required")
+	suite.Require().NotEmpty(flagTargetSourcePath, "-source-path non-empty flag required")
 
 	suite.knownFrameworks = []string{
 		"aahframework.org",

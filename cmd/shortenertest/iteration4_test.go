@@ -31,8 +31,8 @@ type Iteration4Suite struct {
 // SetupSuite bootstraps suite dependencies
 func (suite *Iteration4Suite) SetupSuite() {
 	// check required flags
-	suite.Require().NotEmpty(flagTargetSourcePath, "-source-path flag required")
-	suite.Require().NotEmpty(flagTargetBinaryPath, "-binary-path flag required")
+	suite.Require().NotEmpty(flagTargetSourcePath, "-source-path non-empty flag required")
+	suite.Require().NotEmpty(flagTargetBinaryPath, "-binary-path non-empty flag required")
 
 	suite.knownEncodingLibs = []string{
 		"encoding/json",
