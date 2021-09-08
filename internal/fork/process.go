@@ -8,6 +8,7 @@ import (
 	"net"
 	"os"
 	"os/exec"
+	"strings"
 	"time"
 )
 
@@ -70,6 +71,8 @@ func (p *BackgroundProcess) Start(ctx context.Context) error {
 func (p *BackgroundProcess) WaitPort(ctx context.Context, network, port string) error {
 	ticker := time.NewTicker(p.waitPortInterval)
 	defer ticker.Stop()
+
+	port = strings.TrimLeft(port, ":")
 
 	for {
 		select {

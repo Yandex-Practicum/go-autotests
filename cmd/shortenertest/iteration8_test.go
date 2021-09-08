@@ -2,11 +2,12 @@ package main
 
 // Basic imports
 import (
+	"bytes"
+	"compress/gzip"
 	"context"
 	"errors"
 	"net/http"
 	"net/url"
-	"os"
 	"syscall"
 	"time"
 
@@ -16,34 +17,24 @@ import (
 	"github.com/Yandex-Practicum/go-autotests/internal/fork"
 )
 
-// Iteration7Suite is a suite of autotests
-type Iteration7Suite struct {
+// Iteration8Suite is a suite of autotests
+type Iteration8Suite struct {
 	suite.Suite
 
 	serverAddress string
-	serverBaseURL string
 	serverProcess *fork.BackgroundProcess
 }
 
 // SetupSuite bootstraps suite dependencies
-func (suite *Iteration7Suite) SetupSuite() {
+func (suite *Iteration8Suite) SetupSuite() {
 	// check required flags
 	suite.Require().NotEmpty(flagTargetBinaryPath, "-binary-path non-empty flag required")
-	suite.Require().NotEmpty(flagServerPort, "-server-port non-empty flag required")
-	suite.Require().NotEmpty(flagFileStoragePath, "-file-storage-path non-empty flag required")
+
+	suite.serverAddress = "http://localhost:8080"
 
 	// start server
 	{
-		suite.serverAddress = "localhost:" + flagServerPort
-		suite.serverBaseURL = "http://" + suite.serverAddress
-
-		p := fork.NewBackgroundProcess(context.Background(), flagTargetBinaryPath,
-			fork.WithEnv("SERVER_ADDRESS="+suite.serverAddress),
-			fork.WithArgs(
-				"-b="+suite.serverBaseURL,
-				"-f="+flagFileStoragePath,
-			),
-		)
+		p := fork.NewBackgroundProcess(context.Background(), flagTargetBinaryPath)
 
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
@@ -54,9 +45,9 @@ func (suite *Iteration7Suite) SetupSuite() {
 			return
 		}
 
-		err = p.WaitPort(ctx, "tcp", flagServerPort)
+		err = p.WaitPort(ctx, "tcp", "8080")
 		if err != nil {
-			suite.T().Errorf("unable to wait for port %s to become available: %s", flagServerPort, err)
+			suite.T().Errorf("unable to wait for port %s to become available: %s", "8080", err)
 			return
 		}
 
@@ -65,32 +56,45 @@ func (suite *Iteration7Suite) SetupSuite() {
 }
 
 // TearDownSuite teardowns suite dependencies
-func (suite *Iteration7Suite) TearDownSuite() {
-	suite.stopServer()
+func (suite *Iteration8Suite) TearDownSuite() {
+	if suite.serverProcess == nil {
+		return
+	}
+
+	exitCode, err := suite.serverProcess.Stop(syscall.SIGINT, syscall.SIGKILL)
+	if err != nil {
+		suite.T().Logf("unable to stop server via OS signals: %s", err)
+		return
+	}
+	if exitCode > 0 {
+		suite.T().Logf("server has exited with non-zero exit code: %s", err)
+
+		// try to read stderr
+		ctx, cancel := context.WithTimeout(context.Background(), 500*time.Millisecond)
+		defer cancel()
+
+		out := suite.serverProcess.Stderr(ctx)
+		if len(out) > 0 {
+			suite.T().Logf("server process stderr log obtained:\n\n%s", string(out))
+		}
+
+		return
+	}
 }
 
-// TestFlags attempts to:
-// - generate and send random URL to shorten handler
-// - generate and send random URL to shorten API handler
+// TestGzipCompress attempts to:
+// - generate and send random URL to shorten handler (with gzip)
+// - generate and send random URL to shorten API handler (without gzip)
 // - fetch original URLs by sending shorten URLs to expand handler one by one
-// - check if persistent file exists and not empty
-func (suite *Iteration7Suite) TestFlags() {
+func (suite *Iteration8Suite) TestGzipCompress() {
 	originalURL := generateTestURL(suite.T())
 	var shortenURLs []string
 
 	// create HTTP client without redirects support and custom resolver
 	errRedirectBlocked := errors.New("HTTP redirect blocked")
 
-	restyClient := resty.New()
-	transport := restyClient.GetClient().Transport.(*http.Transport)
-
-	// mock all network requests to be resolved at localhost
-	resolveIP := "127.0.0.1:" + flagServerPort
-	transport.DialContext = mockResolver("tcp", suite.serverAddress, resolveIP)
-
-	httpc := restyClient.
-		SetTransport(transport).
-		SetHostURL(suite.serverBaseURL).
+	httpc := resty.New().
+		SetHostURL(suite.serverAddress).
 		SetRedirectPolicy(
 			resty.RedirectPolicyFunc(func(_ *http.Request, _ []*http.Request) error {
 				return errRedirectBlocked
@@ -98,8 +102,16 @@ func (suite *Iteration7Suite) TestFlags() {
 		)
 
 	suite.Run("shorten", func() {
+		// gzip request body for base shorten handler
+		var buf bytes.Buffer
+		zw := gzip.NewWriter(&buf)
+		_, _ = zw.Write([]byte(originalURL))
+		_ = zw.Close()
+
 		resp, err := httpc.R().
-			SetBody(originalURL).
+			SetBody(buf.Bytes()).
+			SetHeader("Accept-Encoding", "gzip").
+			SetHeader("Content-Encoding", "gzip").
 			Post("/")
 		suite.Require().NoError(err)
 
@@ -156,41 +168,4 @@ func (suite *Iteration7Suite) TestFlags() {
 			suite.Assert().Equalf(originalURL, resp.Header().Get("Location"), "URL to expand: %s", shortenURL)
 		}
 	})
-
-	suite.Run("check_file", func() {
-		// stop server in case of file flushed on exit
-		suite.stopServer()
-
-		suite.Assert().FileExists(flagFileStoragePath)
-		b, err := os.ReadFile(flagFileStoragePath)
-		suite.Require().NoError(err)
-		suite.Assert().NotEmpty(b)
-	})
-}
-
-// TearDownSuite teardowns suite dependencies
-func (suite *Iteration7Suite) stopServer() {
-	if suite.serverProcess == nil {
-		return
-	}
-
-	exitCode, err := suite.serverProcess.Stop(syscall.SIGINT, syscall.SIGKILL)
-	if err != nil && !errors.Is(err, os.ErrProcessDone) {
-		suite.T().Logf("unable to stop server via OS signals: %s", err)
-		return
-	}
-	if exitCode > 0 {
-		suite.T().Logf("server has exited with non-zero exit code: %s", err)
-
-		// try to read stderr
-		ctx, cancel := context.WithTimeout(context.Background(), 500*time.Millisecond)
-		defer cancel()
-
-		out := suite.serverProcess.Stderr(ctx)
-		if len(out) > 0 {
-			suite.T().Logf("server process stderr log obtained:\n\n%s", string(out))
-		}
-
-		return
-	}
 }
