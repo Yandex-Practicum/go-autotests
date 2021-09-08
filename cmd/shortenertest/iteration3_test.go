@@ -1,23 +1,28 @@
 package main
 
+// Basic imports
 import (
 	"errors"
-	"fmt"
-	"go/ast"
-	"go/parser"
-	"go/token"
 	"io/fs"
 	"path/filepath"
 	"strings"
-	"testing"
 
-	"golang.org/x/tools/go/ast/astutil"
+	"github.com/stretchr/testify/suite"
 )
 
-var (
-	importFound = errors.New("known import found")
+// Iteration3Suite is a suite of autotests
+type Iteration3Suite struct {
+	suite.Suite
 
-	knownHTTPFrameworks = []string{
+	knownFrameworks []string
+}
+
+// SetupSuite bootstraps suite dependencies
+func (suite *Iteration3Suite) SetupSuite() {
+	// check required flags
+	suite.Require().NotEmpty(flagTargetSourcePath, "-source-path non-empty flag required")
+
+	suite.knownFrameworks = []string{
 		"aahframework.org",
 		"confetti-framework.com",
 		"github.com/abahmed/gearbox",
@@ -88,13 +93,11 @@ var (
 		"gobuffalo.io",
 		"rest-layer.io",
 	}
-)
+}
 
-// TestUsesHTTPFramework checks that students code uses known 3rd party HTTP framework
-func TestUsesHTTPFramework(t *testing.T) {
-	fset := token.NewFileSet()
-
-	err := filepath.WalkDir(config.SourceRoot, func(path string, d fs.DirEntry, err error) error {
+// TestFrameworkUsage attempts to recursively find usage of known HTTP frameworks in given sources
+func (suite *Iteration3Suite) TestFrameworkUsage() {
+	err := filepath.WalkDir(flagTargetSourcePath, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}
@@ -113,40 +116,26 @@ func TestUsesHTTPFramework(t *testing.T) {
 			return nil
 		}
 
-		sf, err := parser.ParseFile(fset, path, nil, parser.ImportsOnly)
+		spec, err := importsKnownPackage(suite.T(), path, suite.knownFrameworks)
 		if err != nil {
-			return fmt.Errorf("cannot parse AST of file: %s: %w", path, err)
+			// log error and continue traversing
+			suite.T().Logf("error inspecting file %s: %s", path, err)
+			return nil
 		}
-
-		importSpecs := astutil.Imports(fset, sf)
-		if importsKnownPackage(importSpecs, knownHTTPFrameworks) {
-			return importFound
+		if spec != nil && spec.Name.String() != "_" {
+			return errUsageFound
 		}
 
 		return nil
 	})
 
-	if errors.Is(err, importFound) {
+	if errors.Is(err, errUsageFound) {
 		return
 	}
 
 	if err == nil {
-		t.Error("No import of known HTTP framework has been found")
+		suite.T().Errorf("No usage of known HTTP framework has been found in %s", flagTargetSourcePath)
 		return
 	}
-
-	t.Errorf("unexpected error: %s", err)
-}
-
-func importsKnownPackage(imports [][]*ast.ImportSpec, knownPackages []string) bool {
-	for _, paragraph := range imports {
-		for _, importSpec := range paragraph {
-			for _, knownImport := range knownPackages {
-				if strings.Contains(importSpec.Path.Value, knownImport) {
-					return true
-				}
-			}
-		}
-	}
-	return false
+	suite.T().Errorf("unexpected error: %s", err)
 }
