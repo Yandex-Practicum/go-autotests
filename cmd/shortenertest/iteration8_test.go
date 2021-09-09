@@ -36,14 +36,17 @@ func (suite *Iteration8Suite) SetupSuite() {
 
 	// start server
 	{
-		p := fork.NewBackgroundProcess(context.Background(), flagTargetBinaryPath)
+		envs := os.Environ()
+		p := fork.NewBackgroundProcess(context.Background(), flagTargetBinaryPath,
+			fork.WithEnv(envs...),
+		)
 
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
 
 		err := p.Start(ctx)
 		if err != nil {
-			suite.T().Errorf("Невозможно запустить процесс командой %s: %s", p, err)
+			suite.T().Errorf("Невозможно запустить процесс командой %s: %s. Переменные окружения: %+v", p, err, envs)
 			return
 		}
 
@@ -160,6 +163,9 @@ func (suite *Iteration8Suite) TestGzipCompress() {
 
 		shortenURL := result.Result
 
+		suite.Assert().Containsf(resp.Header().Get("Content-Type"), "application/json",
+			"Заголовок ответа Content-Type содержит несоответствующее значение",
+		)
 		suite.Assert().Equalf(http.StatusCreated, resp.StatusCode(),
 			"Несоответствие статус кода ответа ожидаемому в хендлере '%s %s'", req.Method, req.URL)
 		suite.Assert().NoErrorf(func() error {

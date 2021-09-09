@@ -38,9 +38,9 @@ func (suite *Iteration7Suite) SetupSuite() {
 		suite.serverAddress = "localhost:" + flagServerPort
 		suite.serverBaseURL = "http://" + suite.serverAddress
 
-		envs := []string{
+		envs := append(os.Environ(), []string{
 			"SERVER_ADDRESS=" + suite.serverAddress,
-		}
+		}...)
 		args := []string{
 			"-b=" + suite.serverBaseURL,
 			"-f=" + flagFileStoragePath,
@@ -151,6 +151,9 @@ func (suite *Iteration7Suite) TestFlags() {
 
 		shortenURL := result.Result
 
+		suite.Assert().Containsf(resp.Header().Get("Content-Type"), "application/json",
+			"Заголовок ответа Content-Type содержит несоответствующее значение",
+		)
 		suite.Assert().Equalf(http.StatusCreated, resp.StatusCode(),
 			"Несоответствие статус кода ответа ожидаемому в хендлере '%s %s'", req.Method, req.URL)
 		suite.Assert().NoErrorf(func() error {
