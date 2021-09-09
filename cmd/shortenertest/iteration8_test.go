@@ -7,7 +7,9 @@ import (
 	"context"
 	"errors"
 	"net/http"
+	"net/http/httputil"
 	"net/url"
+	"os"
 	"syscall"
 	"time"
 
@@ -41,13 +43,14 @@ func (suite *Iteration8Suite) SetupSuite() {
 
 		err := p.Start(ctx)
 		if err != nil {
-			suite.T().Errorf("cannot start process with command %s: %s", p, err)
+			suite.T().Errorf("Невозможно запустить процесс командой %s: %s", p, err)
 			return
 		}
 
-		err = p.WaitPort(ctx, "tcp", "8080")
+		port := "8080"
+		err = p.WaitPort(ctx, "tcp", port)
 		if err != nil {
-			suite.T().Errorf("unable to wait for port %s to become available: %s", "8080", err)
+			suite.T().Errorf("Не удалось дождаться пока порт %s станет доступен для запроса: %s", port, err)
 			return
 		}
 
@@ -63,11 +66,14 @@ func (suite *Iteration8Suite) TearDownSuite() {
 
 	exitCode, err := suite.serverProcess.Stop(syscall.SIGINT, syscall.SIGKILL)
 	if err != nil {
-		suite.T().Logf("unable to stop server via OS signals: %s", err)
+		if errors.Is(err, os.ErrProcessDone) {
+			return
+		}
+		suite.T().Logf("Не удалось остановить процесс с помощью сигнала ОС: %s", err)
 		return
 	}
 	if exitCode > 0 {
-		suite.T().Logf("server has exited with non-zero exit code: %s", err)
+		suite.T().Logf("Процесс завершился с не нулевым статусом: %s", err)
 
 		// try to read stderr
 		ctx, cancel := context.WithTimeout(context.Background(), 500*time.Millisecond)
@@ -75,7 +81,7 @@ func (suite *Iteration8Suite) TearDownSuite() {
 
 		out := suite.serverProcess.Stderr(ctx)
 		if len(out) > 0 {
-			suite.T().Logf("server process stderr log obtained:\n\n%s", string(out))
+			suite.T().Logf("Получен лог процесса:\n\n%s", string(out))
 		}
 
 		return
@@ -92,14 +98,13 @@ func (suite *Iteration8Suite) TestGzipCompress() {
 
 	// create HTTP client without redirects support and custom resolver
 	errRedirectBlocked := errors.New("HTTP redirect blocked")
+	redirPolicy := resty.RedirectPolicyFunc(func(_ *http.Request, _ []*http.Request) error {
+		return errRedirectBlocked
+	})
 
 	httpc := resty.New().
 		SetHostURL(suite.serverAddress).
-		SetRedirectPolicy(
-			resty.RedirectPolicyFunc(func(_ *http.Request, _ []*http.Request) error {
-				return errRedirectBlocked
-			}),
-		)
+		SetRedirectPolicy(redirPolicy)
 
 	suite.Run("shorten", func() {
 		// gzip request body for base shorten handler
@@ -108,20 +113,24 @@ func (suite *Iteration8Suite) TestGzipCompress() {
 		_, _ = zw.Write([]byte(originalURL))
 		_ = zw.Close()
 
-		resp, err := httpc.R().
+		req := httpc.R().
 			SetBody(buf.Bytes()).
 			SetHeader("Accept-Encoding", "gzip").
-			SetHeader("Content-Encoding", "gzip").
-			Post("/")
-		suite.Require().NoError(err)
+			SetHeader("Content-Encoding", "gzip")
+		resp, err := req.Post("/")
+		if err != nil {
+			dump, _ := httputil.DumpRequest(req.RawRequest, true)
+			suite.Require().NoErrorf(err, "Ошибка при попытке сделать запрос для сокращения URL:\n\n %s", dump)
+		}
 
 		shortenURL := string(resp.Body())
 
-		suite.Assert().Equal(http.StatusCreated, resp.StatusCode())
-		suite.Assert().NoError(func() error {
+		suite.Assert().Equalf(http.StatusCreated, resp.StatusCode(),
+			"Несоответствие статус кода ответа ожидаемому в хендлере '%s %s'", req.Method, req.URL)
+		suite.Assert().NoErrorf(func() error {
 			_, err := url.Parse(shortenURL)
 			return err
-		}())
+		}(), "Невозможно распарсить полученный сокращенный URL - %s : %s", shortenURL, err)
 
 		shortenURLs = append(shortenURLs, shortenURL)
 	})
@@ -137,35 +146,47 @@ func (suite *Iteration8Suite) TestGzipCompress() {
 
 		var result shortenResponse
 
-		resp, err := httpc.R().
+		req := httpc.R().
 			SetHeader("Content-Type", "application/json").
 			SetBody(&shortenRequest{
 				URL: originalURL,
 			}).
-			SetResult(&result).
-			Post("/api/shorten")
-		suite.Require().NoError(err)
+			SetResult(&result)
+		resp, err := req.Post("/api/shorten")
+		if err != nil {
+			dump, _ := httputil.DumpRequest(req.RawRequest, true)
+			suite.Require().NoErrorf(err, "Ошибка при попытке сделать запрос для сокращения URL:\n\n %s", dump)
+		}
 
 		shortenURL := result.Result
 
-		suite.Assert().Equal(http.StatusCreated, resp.StatusCode())
-		suite.Assert().NoError(func() error {
+		suite.Assert().Equalf(http.StatusCreated, resp.StatusCode(),
+			"Несоответствие статус кода ответа ожидаемому в хендлере '%s %s'", req.Method, req.URL)
+		suite.Assert().NoErrorf(func() error {
 			_, err := url.Parse(shortenURL)
 			return err
-		}())
+		}(), "Невозможно распарсить полученный сокращенный URL - %s : %s", shortenURL, err)
 
 		shortenURLs = append(shortenURLs, shortenURL)
 	})
 
 	suite.Run("expand", func() {
 		for _, shortenURL := range shortenURLs {
-			resp, err := httpc.R().Get(shortenURL)
+			req := resty.New().
+				SetRedirectPolicy(redirPolicy).
+				R()
+			resp, err := req.Get(shortenURL)
 			if !errors.Is(err, errRedirectBlocked) {
-				suite.Assert().NoErrorf(err, "URL to expand: %s", shortenURL)
+				dump, _ := httputil.DumpRequest(req.RawRequest, false)
+				suite.Require().NoErrorf(err, "Ошибка при попытке сделать запрос для получения исходного URL:\n\n %s", dump)
 			}
 
-			suite.Assert().Equalf(http.StatusTemporaryRedirect, resp.StatusCode(), "URL to expand: %s", shortenURL)
-			suite.Assert().Equalf(originalURL, resp.Header().Get("Location"), "URL to expand: %s", shortenURL)
+			suite.Assert().Equalf(http.StatusTemporaryRedirect, resp.StatusCode(),
+				"Несоответствие статус кода ответа ожидаемому в хендлере '%s %s'", req.Method, req.URL,
+			)
+			suite.Assert().Equalf(originalURL, resp.Header().Get("Location"),
+				"Несоответствие URL полученного в заголовке Location ожидаемому",
+			)
 		}
 	})
 }

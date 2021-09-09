@@ -119,7 +119,7 @@ func (suite *Iteration3Suite) TestFrameworkUsage() {
 		spec, err := importsKnownPackage(suite.T(), path, suite.knownFrameworks)
 		if err != nil {
 			// log error and continue traversing
-			suite.T().Logf("error inspecting file %s: %s", path, err)
+			suite.T().Logf("Ошибка инспекции файла %s: %s", path, err)
 			return nil
 		}
 		if spec != nil && spec.Name.String() != "_" {
@@ -134,8 +134,8 @@ func (suite *Iteration3Suite) TestFrameworkUsage() {
 	}
 
 	if err == nil {
-		suite.T().Errorf("No usage of known HTTP framework has been found in %s", flagTargetSourcePath)
+		suite.T().Errorf("Не найдено использование хотя бы одного известного HTTP фреймворка по пути %s", flagTargetSourcePath)
 		return
 	}
-	suite.T().Errorf("unexpected error: %s", err)
+	suite.T().Errorf("Неожиданная ошибка при поиске использования фреймворка по пути %s: %s", flagTargetSourcePath, err)
 }

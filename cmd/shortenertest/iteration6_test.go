@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"net/http"
+	"net/http/httputil"
 	"net/url"
 	"os"
 	"syscall"
@@ -34,8 +35,12 @@ func (suite *Iteration6Suite) SetupSuite() {
 
 	// start server
 	{
+		envs := []string{
+			"FILE_STORAGE_PATH=" + flagFileStoragePath,
+		}
+
 		p := fork.NewBackgroundProcess(context.Background(), flagTargetBinaryPath,
-			fork.WithEnv("FILE_STORAGE_PATH="+flagFileStoragePath),
+			fork.WithEnv(envs...),
 		)
 
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
@@ -43,14 +48,14 @@ func (suite *Iteration6Suite) SetupSuite() {
 
 		err := p.Start(ctx)
 		if err != nil {
-			suite.T().Errorf("cannot start process with command %s: %s", p, err)
+			suite.T().Errorf("Невозможно запустить процесс командой %s: %s. Переменные окружения: %+v", p, err, envs)
 			return
 		}
 
 		port := "8080"
 		err = p.WaitPort(ctx, "tcp", port)
 		if err != nil {
-			suite.T().Errorf("unable to wait for port %s to become available: %s", port, err)
+			suite.T().Errorf("Не удалось дождаться пока порт %s станет доступен для запроса: %s", port, err)
 			return
 		}
 
@@ -72,47 +77,59 @@ func (suite *Iteration6Suite) TestPersistentFile() {
 
 	// create HTTP client without redirects support
 	errRedirectBlocked := errors.New("HTTP redirect blocked")
+	redirPolicy := resty.RedirectPolicyFunc(func(_ *http.Request, _ []*http.Request) error {
+		return errRedirectBlocked
+	})
+
 	httpc := resty.New().
 		SetHostURL(suite.serverAddress).
-		SetRedirectPolicy(
-			resty.RedirectPolicyFunc(func(_ *http.Request, _ []*http.Request) error {
-				return errRedirectBlocked
-			}),
-		)
+		SetRedirectPolicy(redirPolicy)
 
 	suite.Run("shorten", func() {
-		resp, err := httpc.R().
-			SetBody(originalURL).
-			Post("/")
-		suite.Require().NoError(err)
+		req := httpc.R().
+			SetBody(originalURL)
+		resp, err := req.Post("/")
+		if err != nil {
+			dump, _ := httputil.DumpRequest(req.RawRequest, true)
+			suite.Require().NoErrorf(err, "Ошибка при попытке сделать запрос для сокращения URL:\n\n %s", dump)
+		}
 
 		shortenURL = string(resp.Body())
 
-		suite.Assert().Equal(http.StatusCreated, resp.StatusCode())
-		suite.Assert().NoError(func() error {
+		suite.Assert().Equalf(http.StatusCreated, resp.StatusCode(),
+			"Несоответствие статус кода ответа ожидаемому в хендлере '%s %s'", req.Method, req.URL)
+		suite.Assert().NoErrorf(func() error {
 			_, err := url.Parse(shortenURL)
 			return err
-		}())
+		}(), "Невозможно распарсить полученный сокращенный URL - %s : %s", shortenURL, err)
 	})
 
 	suite.Run("expand", func() {
-		resp, err := httpc.R().Get(shortenURL)
+		req := resty.New().
+			SetRedirectPolicy(redirPolicy).
+			R()
+		resp, err := req.Get(shortenURL)
 		if !errors.Is(err, errRedirectBlocked) {
-			suite.Require().NoError(err)
+			dump, _ := httputil.DumpRequest(req.RawRequest, false)
+			suite.Require().NoErrorf(err, "Ошибка при попытке сделать запрос для получения исходного URL:\n\n %s", dump)
 		}
 
-		suite.Assert().Equal(http.StatusTemporaryRedirect, resp.StatusCode())
-		suite.Assert().Equal(originalURL, resp.Header().Get("Location"))
+		suite.Assert().Equalf(http.StatusTemporaryRedirect, resp.StatusCode(),
+			"Несоответствие статус кода ответа ожидаемому в хендлере '%s %s'", req.Method, req.URL,
+		)
+		suite.Assert().Equalf(originalURL, resp.Header().Get("Location"),
+			"Несоответствие URL полученного в заголовке Location ожидаемому",
+		)
 	})
 
 	suite.Run("check_file", func() {
 		// stop server in case of file flushed on exit
 		suite.stopServer()
 
-		suite.Assert().FileExists(flagFileStoragePath)
+		suite.Assert().FileExistsf(flagFileStoragePath, "Не удалось найти файл с сохраненными URL")
 		b, err := os.ReadFile(flagFileStoragePath)
-		suite.Require().NoError(err)
-		suite.Assert().NotEmpty(b)
+		suite.Require().NoErrorf(err, "Ошибка при чтении файла с сохраненными URL")
+		suite.Assert().NotEmptyf(b, "Файл с сохраненными URL не должен быть пуст")
 	})
 }
 
@@ -123,12 +140,15 @@ func (suite *Iteration6Suite) stopServer() {
 	}
 
 	exitCode, err := suite.serverProcess.Stop(syscall.SIGINT, syscall.SIGKILL)
-	if err != nil && !errors.Is(err, os.ErrProcessDone) {
-		suite.T().Logf("unable to stop server via OS signals: %s", err)
+	if err != nil {
+		if errors.Is(err, os.ErrProcessDone) {
+			return
+		}
+		suite.T().Logf("Не удалось остановить процесс с помощью сигнала ОС: %s", err)
 		return
 	}
 	if exitCode > 0 {
-		suite.T().Logf("server has exited with non-zero exit code: %s", err)
+		suite.T().Logf("Процесс завершился с не нулевым статусом: %s", err)
 
 		// try to read stderr
 		ctx, cancel := context.WithTimeout(context.Background(), 500*time.Millisecond)
@@ -136,7 +156,7 @@ func (suite *Iteration6Suite) stopServer() {
 
 		out := suite.serverProcess.Stderr(ctx)
 		if len(out) > 0 {
-			suite.T().Logf("server process stderr log obtained:\n\n%s", string(out))
+			suite.T().Logf("Получен лог процесса:\n\n%s", string(out))
 		}
 
 		return
