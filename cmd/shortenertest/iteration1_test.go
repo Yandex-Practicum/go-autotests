@@ -67,7 +67,7 @@ func (suite *Iteration1Suite) TearDownSuite() {
 		return
 	}
 	if exitCode > 0 {
-		suite.T().Logf("Процесс завершился с не нулевых статусом: %s", err)
+		suite.T().Logf("Процесс завершился с не нулевым статусом: %s", err)
 
 		// try to read stderr
 		ctx, cancel := context.WithTimeout(context.Background(), 500*time.Millisecond)
