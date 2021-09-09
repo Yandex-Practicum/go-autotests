@@ -38,9 +38,9 @@ func (suite *Iteration7Suite) SetupSuite() {
 		suite.serverAddress = "localhost:" + flagServerPort
 		suite.serverBaseURL = "http://" + suite.serverAddress
 
-		envs := []string{
+		envs := append(os.Environ(), []string{
 			"SERVER_ADDRESS=" + suite.serverAddress,
-		}
+		}...)
 		args := []string{
 			"-b=" + suite.serverBaseURL,
 			"-f=" + flagFileStoragePath,

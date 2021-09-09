@@ -35,9 +35,9 @@ func (suite *Iteration6Suite) SetupSuite() {
 
 	// start server
 	{
-		envs := []string{
+		envs := append(os.Environ(), []string{
 			"FILE_STORAGE_PATH=" + flagFileStoragePath,
-		}
+		}...)
 
 		p := fork.NewBackgroundProcess(context.Background(), flagTargetBinaryPath,
 			fork.WithEnv(envs...),

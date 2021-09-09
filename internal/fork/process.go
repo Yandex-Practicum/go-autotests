@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"log"
 	"net"
 	"os"
 	"os/exec"
@@ -54,6 +55,7 @@ func NewBackgroundProcess(ctx context.Context, command string, opts ...ProcessOp
 func (p *BackgroundProcess) Start(ctx context.Context) error {
 	startChan := make(chan error, 1)
 	go func() {
+		log.Printf("process envs: %+v", p.cmd.Env)
 		startChan <- p.cmd.Start()
 	}()
 

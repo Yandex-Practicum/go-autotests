@@ -46,14 +46,17 @@ func (suite *Iteration4Suite) SetupSuite() {
 
 	// start server
 	{
-		p := fork.NewBackgroundProcess(context.Background(), flagTargetBinaryPath)
+		envs := os.Environ()
+		p := fork.NewBackgroundProcess(context.Background(), flagTargetBinaryPath,
+			fork.WithEnv(envs...),
+		)
 
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
 
 		err := p.Start(ctx)
 		if err != nil {
-			suite.T().Errorf("Невозможно запустить процесс командой %s: %s", p, err)
+			suite.T().Errorf("Невозможно запустить процесс командой %s: %s. Переменные окружения: %+v", p, err, envs)
 			return
 		}
 

@@ -36,10 +36,10 @@ func (suite *Iteration5Suite) SetupSuite() {
 	{
 		suite.serverAddress = "localhost:" + flagServerPort
 		suite.serverBaseURL = "http://" + suite.serverAddress
-		envs := []string{
+		envs := append(os.Environ(), []string{
 			"SERVER_ADDRESS=" + suite.serverAddress,
 			"BASE_URL=" + suite.serverBaseURL,
-		}
+		}...)
 
 		p := fork.NewBackgroundProcess(context.Background(), flagTargetBinaryPath,
 			fork.WithEnv(envs...),
