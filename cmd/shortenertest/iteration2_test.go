@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"io/fs"
+	"os"
 	"os/exec"
 	"path/filepath"
 	"regexp"
@@ -74,6 +75,7 @@ func (suite *Iteration2Suite) TestServerCoverage() {
 	defer cancel()
 
 	cmd := exec.CommandContext(ctx, "go", "test", "-cover", sourcePath)
+	cmd.Env = os.Environ() // pass parent envs
 	out, err := cmd.CombinedOutput()
 	suite.Assert().NoError(err, "Невозможно получить результат выполнения команды: %s. Вывод:\n\n %s", cmd, out)
 
