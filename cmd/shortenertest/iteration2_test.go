@@ -75,7 +75,7 @@ func (suite *Iteration2Suite) TestServerCoverage() {
 
 	cmd := exec.CommandContext(ctx, "go", "test", "-cover", sourcePath)
 	out, err := cmd.CombinedOutput()
-	suite.Assert().NoError(err, "Невозможно получить результат выполнения команды: %s", cmd)
+	suite.Assert().NoError(err, "Невозможно получить результат выполнения команды: %s. Вывод:\n\n %s", cmd, out)
 
 	matched := suite.coverRegex.Match(out)
 	found := suite.Assert().True(matched, "Отсутствует информация о покрытии кода тестами, команда: %s", cmd)

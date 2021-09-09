@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/http/httputil"
 	"net/url"
+	"os"
 	"syscall"
 	"time"
 
@@ -71,6 +72,9 @@ func (suite *Iteration5Suite) TearDownSuite() {
 
 	exitCode, err := suite.serverProcess.Stop(syscall.SIGINT, syscall.SIGKILL)
 	if err != nil {
+		if errors.Is(err, os.ErrProcessDone) {
+			return
+		}
 		suite.T().Logf("Не удалось остановить процесс с помощью сигнала ОС: %s", err)
 		return
 	}

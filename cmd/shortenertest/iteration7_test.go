@@ -200,6 +200,9 @@ func (suite *Iteration7Suite) stopServer() {
 
 	exitCode, err := suite.serverProcess.Stop(syscall.SIGINT, syscall.SIGKILL)
 	if err != nil {
+		if errors.Is(err, os.ErrProcessDone) {
+			return
+		}
 		suite.T().Logf("Не удалось остановить процесс с помощью сигнала ОС: %s", err)
 		return
 	}
