@@ -11,7 +11,7 @@ func URL() *url.URL {
 	var res url.URL
 
 	// generate SCHEME
-	res.Scheme = "http:"
+	res.Scheme = "http"
 	res.Host = Domain(5, 15)
 
 	for i := 0; i < mathrand.Intn(4); i++ {

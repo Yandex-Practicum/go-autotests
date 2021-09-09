@@ -60,10 +60,10 @@ func (suite *Iteration2Suite) TestFilesPresence() {
 	}
 
 	if err == nil {
-		suite.T().Errorf("No test files have been found in %s", flagTargetSourcePath)
+		suite.T().Errorf("Не найден ни один тестовый файл по пути %s", flagTargetSourcePath)
 		return
 	}
-	suite.T().Errorf("unexpected error: %s", err)
+	suite.T().Errorf("Неожиданная ошибка при поиске тестовых файлов по пути %s: %s", flagTargetSourcePath, err)
 }
 
 // TestServerCoverage attempts to obtain and parse coverage report using standard Go tooling
@@ -75,12 +75,12 @@ func (suite *Iteration2Suite) TestServerCoverage() {
 
 	cmd := exec.CommandContext(ctx, "go", "test", "-cover", sourcePath)
 	out, err := cmd.CombinedOutput()
-	suite.Assert().NoError(err, "got unexpected error from command: %s", cmd)
+	suite.Assert().NoError(err, "Невозможно получить результат выполнения команды: %s", cmd)
 
 	matched := suite.coverRegex.Match(out)
-	found := suite.Assert().True(matched, "no test coverage found in report of command: %s", cmd)
+	found := suite.Assert().True(matched, "Отсутствует информация о покрытии кода тестами, команда: %s", cmd)
 
 	if !found {
-		suite.T().Logf("program output was:\n\n%s", string(out))
+		suite.T().Logf("Вывод команды:\n\n%s", string(out))
 	}
 }
