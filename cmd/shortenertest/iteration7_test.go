@@ -149,7 +149,7 @@ func (suite *Iteration7Suite) TestFlags() {
 			suite.Require().NoErrorf(err, "Ошибка при попытке сделать запрос для сокращения URL:\n\n %s", dump)
 		}
 
-		shortenURL := string(resp.Body())
+		shortenURL := result.Result
 
 		suite.Assert().Equalf(http.StatusCreated, resp.StatusCode(),
 			"Несоответствие статус кода ответа ожидаемому в хендлере '%s %s'", req.Method, req.URL)
