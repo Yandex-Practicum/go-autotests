@@ -88,19 +88,21 @@ func (suite *Iteration6Suite) TestPersistentFile() {
 		req := httpc.R().
 			SetBody(originalURL)
 		resp, err := req.Post("/")
+		reqDump := dumpRequest(req.RawRequest, true)
 		if err != nil {
-			dump := dumpRequest(req.RawRequest, true)
-			suite.Require().NoErrorf(err, "Ошибка при попытке сделать запрос для сокращения URL:\n\n %s", dump)
+			suite.Require().NoErrorf(err, "Ошибка при попытке сделать запрос для сокращения URL:\n\n %s", reqDump)
 		}
+
+		respDump := dumpResponse(resp.RawResponse, true)
 
 		shortenURL = string(resp.Body())
 
 		suite.Assert().Equalf(http.StatusCreated, resp.StatusCode(),
-			"Несоответствие статус кода ответа ожидаемому в хендлере '%s %s'", req.Method, req.URL)
+			"Несоответствие статус кода ответа ожидаемому в хендлере '%s %s'. Запрос:\n\n%s\n\n Ответ:\n\n%s", req.Method, req.URL, reqDump, respDump)
 		suite.Assert().NoErrorf(func() error {
 			_, err := url.Parse(shortenURL)
 			return err
-		}(), "Невозможно распарсить полученный сокращенный URL - %s : %s", shortenURL, err)
+		}(), "Невозможно распарсить полученный сокращенный URL - %s : %s. Запрос:\n\n%s\n\n Ответ:\n\n%s", shortenURL, err, reqDump, respDump)
 	})
 
 	suite.Run("expand", func() {

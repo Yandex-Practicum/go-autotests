@@ -73,3 +73,11 @@ func dumpRequest(req *http.Request, body bool) (dump []byte) {
 	}
 	return
 }
+
+// dumpResponse is a shorthand to httputil.DumpResponse
+func dumpResponse(resp *http.Response, body bool) (dump []byte) {
+	if resp != nil {
+		dump, _ = httputil.DumpResponse(resp, body)
+	}
+	return
+}
