@@ -7,6 +7,8 @@ import (
 	"go/parser"
 	"go/token"
 	"net"
+	"net/http"
+	"net/http/httputil"
 	"strings"
 	"testing"
 	"time"
@@ -62,4 +64,12 @@ func mockResolver(network, requestAddress, responseIP string) dialContextFunc {
 		}
 		return dialer.DialContext(ctx, net, addr)
 	}
+}
+
+// dumpRequest is a shorthand to httputil.DumpRequest
+func dumpRequest(req *http.Request, body bool) (dump []byte) {
+	if req != nil {
+		dump, _ = httputil.DumpRequest(req, body)
+	}
+	return
 }

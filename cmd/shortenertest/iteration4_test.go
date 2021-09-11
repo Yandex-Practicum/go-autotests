@@ -6,7 +6,6 @@ import (
 	"errors"
 	"io/fs"
 	"net/http"
-	"net/http/httputil"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -183,7 +182,7 @@ func (suite *Iteration4Suite) TestJSONHandler() {
 			SetResult(&result)
 		resp, err := req.Post("/api/shorten")
 		if !errors.Is(err, errRedirectBlocked) {
-			dump, _ := httputil.DumpRequest(req.RawRequest, false)
+			dump := dumpRequest(req.RawRequest, true)
 			suite.Require().NoErrorf(err, "Ошибка при попытке сделать запрос для сокращения URL:\n\n %s", dump)
 		}
 
@@ -206,7 +205,7 @@ func (suite *Iteration4Suite) TestJSONHandler() {
 			R()
 		resp, err := req.Get(shortenURL)
 		if !errors.Is(err, errRedirectBlocked) {
-			dump, _ := httputil.DumpRequest(req.RawRequest, false)
+			dump := dumpRequest(req.RawRequest, false)
 			suite.Require().NoErrorf(err, "Ошибка при попытке сделать запрос для получения исходного URL:\n\n %s", dump)
 		}
 

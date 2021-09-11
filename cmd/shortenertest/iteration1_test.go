@@ -5,7 +5,6 @@ import (
 	"context"
 	"errors"
 	"net/http"
-	"net/http/httputil"
 	"net/url"
 	"os"
 	"syscall"
@@ -111,7 +110,7 @@ func (suite *Iteration1Suite) TestHandlers() {
 			SetBody(originalURL)
 		resp, err := req.Post("/")
 		if err != nil {
-			dump, _ := httputil.DumpRequest(req.RawRequest, true)
+			dump := dumpRequest(req.RawRequest, true)
 			suite.Require().NoErrorf(err, "Ошибка при попытке сделать запрос для сокращения URL:\n\n %s", dump)
 		}
 
@@ -131,7 +130,7 @@ func (suite *Iteration1Suite) TestHandlers() {
 			R()
 		resp, err := req.Get(shortenURL)
 		if !errors.Is(err, errRedirectBlocked) {
-			dump, _ := httputil.DumpRequest(req.RawRequest, false)
+			dump := dumpRequest(req.RawRequest, false)
 			suite.Require().NoErrorf(err, "Ошибка при попытке сделать запрос для получения исходного URL:\n\n %s", dump)
 		}
 
