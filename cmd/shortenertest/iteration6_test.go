@@ -42,7 +42,7 @@ func (suite *Iteration6Suite) SetupSuite() {
 			fork.WithEnv(envs...),
 		)
 
-		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 		defer cancel()
 
 		err := p.Start(ctx)

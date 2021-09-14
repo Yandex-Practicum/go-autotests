@@ -31,22 +31,25 @@ func (suite *Iteration10Suite) SetupSuite() {
 	// check required flags
 	suite.Require().NotEmpty(flagTargetSourcePath, "-source-path non-empty flag required")
 	suite.Require().NotEmpty(flagTargetBinaryPath, "-binary-path non-empty flag required")
+	suite.Require().NotEmpty(flagDatabaseDSN, "-database-dsn non-empty flag required")
 
 	suite.serverAddress = "http://localhost:8080"
 
 	// start server
 	{
 		envs := os.Environ()
+		args := []string{"-d=" + flagDatabaseDSN}
 		p := fork.NewBackgroundProcess(context.Background(), flagTargetBinaryPath,
 			fork.WithEnv(envs...),
+			fork.WithArgs(args...),
 		)
 
-		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 		defer cancel()
 
 		err := p.Start(ctx)
 		if err != nil {
-			suite.T().Errorf("Невозможно запустить процесс командой %s: %s. Переменные окружения: %+v", p, err, envs)
+			suite.T().Errorf("Невозможно запустить процесс командой %s: %s. Переменные окружения: %+v, аргументы: %+v", p, err, envs, args)
 			return
 		}
 
