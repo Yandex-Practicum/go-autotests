@@ -109,19 +109,23 @@ func (suite *Iteration1Suite) TestHandlers() {
 		req := httpc.R().
 			SetBody(originalURL)
 		resp, err := req.Post("/")
-		if err != nil {
-			dump := dumpRequest(req.RawRequest, true)
-			suite.Require().NoErrorf(err, "Ошибка при попытке сделать запрос для сокращения URL:\n\n %s", dump)
-		}
+
+		noRespErr := suite.Assert().NoError(err, "Ошибка при попытке сделать запрос для сокращения URL")
 
 		shortenURL = string(resp.Body())
 
-		suite.Assert().Equalf(http.StatusCreated, resp.StatusCode(),
+		validStatus := suite.Assert().Equalf(http.StatusCreated, resp.StatusCode(),
 			"Несоответствие статус кода ответа ожидаемому в хендлере '%s %s'", req.Method, req.URL)
-		suite.Assert().NoErrorf(func() error {
-			_, err := url.Parse(shortenURL)
-			return err
-		}(), "Невозможно распарсить полученный сокращенный URL - %s : %s", shortenURL, err)
+
+		_, urlParseErr := url.Parse(shortenURL)
+		validURL := suite.Assert().NoErrorf(urlParseErr,
+			"Невозможно распарсить полученный сокращенный URL - %s : %s", shortenURL, err,
+		)
+
+		if !noRespErr || !validStatus || !validURL {
+			dump := dumpRequest(req.RawRequest, true)
+			suite.T().Logf("Оригинальный запрос:\n\n%s", dump)
+		}
 	})
 
 	suite.Run("expand", func() {
@@ -129,16 +133,22 @@ func (suite *Iteration1Suite) TestHandlers() {
 			SetRedirectPolicy(redirPolicy).
 			R()
 		resp, err := req.Get(shortenURL)
+
+		noRespErr := true
 		if !errors.Is(err, errRedirectBlocked) {
-			dump := dumpRequest(req.RawRequest, false)
-			suite.Require().NoErrorf(err, "Ошибка при попытке сделать запрос для получения исходного URL:\n\n %s", dump)
+			noRespErr = suite.Assert().NoErrorf(err, "Ошибка при попытке сделать запрос для получения исходного URL")
 		}
 
-		suite.Assert().Equalf(http.StatusTemporaryRedirect, resp.StatusCode(),
+		validStatus := suite.Assert().Equalf(http.StatusTemporaryRedirect, resp.StatusCode(),
 			"Несоответствие статус кода ответа ожидаемому в хендлере '%s %s'", req.Method, req.URL,
 		)
-		suite.Assert().Equalf(originalURL, resp.Header().Get("Location"),
+		validURL := suite.Assert().Equalf(originalURL, resp.Header().Get("Location"),
 			"Несоответствие URL полученного в заголовке Location ожидаемому",
 		)
+
+		if !noRespErr || !validStatus || !validURL {
+			dump := dumpRequest(req.RawRequest, true)
+			suite.T().Logf("Оригинальный запрос:\n\n%s", dump)
+		}
 	})
 }

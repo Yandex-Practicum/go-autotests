@@ -107,19 +107,23 @@ func (suite *Iteration9Suite) TestAuth() {
 		req := httpc.R().
 			SetBody(originalURL)
 		resp, err := req.Post("/")
-		if err != nil {
-			dump := dumpRequest(req.RawRequest, true)
-			suite.Require().NoErrorf(err, "Ошибка при попытке сделать запрос для сокращения URL:\n\n %s", dump)
-		}
+
+		noRespErr := suite.Assert().NoError(err, "Ошибка при попытке сделать запрос для сокращения URL")
 
 		shortenURL = string(resp.Body())
 
-		suite.Assert().Equalf(http.StatusCreated, resp.StatusCode(),
+		validStatus := suite.Assert().Equalf(http.StatusCreated, resp.StatusCode(),
 			"Несоответствие статус кода ответа ожидаемому в хендлере '%s %s'", req.Method, req.URL)
-		suite.Assert().NoErrorf(func() error {
-			_, err := url.Parse(shortenURL)
-			return err
-		}(), "Невозможно распарсить полученный сокращенный URL - %s : %s", shortenURL, err)
+
+		_, urlParseErr := url.Parse(shortenURL)
+		validURL := suite.Assert().NoErrorf(urlParseErr,
+			"Невозможно распарсить полученный сокращенный URL - %s : %s", shortenURL, err,
+		)
+
+		if !noRespErr || !validStatus || !validURL {
+			dump := dumpRequest(req.RawRequest, true)
+			suite.T().Logf("Оригинальный запрос:\n\n%s", dump)
+		}
 	})
 
 	suite.Run("fetch_urls", func() {
@@ -134,15 +138,13 @@ func (suite *Iteration9Suite) TestAuth() {
 			SetHeader("Accept-Encoding", "identity").
 			SetResult(&respBody)
 		resp, err := req.Get("/user/urls")
-		if err != nil {
-			dump := dumpRequest(req.RawRequest, false)
-			suite.Require().NoErrorf(err, "Ошибка при попытке сделать запрос для получения списка сокращенных URL:\n\n %s", dump)
-		}
 
-		suite.Assert().Containsf(resp.Header().Get("Content-Type"), "application/json",
+		noRespErr := suite.Assert().NoErrorf(err, "Ошибка при попытке сделать запрос для получения списка сокращенных URL")
+
+		validContentType := suite.Assert().Containsf(resp.Header().Get("Content-Type"), "application/json",
 			"Заголовок ответа Content-Type содержит несоответствующее значение",
 		)
-		suite.Assert().Equalf(http.StatusOK, resp.StatusCode(),
+		validStatus := suite.Assert().Equalf(http.StatusOK, resp.StatusCode(),
 			"Несоответствие статус кода ответа ожидаемому в хендлере '%s %s'", req.Method, req.URL,
 		)
 
@@ -153,9 +155,14 @@ func (suite *Iteration9Suite) TestAuth() {
 			},
 		}
 
-		suite.Assert().Equalf(expectedBody, respBody,
+		validBody := suite.Assert().Equalf(expectedBody, respBody,
 			"Данные в теле ответа не соответствуют ожидаемым",
 		)
+
+		if !noRespErr || !validStatus || !validContentType || !validBody {
+			dump := dumpRequest(req.RawRequest, true)
+			suite.T().Logf("Оригинальный запрос:\n\n%s", dump)
+		}
 	})
 
 	suite.Run("fetch_no_urls", func() {

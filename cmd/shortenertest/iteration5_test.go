@@ -123,19 +123,23 @@ func (suite *Iteration5Suite) TestEnvVars() {
 		req := httpc.R().
 			SetBody(originalURL)
 		resp, err := req.Post("/")
-		if err != nil {
-			dump := dumpRequest(req.RawRequest, true)
-			suite.Require().NoErrorf(err, "Ошибка при попытке сделать запрос для сокращения URL:\n\n %s", dump)
-		}
+
+		noRespErr := suite.Assert().NoError(err, "Ошибка при попытке сделать запрос для сокращения URL")
 
 		shortenURL := string(resp.Body())
 
-		suite.Assert().Equalf(http.StatusCreated, resp.StatusCode(),
+		validStatus := suite.Assert().Equalf(http.StatusCreated, resp.StatusCode(),
 			"Несоответствие статус кода ответа ожидаемому в хендлере '%s %s'", req.Method, req.URL)
-		suite.Assert().NoErrorf(func() error {
-			_, err := url.Parse(shortenURL)
-			return err
-		}(), "Невозможно распарсить полученный сокращенный URL - %s : %s", shortenURL, err)
+
+		_, urlParseErr := url.Parse(shortenURL)
+		validURL := suite.Assert().NoErrorf(urlParseErr,
+			"Невозможно распарсить полученный сокращенный URL - %s : %s", shortenURL, err,
+		)
+
+		if !noRespErr || !validStatus || !validURL {
+			dump := dumpRequest(req.RawRequest, true)
+			suite.T().Logf("Оригинальный запрос:\n\n%s", dump)
+		}
 
 		shortenURLs = append(shortenURLs, shortenURL)
 	})
@@ -158,22 +162,27 @@ func (suite *Iteration5Suite) TestEnvVars() {
 			}).
 			SetResult(&result)
 		resp, err := req.Post("/api/shorten")
-		if err != nil {
-			dump := dumpRequest(req.RawRequest, true)
-			suite.Require().NoErrorf(err, "Ошибка при попытке сделать запрос для сокращения URL:\n\n %s", dump)
-		}
+
+		noRespErr := suite.Assert().NoError(err, "Ошибка при попытке сделать запрос для сокращения URL")
 
 		shortenURL := result.Result
 
-		suite.Assert().Containsf(resp.Header().Get("Content-Type"), "application/json",
+		validStatus := suite.Assert().Equalf(http.StatusCreated, resp.StatusCode(),
+			"Несоответствие статус кода ответа ожидаемому в хендлере '%s %s'", req.Method, req.URL)
+
+		validContentType := suite.Assert().Containsf(resp.Header().Get("Content-Type"), "application/json",
 			"Заголовок ответа Content-Type содержит несоответствующее значение",
 		)
-		suite.Assert().Equalf(http.StatusCreated, resp.StatusCode(),
-			"Несоответствие статус кода ответа ожидаемому в хендлере '%s %s'", req.Method, req.URL)
-		suite.Assert().NoErrorf(func() error {
-			_, err := url.Parse(shortenURL)
-			return err
-		}(), "Невозможно распарсить полученный сокращенный URL - %s : %s", shortenURL, err)
+
+		_, urlParseErr := url.Parse(shortenURL)
+		validURL := suite.Assert().NoErrorf(urlParseErr,
+			"Невозможно распарсить полученный сокращенный URL - %s : %s", shortenURL, err,
+		)
+
+		if !noRespErr || !validStatus || !validContentType || !validURL {
+			dump := dumpRequest(req.RawRequest, true)
+			suite.T().Logf("Оригинальный запрос:\n\n%s", dump)
+		}
 
 		shortenURLs = append(shortenURLs, shortenURL)
 	})
@@ -184,17 +193,22 @@ func (suite *Iteration5Suite) TestEnvVars() {
 				SetRedirectPolicy(redirPolicy).
 				R()
 			resp, err := req.Get(shortenURL)
+			noRespErr := true
 			if !errors.Is(err, errRedirectBlocked) {
-				dump := dumpRequest(req.RawRequest, false)
-				suite.Require().NoErrorf(err, "Ошибка при попытке сделать запрос для получения исходного URL:\n\n %s", dump)
+				noRespErr = suite.Assert().NoErrorf(err, "Ошибка при попытке сделать запрос для получения исходного URL")
 			}
 
-			suite.Assert().Equalf(http.StatusTemporaryRedirect, resp.StatusCode(),
+			validStatus := suite.Assert().Equalf(http.StatusTemporaryRedirect, resp.StatusCode(),
 				"Несоответствие статус кода ответа ожидаемому в хендлере '%s %s'", req.Method, req.URL,
 			)
-			suite.Assert().Equalf(originalURL, resp.Header().Get("Location"),
+			validURL := suite.Assert().Equalf(originalURL, resp.Header().Get("Location"),
 				"Несоответствие URL полученного в заголовке Location ожидаемому",
 			)
+
+			if !noRespErr || !validStatus || !validURL {
+				dump := dumpRequest(req.RawRequest, true)
+				suite.T().Logf("Оригинальный запрос:\n\n%s", dump)
+			}
 		}
 	})
 }
