@@ -100,6 +100,9 @@ func (suite *Iteration4Suite) TearDownSuite() {
 // TestEncoderUsage attempts to recursively find usage of known HTTP frameworks in given sources
 func (suite *Iteration4Suite) TestEncoderUsage() {
 	err := usesKnownPackage(suite.T(), flagTargetSourcePath, suite.knownEncodingLibs)
+	if err == nil {
+		return
+	}
 	if errors.Is(err, errUsageNotFound) {
 		suite.T().Errorf("Не найдено использование известных библиотек кодирования JSON %s", flagTargetSourcePath)
 		return

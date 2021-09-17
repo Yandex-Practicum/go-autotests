@@ -207,7 +207,7 @@ func (suite *Iteration7Suite) TestFlags() {
 
 	suite.Run("check_file", func() {
 		err := usesKnownPackage(suite.T(), flagTargetSourcePath, suite.knownPgLibraries)
-		if errors.Is(err, errUsageFound) {
+		if err == nil {
 			suite.T().Skip("найдено использование СУБД")
 			return
 		}

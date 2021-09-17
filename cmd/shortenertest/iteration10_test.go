@@ -99,7 +99,10 @@ func (suite *Iteration10Suite) TearDownSuite() {
 
 // TestLibraryUsage attempts to recursively find usage of database/sql in given sources
 func (suite *Iteration10Suite) TestLibraryUsage() {
-	err := usesKnownPackage(suite.T(), flagTargetSourcePath, suite.knownLibraries)
+	err := usesKnownPackage(suite.T(), ".", suite.knownLibraries)
+	if err == nil {
+		return
+	}
 	if errors.Is(err, errUsageNotFound) {
 		suite.T().Errorf("Не найдено использование библиотеки database/sql по пути %s", flagTargetSourcePath)
 		return
