@@ -20,9 +20,10 @@ import (
 type Iteration7Suite struct {
 	suite.Suite
 
-	serverAddress string
-	serverBaseURL string
-	serverProcess *fork.BackgroundProcess
+	serverAddress    string
+	serverBaseURL    string
+	serverProcess    *fork.BackgroundProcess
+	knownPgLibraries []string
 }
 
 // SetupSuite bootstraps suite dependencies
@@ -31,6 +32,13 @@ func (suite *Iteration7Suite) SetupSuite() {
 	suite.Require().NotEmpty(flagTargetBinaryPath, "-binary-path non-empty flag required")
 	suite.Require().NotEmpty(flagServerPort, "-server-port non-empty flag required")
 	suite.Require().NotEmpty(flagFileStoragePath, "-file-storage-path non-empty flag required")
+	suite.Require().NotEmpty(flagTargetSourcePath, "-source-path non-empty flag required")
+
+	suite.knownPgLibraries = []string{
+		"database/sql",
+		"github.com/jackc/pgx",
+		"github.com/lib/pq",
+	}
 
 	// start server
 	{
@@ -198,6 +206,12 @@ func (suite *Iteration7Suite) TestFlags() {
 	})
 
 	suite.Run("check_file", func() {
+		err := usesKnownPackage(suite.T(), flagTargetSourcePath, suite.knownPgLibraries)
+		if errors.Is(err, errUsageFound) {
+			suite.T().Skip("найдено использование СУБД")
+			return
+		}
+
 		// stop server in case of file flushed on exit
 		suite.stopServer()
 

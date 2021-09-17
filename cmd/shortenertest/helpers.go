@@ -2,13 +2,16 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"go/ast"
 	"go/parser"
 	"go/token"
+	"io/fs"
 	"net"
 	"net/http"
 	"net/http/httputil"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -24,6 +27,47 @@ func generateTestURL(t *testing.T) string {
 	return random.URL().String()
 }
 
+// usesKnownPackage checks if any file in given rootdir uses at least one of given knownPackages
+func usesKnownPackage(t *testing.T, rootdir string, knownPackages []string) error {
+	err := filepath.WalkDir(rootdir, func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+
+		if d.IsDir() {
+			// skip vendor directory
+			if d.Name() == "vendor" || d.Name() == ".git" {
+				return filepath.SkipDir
+			}
+			// dive into regular directory
+			return nil
+		}
+
+		// skip test files or non-Go files
+		if !strings.HasSuffix(d.Name(), ".go") || strings.HasSuffix(d.Name(), "_test.go") {
+			return nil
+		}
+
+		spec, err := importsKnownPackage(t, path, knownPackages)
+		if err != nil {
+			return fmt.Errorf("невозможно проинспектировать файл %s: %w", path, err)
+		}
+		if spec != nil && spec.Name.String() != "_" {
+			return errUsageFound
+		}
+
+		return nil
+	})
+
+	if err == nil {
+		return errUsageNotFound
+	}
+	if errors.Is(err, errUsageFound) {
+		return nil
+	}
+	return err
+}
+
 // importsKnownPackage checks if given file imports
 func importsKnownPackage(t *testing.T, filepath string, knownPackages []string) (*ast.ImportSpec, error) {
 	t.Helper()
@@ -31,7 +75,7 @@ func importsKnownPackage(t *testing.T, filepath string, knownPackages []string) 
 	fset := token.NewFileSet()
 	sf, err := parser.ParseFile(fset, filepath, nil, parser.ImportsOnly)
 	if err != nil {
-		return nil, fmt.Errorf("cannot parse file: %w", err)
+		return nil, fmt.Errorf("невозможно распарсить файл: %w", err)
 	}
 
 	importSpecs := astutil.Imports(fset, sf)

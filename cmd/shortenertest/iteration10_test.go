@@ -4,11 +4,8 @@ package main
 import (
 	"context"
 	"errors"
-	"io/fs"
 	"net/http"
 	"os"
-	"path/filepath"
-	"strings"
 	"syscall"
 	"time"
 
@@ -22,8 +19,9 @@ import (
 type Iteration10Suite struct {
 	suite.Suite
 
-	serverAddress string
-	serverProcess *fork.BackgroundProcess
+	serverAddress  string
+	serverProcess  *fork.BackgroundProcess
+	knownLibraries []string
 }
 
 // SetupSuite bootstraps suite dependencies
@@ -34,6 +32,11 @@ func (suite *Iteration10Suite) SetupSuite() {
 	suite.Require().NotEmpty(flagDatabaseDSN, "-database-dsn non-empty flag required")
 
 	suite.serverAddress = "http://localhost:8080"
+	suite.knownLibraries = []string{
+		"database/sql",
+		"github.com/jackc/pgx",
+		"github.com/lib/pq",
+	}
 
 	// start server
 	{
@@ -96,43 +99,8 @@ func (suite *Iteration10Suite) TearDownSuite() {
 
 // TestLibraryUsage attempts to recursively find usage of database/sql in given sources
 func (suite *Iteration10Suite) TestLibraryUsage() {
-	err := filepath.WalkDir(flagTargetSourcePath, func(path string, d fs.DirEntry, err error) error {
-		if err != nil {
-			return err
-		}
-
-		if d.IsDir() {
-			// skip vendor directory
-			if d.Name() == "vendor" || d.Name() == ".git" {
-				return filepath.SkipDir
-			}
-			// dive into regular directory
-			return nil
-		}
-
-		// skip test files or non-Go files
-		if !strings.HasSuffix(d.Name(), ".go") || strings.HasSuffix(d.Name(), "_test.go") {
-			return nil
-		}
-
-		spec, err := importsKnownPackage(suite.T(), path, []string{"database/sql"})
-		if err != nil {
-			// log error and continue traversing
-			suite.T().Logf("Ошибка инспекции файла %s: %s", path, err)
-			return nil
-		}
-		if spec != nil {
-			return errUsageFound
-		}
-
-		return nil
-	})
-
-	if errors.Is(err, errUsageFound) {
-		return
-	}
-
-	if err == nil {
+	err := usesKnownPackage(suite.T(), flagTargetSourcePath, suite.knownLibraries)
+	if errors.Is(err, errUsageNotFound) {
 		suite.T().Errorf("Не найдено использование библиотеки database/sql по пути %s", flagTargetSourcePath)
 		return
 	}
