@@ -1,0 +1,237 @@
+package main
+
+// Basic imports
+import (
+	"context"
+	"database/sql"
+	"encoding/json"
+	"errors"
+	"net/http"
+	"os"
+	"syscall"
+	"time"
+
+	"github.com/go-resty/resty/v2"
+	"github.com/gofrs/uuid"
+	"github.com/jackc/pgx"
+	"github.com/jackc/pgx/stdlib"
+	"github.com/stretchr/testify/suite"
+
+	"github.com/Yandex-Practicum/go-autotests/internal/fork"
+)
+
+// Iteration12Suite is a suite of autotests
+type Iteration12Suite struct {
+	suite.Suite
+
+	serverAddress string
+	serverProcess *fork.BackgroundProcess
+
+	dbconn *sql.DB
+}
+
+// SetupSuite bootstraps suite dependencies
+func (suite *Iteration12Suite) SetupSuite() {
+	// check required flags
+	suite.Require().NotEmpty(flagTargetBinaryPath, "-binary-path non-empty flag required")
+	suite.Require().NotEmpty(flagDatabaseDSN, "-database-dsn non-empty flag required")
+
+	suite.serverAddress = "http://localhost:8080"
+
+	// start server
+	{
+		envs := os.Environ()
+		args := []string{"-d=" + flagDatabaseDSN}
+		p := fork.NewBackgroundProcess(context.Background(), flagTargetBinaryPath,
+			fork.WithEnv(envs...),
+			fork.WithArgs(args...),
+		)
+
+		ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+		defer cancel()
+
+		err := p.Start(ctx)
+		if err != nil {
+			suite.T().Errorf("Невозможно запустить процесс командой %s: %s. Переменные окружения: %+v, аргументы: %+v", p, err, envs, args)
+			return
+		}
+
+		port := "8080"
+		err = p.WaitPort(ctx, "tcp", port)
+		if err != nil {
+			suite.T().Errorf("Не удалось дождаться пока порт %s станет доступен для запроса: %s", port, err)
+			return
+		}
+
+		suite.serverProcess = p
+	}
+
+	// connect to database
+	{
+		// disable prepared statements
+		driverConfig := stdlib.DriverConfig{
+			ConnConfig: pgx.ConnConfig{
+				PreferSimpleProtocol: true,
+			},
+		}
+		stdlib.RegisterDriverConfig(&driverConfig)
+
+		conn, err := sql.Open("pgx", driverConfig.ConnectionString(flagDatabaseDSN))
+		if err != nil {
+			suite.T().Errorf("Не удалось подключиться к базе данных: %s", err)
+			return
+		}
+
+		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+		defer cancel()
+
+		if err = conn.PingContext(ctx); err != nil {
+			suite.T().Errorf("Не удалось подключиться проверить подключение к базе данных: %s", err)
+			return
+		}
+
+		suite.dbconn = conn
+	}
+}
+
+// TearDownSuite teardowns suite dependencies
+func (suite *Iteration12Suite) TearDownSuite() {
+	if suite.dbconn != nil {
+		_ = suite.dbconn.Close()
+	}
+
+	if suite.serverProcess == nil {
+		return
+	}
+
+	exitCode, err := suite.serverProcess.Stop(syscall.SIGINT, syscall.SIGKILL)
+	if err != nil {
+		if errors.Is(err, os.ErrProcessDone) {
+			return
+		}
+		suite.T().Logf("Не удалось остановить процесс с помощью сигнала ОС: %s", err)
+		return
+	}
+	if exitCode > 0 {
+		suite.T().Logf("Процесс завершился с не нулевым статусом: %s", err)
+
+		// try to read stderr
+		ctx, cancel := context.WithTimeout(context.Background(), 500*time.Millisecond)
+		defer cancel()
+
+		out := suite.serverProcess.Stderr(ctx)
+		if len(out) > 0 {
+			suite.T().Logf("Получен лог процесса:\n\n%s", string(out))
+		}
+
+		return
+	}
+}
+
+// TestInspectDatabase attempts to:
+// - generate and send random URL to shorten handler
+// - inspect database to find original URL record
+func (suite *Iteration12Suite) TestBatchShorten() {
+	type shortenRequest struct {
+		CorrelationID string `json:"correlation_id"`
+		OriginalURL   string `json:"original_url"`
+	}
+
+	type shortenResponse struct {
+		CorrelationID string `json:"correlation_id"`
+		ShortURL      string `json:"short_url"`
+	}
+
+	var responseData []shortenResponse
+	requestData := []shortenRequest{
+		{
+			CorrelationID: uuid.Must(uuid.NewV4()).String(),
+			OriginalURL:   generateTestURL(suite.T()),
+		},
+		{
+			CorrelationID: uuid.Must(uuid.NewV4()).String(),
+			OriginalURL:   generateTestURL(suite.T()),
+		},
+	}
+
+	// correlations between originalURLs and shortURLs
+	correlations := make(map[string]string)
+
+	// create HTTP client without redirects support
+	errRedirectBlocked := errors.New("HTTP redirect blocked")
+	redirPolicy := resty.RedirectPolicyFunc(func(_ *http.Request, _ []*http.Request) error {
+		return errRedirectBlocked
+	})
+
+	httpc := resty.New().
+		SetHostURL(suite.serverAddress).
+		SetRedirectPolicy(redirPolicy)
+
+	suite.Run("shorten_batch", func() {
+		req := httpc.R().
+			SetHeader("Content-Type", "application/json").
+			SetBody(requestData).
+			SetResult(&responseData)
+		resp, err := req.Post("/api/shorten/batch")
+
+		noRespErr := suite.Assert().NoError(err, "Ошибка при попытке сделать запрос для множественного сокращения URL")
+
+		validStatus := suite.Assert().Equalf(http.StatusCreated, resp.StatusCode(),
+			"Несоответствие статус кода ответа ожидаемому в хендлере '%s %s'", req.Method, req.URL)
+
+		validContentType := suite.Assert().Containsf(resp.Header().Get("Content-Type"), "application/json",
+			"Заголовок ответа Content-Type содержит несоответствующее значение",
+		)
+
+		suite.Assert().Len(responseData, len(requestData), "Кол-во объектов в ответе не совпадает с кол-вом объектов в запросе")
+
+		allCorrelationsFound := true
+		for _, respPair := range responseData {
+			var originalURL string
+			for _, reqPair := range requestData {
+				if respPair.CorrelationID == reqPair.CorrelationID {
+					originalURL = reqPair.OriginalURL
+					break
+				}
+			}
+
+			found := suite.Assert().NotEmptyf(originalURL, "Не удалось найти оригинальный URL по correlation ID: %s", respPair.CorrelationID)
+			if !found {
+				allCorrelationsFound = false
+			}
+
+			correlations[respPair.ShortURL] = originalURL
+		}
+
+		if !noRespErr || !validStatus || !validContentType || !allCorrelationsFound {
+			dump := dumpRequest(req.RawRequest, true)
+			jsonBody, _ := json.Marshal(requestData)
+			suite.T().Logf("Оригинальный запрос:\n\n%s\n\nТело запроса:\n\n%s", dump, jsonBody)
+		}
+	})
+
+	suite.Run("expand", func() {
+		for shortenURL, originalURL := range correlations {
+			req := resty.New().
+				SetRedirectPolicy(redirPolicy).
+				R()
+			resp, err := req.Get(shortenURL)
+			noRespErr := true
+			if !errors.Is(err, errRedirectBlocked) {
+				noRespErr = suite.Assert().NoErrorf(err, "Ошибка при попытке сделать запрос для получения исходного URL")
+			}
+
+			validStatus := suite.Assert().Equalf(http.StatusTemporaryRedirect, resp.StatusCode(),
+				"Несоответствие статус кода ответа ожидаемому в хендлере '%s %s'", req.Method, req.URL,
+			)
+			validURL := suite.Assert().Equalf(originalURL, resp.Header().Get("Location"),
+				"Несоответствие URL полученного в заголовке Location ожидаемому",
+			)
+
+			if !noRespErr || !validStatus || !validURL {
+				dump := dumpRequest(req.RawRequest, true)
+				suite.T().Logf("Оригинальный запрос:\n\n%s", dump)
+			}
+		}
+	})
+}

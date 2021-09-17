@@ -4,7 +4,10 @@ go 1.16
 
 require (
 	github.com/go-resty/resty/v2 v2.6.0 // indirect
+	github.com/gofrs/uuid v4.0.0+incompatible // indirect
+	github.com/jackc/pgx v3.6.2+incompatible // indirect
 	github.com/jingyugao/rowserrcheck v1.1.0
+	github.com/pkg/errors v0.9.1 // indirect
 	github.com/stretchr/objx v0.3.0 // indirect
 	github.com/stretchr/testify v1.7.0 // indirect
 	github.com/timakin/bodyclose v0.0.0-20210704033933-f49887972144

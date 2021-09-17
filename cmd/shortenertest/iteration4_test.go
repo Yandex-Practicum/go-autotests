@@ -4,12 +4,9 @@ package main
 import (
 	"context"
 	"errors"
-	"io/fs"
 	"net/http"
 	"net/url"
 	"os"
-	"path/filepath"
-	"strings"
 	"syscall"
 	"time"
 
@@ -102,43 +99,8 @@ func (suite *Iteration4Suite) TearDownSuite() {
 
 // TestEncoderUsage attempts to recursively find usage of known HTTP frameworks in given sources
 func (suite *Iteration4Suite) TestEncoderUsage() {
-	err := filepath.WalkDir(flagTargetSourcePath, func(path string, d fs.DirEntry, err error) error {
-		if err != nil {
-			return err
-		}
-
-		if d.IsDir() {
-			// skip vendor directory
-			if d.Name() == "vendor" || d.Name() == ".git" {
-				return filepath.SkipDir
-			}
-			// dive into regular directory
-			return nil
-		}
-
-		// skip test files or non-Go files
-		if !strings.HasSuffix(d.Name(), ".go") || strings.HasSuffix(d.Name(), "_test.go") {
-			return nil
-		}
-
-		spec, err := importsKnownPackage(suite.T(), path, suite.knownEncodingLibs)
-		if err != nil {
-			// log error and continue traversing
-			suite.T().Logf("Ошибка инспекции файла %s: %s", path, err)
-			return nil
-		}
-		if spec != nil && spec.Name.String() != "_" {
-			return errUsageFound
-		}
-
-		return nil
-	})
-
-	if errors.Is(err, errUsageFound) {
-		return
-	}
-
-	if err == nil {
+	err := usesKnownPackage(suite.T(), flagTargetSourcePath, suite.knownEncodingLibs)
+	if errors.Is(err, errUsageNotFound) {
 		suite.T().Errorf("Не найдено использование известных библиотек кодирования JSON %s", flagTargetSourcePath)
 		return
 	}
