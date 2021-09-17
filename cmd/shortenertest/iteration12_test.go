@@ -128,9 +128,9 @@ func (suite *Iteration12Suite) TearDownSuite() {
 	}
 }
 
-// TestInspectDatabase attempts to:
-// - generate and send random URL to shorten handler
-// - inspect database to find original URL record
+// TestBatchShorten attempts to:
+// - generate and send random URLs to batch shorten handler
+// - expand fetched short urls and match them with original ones
 func (suite *Iteration12Suite) TestBatchShorten() {
 	type shortenRequest struct {
 		CorrelationID string `json:"correlation_id"`
