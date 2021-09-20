@@ -110,19 +110,22 @@ func (suite *Iteration11Suite) TearDownSuite() {
 		suite.T().Logf("Не удалось остановить процесс с помощью сигнала ОС: %s", err)
 		return
 	}
+
 	if exitCode > 0 {
-		suite.T().Logf("Процесс завершился с не нулевым статусом: %s", err)
+		suite.T().Logf("Процесс завершился с не нулевым статусом %d: %s", exitCode, err)
+	}
 
-		// try to read stderr
-		ctx, cancel := context.WithTimeout(context.Background(), 500*time.Millisecond)
-		defer cancel()
+	// try to read stdout/stderr
+	ctx, cancel := context.WithTimeout(context.Background(), 500*time.Millisecond)
+	defer cancel()
 
-		out := suite.serverProcess.Stderr(ctx)
-		if len(out) > 0 {
-			suite.T().Logf("Получен лог процесса:\n\n%s", string(out))
-		}
-
-		return
+	out := suite.serverProcess.Stderr(ctx)
+	if len(out) > 0 {
+		suite.T().Logf("Получен STDERR лог процесса:\n\n%s", string(out))
+	}
+	out = suite.serverProcess.Stdout(ctx)
+	if len(out) > 0 {
+		suite.T().Logf("Получен STDOUT лог процесса:\n\n%s", string(out))
 	}
 }
 
