@@ -216,5 +216,8 @@ func (suite *Iteration11Suite) findInTable(table, url string) (bool, error) {
 
 	var found bool
 	err := suite.dbconn.QueryRowContext(ctx, query, url).Scan(&found)
+	if errors.Is(err, sql.ErrNoRows) {
+		return false, nil
+	}
 	return found, err
 }
