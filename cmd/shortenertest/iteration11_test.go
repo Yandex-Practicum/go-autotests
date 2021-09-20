@@ -163,6 +163,9 @@ func (suite *Iteration11Suite) TestInspectDatabase() {
 			if err != nil {
 				suite.T().Logf("Ошибка поиска в таблице %s: %s", table, err)
 			}
+			if found {
+				break
+			}
 		}
 
 		suite.Require().Truef(found,
