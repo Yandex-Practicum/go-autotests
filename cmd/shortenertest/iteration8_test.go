@@ -98,8 +98,7 @@ func (suite *Iteration8Suite) TearDownSuite() {
 // - generate and send random URL to shorten API handler (without gzip)
 // - fetch original URLs by sending shorten URLs to expand handler one by one
 func (suite *Iteration8Suite) TestGzipCompress() {
-	originalURL := generateTestURL(suite.T())
-	var shortenURLs []string
+	shortenURLs := make(map[string]string)
 
 	// create HTTP client without redirects support and custom resolver
 	errRedirectBlocked := errors.New("HTTP redirect blocked")
@@ -112,6 +111,8 @@ func (suite *Iteration8Suite) TestGzipCompress() {
 		SetRedirectPolicy(redirPolicy)
 
 	suite.Run("shorten", func() {
+		originalURL := generateTestURL(suite.T())
+
 		// gzip request body for base shorten handler
 		var buf bytes.Buffer
 		zw := gzip.NewWriter(&buf)
@@ -141,10 +142,12 @@ func (suite *Iteration8Suite) TestGzipCompress() {
 			suite.T().Logf("Оригинальный запрос:\n\n%s", dump)
 		}
 
-		shortenURLs = append(shortenURLs, shortenURL)
+		shortenURLs[originalURL] = shortenURL
 	})
 
 	suite.Run("shorten_api", func() {
+		originalURL := generateTestURL(suite.T())
+
 		type shortenRequest struct {
 			URL string `json:"url"`
 		}
@@ -184,11 +187,11 @@ func (suite *Iteration8Suite) TestGzipCompress() {
 			suite.T().Logf("Оригинальный запрос:\n\n%s", dump)
 		}
 
-		shortenURLs = append(shortenURLs, shortenURL)
+		shortenURLs[originalURL] = shortenURL
 	})
 
 	suite.Run("expand", func() {
-		for _, shortenURL := range shortenURLs {
+		for originalURL, shortenURL := range shortenURLs {
 			req := resty.New().
 				SetRedirectPolicy(redirPolicy).
 				R()

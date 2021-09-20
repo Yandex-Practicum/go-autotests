@@ -102,8 +102,7 @@ func (suite *Iteration5Suite) TearDownSuite() {
 // - generate and send random URL to shorten API handler
 // - fetch original URLs by sending shorten URLs to expand handler one by one
 func (suite *Iteration5Suite) TestEnvVars() {
-	originalURL := generateTestURL(suite.T())
-	var shortenURLs []string
+	shortenURLs := make(map[string]string)
 
 	// create HTTP client without redirects support and custom resolver
 	errRedirectBlocked := errors.New("HTTP redirect blocked")
@@ -124,6 +123,8 @@ func (suite *Iteration5Suite) TestEnvVars() {
 		SetRedirectPolicy(redirPolicy)
 
 	suite.Run("shorten", func() {
+		originalURL := generateTestURL(suite.T())
+
 		req := httpc.R().
 			SetBody(originalURL)
 		resp, err := req.Post("/")
@@ -145,10 +146,12 @@ func (suite *Iteration5Suite) TestEnvVars() {
 			suite.T().Logf("Оригинальный запрос:\n\n%s", dump)
 		}
 
-		shortenURLs = append(shortenURLs, shortenURL)
+		shortenURLs[originalURL] = shortenURL
 	})
 
 	suite.Run("shorten_api", func() {
+		originalURL := generateTestURL(suite.T())
+
 		type shortenRequest struct {
 			URL string `json:"url"`
 		}
@@ -188,11 +191,11 @@ func (suite *Iteration5Suite) TestEnvVars() {
 			suite.T().Logf("Оригинальный запрос:\n\n%s", dump)
 		}
 
-		shortenURLs = append(shortenURLs, shortenURL)
+		shortenURLs[originalURL] = shortenURL
 	})
 
 	suite.Run("expand", func() {
-		for _, shortenURL := range shortenURLs {
+		for originalURL, shortenURL := range shortenURLs {
 			req := resty.New().
 				SetRedirectPolicy(redirPolicy).
 				R()
