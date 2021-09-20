@@ -34,7 +34,7 @@ func (suite *Iteration9Suite) SetupSuite() {
 
 	// start server
 	{
-		envs := os.Environ()
+		envs := append(os.Environ(), "DATABASE_DSN="+flagDatabaseDSN)
 		p := fork.NewBackgroundProcess(context.Background(), flagTargetBinaryPath,
 			fork.WithEnv(envs...),
 		)
