@@ -88,6 +88,41 @@ func (p *BackgroundProcess) WaitPort(ctx context.Context, network, port string) 
 	}
 }
 
+// WaitPort tries to perform network connection to given port.
+func (p *BackgroundProcess) ListenPort(ctx context.Context, network, port string) error {
+	ticker := time.NewTicker(p.waitPortInterval)
+	defer ticker.Stop()
+
+	port = strings.TrimLeft(port, ":")
+
+	for {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-ticker.C:
+			lc := &net.ListenConfig{}
+			ln, _ := lc.Listen(ctx, network, ":"+port)
+			if ln != nil {
+				defer ln.Close()
+				done := make(chan struct{})
+				go func() {
+					conn, _ := ln.Accept()
+					if conn != nil {
+						_ = conn.Close()
+					}
+					close(done)
+				}()
+				select {
+				case <-done:
+					return nil
+				case <-ctx.Done():
+					return ctx.Err()
+				}
+			}
+		}
+	}
+}
+
 // Stdout reads and returns next portion of bytes from stdout.
 // This function may block until next newline is present in output
 func (p *BackgroundProcess) Stdout(ctx context.Context) []byte {
