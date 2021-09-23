@@ -50,7 +50,9 @@ func (suite *Iteration7Suite) SetupSuite() {
 	suite.serverAddress = "http://localhost:" + flagServerPort
 	suite.serverPort = flagServerPort
 
-	suite.envs = os.Environ()
+	suite.envs = append(os.Environ(), []string{
+		"RESTORE=true",
+	}...)
 
 	suite.agentArgs = []string{
 		"-a=localhost:" + flagServerPort,
@@ -59,8 +61,8 @@ func (suite *Iteration7Suite) SetupSuite() {
 	}
 	suite.serverArgs = []string{
 		"-a=localhost:" + flagServerPort,
-		"-s=5s",
-		"-r=true",
+		// "-s=5s",
+		"-r=false",
 		"-i=5m",
 		"-f=" + flagFileStoragePath,
 	}
@@ -367,7 +369,9 @@ func (suite *Iteration7Suite) TestGaugeHandlers() {
 			dump = dumpResponse(resp.RawResponse, true)
 			suite.T().Logf("Оригинальный ответ:\n\n%s", dump)
 		}
-		storage = *result.Value
+		if result.Value != nil {
+			storage = *result.Value
+		}
 	})
 
 	suite.Run("restart server", func() {

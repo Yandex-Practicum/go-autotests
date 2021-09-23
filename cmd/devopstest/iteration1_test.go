@@ -28,31 +28,30 @@ func (suite *Iteration1Suite) SetupSuite() {
 
 	suite.agentAddress = "http://localhost:8080"
 
-	// start server
-	{
-		envs := append(os.Environ(), "DATABASE_DSN="+flagDatabaseDSN)
-		p := fork.NewBackgroundProcess(context.Background(), flagAgentBinaryPath,
-			fork.WithEnv(envs...),
-		)
+	envs := append(os.Environ(), []string{
+		"RESTORE=false",
+	}...)
+	p := fork.NewBackgroundProcess(context.Background(), flagAgentBinaryPath,
+		fork.WithEnv(envs...),
+	)
 
-		ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
-		defer cancel()
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+	defer cancel()
 
-		err := p.Start(ctx)
-		if err != nil {
-			suite.T().Errorf("Невозможно запустить процесс командой %s: %s. Переменные окружения: %+v", p, err, envs)
-			return
-		}
-
-		port := "8080"
-		err = p.ListenPort(ctx, "tcp", port)
-		if err != nil {
-			suite.T().Errorf("Не удалось дождаться пока на порт %s начнут поступать данные: %s", port, err)
-			return
-		}
-
-		suite.agentProcess = p
+	err := p.Start(ctx)
+	if err != nil {
+		suite.T().Errorf("Невозможно запустить процесс командой %s: %s. Переменные окружения: %+v", p, err, envs)
+		return
 	}
+
+	port := "8080"
+	err = p.ListenPort(ctx, "tcp", port)
+	if err != nil {
+		suite.T().Errorf("Не удалось дождаться пока на порт %s начнут поступать данные: %s", port, err)
+		return
+	}
+
+	suite.agentProcess = p
 }
 
 // TearDownSuite teardowns suite dependencies

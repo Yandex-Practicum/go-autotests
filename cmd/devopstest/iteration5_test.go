@@ -37,6 +37,7 @@ func (suite *Iteration5Suite) SetupSuite() {
 		"ADDRESS=" + "localhost:" + flagServerPort,
 		"REPORT_INTERVAL=" + "10s",
 		"POLL_INTERVAL=" + "2s",
+		"RESTORE=false",
 
 		"SHUTDOWN_TIMEOUT=" + "5s",
 	}...)

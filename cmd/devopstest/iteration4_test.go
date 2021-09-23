@@ -54,14 +54,13 @@ func (suite *Iteration4Suite) SetupSuite() {
 
 	suite.serverAddress = "http://localhost:8080"
 
-	// start server
-	{
-		envs := append(os.Environ(), "DATABASE_DSN="+flagDatabaseDSN)
-		ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
-		defer cancel()
-		suite.agentUp(ctx, envs, "8080")
-		suite.serverUp(ctx, envs, "8080")
-	}
+	envs := append(os.Environ(), []string{
+		"RESTORE=false",
+	}...)
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+	defer cancel()
+	suite.agentUp(ctx, envs, "8080")
+	suite.serverUp(ctx, envs, "8080")
 }
 
 func (suite *Iteration4Suite) serverUp(ctx context.Context, envs []string, port string) {

@@ -30,31 +30,30 @@ func (suite *Iteration2Suite) SetupSuite() {
 
 	suite.serverAddress = "http://localhost:8080"
 
-	// start server
-	{
-		envs := append(os.Environ(), "DATABASE_DSN="+flagDatabaseDSN)
-		p := fork.NewBackgroundProcess(context.Background(), flagServerBinaryPath,
-			fork.WithEnv(envs...),
-		)
+	envs := append(os.Environ(), []string{
+		"RESTORE=false",
+	}...)
+	p := fork.NewBackgroundProcess(context.Background(), flagServerBinaryPath,
+		fork.WithEnv(envs...),
+	)
 
-		ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
-		defer cancel()
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+	defer cancel()
 
-		err := p.Start(ctx)
-		if err != nil {
-			suite.T().Errorf("Невозможно запустить процесс командой %s: %s. Переменные окружения: %+v", p, err, envs)
-			return
-		}
-
-		port := "8080"
-		err = p.WaitPort(ctx, "tcp", port)
-		if err != nil {
-			suite.T().Errorf("Не удалось дождаться пока порт %s станет доступен для запроса: %s", port, err)
-			return
-		}
-
-		suite.serverProcess = p
+	err := p.Start(ctx)
+	if err != nil {
+		suite.T().Errorf("Невозможно запустить процесс командой %s: %s. Переменные окружения: %+v", p, err, envs)
+		return
 	}
+
+	port := "8080"
+	err = p.WaitPort(ctx, "tcp", port)
+	if err != nil {
+		suite.T().Errorf("Не удалось дождаться пока порт %s станет доступен для запроса: %s", port, err)
+		return
+	}
+
+	suite.serverProcess = p
 }
 
 // TearDownSuite teardowns suite dependencies
@@ -219,7 +218,7 @@ func (suite *Iteration2Suite) TestUnknownHandlers() {
 
 	suite.Run("update invalid type", func() {
 		req := httpc.R()
-		resp, err := req.Post("/update/unknown/testCounter/100")
+		resp, err := req.Post("update/unknown/testCounter/100")
 
 		noRespErr := suite.Assert().NoError(err, "Ошибка при попытке сделать запрос с не корректным типом метрики")
 
@@ -234,7 +233,7 @@ func (suite *Iteration2Suite) TestUnknownHandlers() {
 
 	suite.Run("update invalid method", func() {
 		req := httpc.R()
-		resp, err := req.Post("/updater/counter/testCounter/100")
+		resp, err := req.Post("updater/counter/testCounter/100")
 
 		noRespErr := suite.Assert().NoError(err, "Ошибка при попытке сделать запрос с не корректным типом метрики")
 

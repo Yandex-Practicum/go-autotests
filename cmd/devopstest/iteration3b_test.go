@@ -33,31 +33,30 @@ func (suite *Iteration3bSuite) SetupSuite() {
 
 	suite.serverAddress = "http://localhost:8080"
 
-	// start server
-	{
-		envs := append(os.Environ(), "DATABASE_DSN="+flagDatabaseDSN)
-		p := fork.NewBackgroundProcess(context.Background(), flagServerBinaryPath,
-			fork.WithEnv(envs...),
-		)
+	envs := append(os.Environ(), []string{
+		"RESTORE=false",
+	}...)
+	p := fork.NewBackgroundProcess(context.Background(), flagServerBinaryPath,
+		fork.WithEnv(envs...),
+	)
 
-		ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
-		defer cancel()
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+	defer cancel()
 
-		err := p.Start(ctx)
-		if err != nil {
-			suite.T().Errorf("Невозможно запустить процесс командой %s: %s. Переменные окружения: %+v", p, err, envs)
-			return
-		}
-
-		port := "8080"
-		err = p.WaitPort(ctx, "tcp", port)
-		if err != nil {
-			suite.T().Errorf("Не удалось дождаться пока порт %s станет доступен для запроса: %s", port, err)
-			return
-		}
-
-		suite.serverProcess = p
+	err := p.Start(ctx)
+	if err != nil {
+		suite.T().Errorf("Невозможно запустить процесс командой %s: %s. Переменные окружения: %+v", p, err, envs)
+		return
 	}
+
+	port := "8080"
+	err = p.WaitPort(ctx, "tcp", port)
+	if err != nil {
+		suite.T().Errorf("Не удалось дождаться пока порт %s станет доступен для запроса: %s", port, err)
+		return
+	}
+
+	suite.serverProcess = p
 }
 
 // TearDownSuite teardowns suite dependencies
@@ -121,7 +120,7 @@ func (suite *Iteration3bSuite) TestGauge() {
 				suite.T().Logf("Оригинальный запрос:\n\n%s", dump)
 			}
 
-			resp, err = req.Get("/value/gauge/testSetGet" + id)
+			resp, err = req.Get("value/gauge/testSetGet" + id)
 			noRespErr = suite.Assert().NoError(err, "Ошибка при попытке сделать запрос для получения значения gauge")
 			validStatus = suite.Assert().Equalf(http.StatusOK, resp.StatusCode(),
 				"Несоответствие статус кода ответа ожидаемому в хендлере '%s %s'", req.Method, req.URL)
@@ -139,7 +138,7 @@ func (suite *Iteration3bSuite) TestGauge() {
 	suite.Run("get unknown", func() {
 		id := strconv.Itoa(rand.Intn(256))
 		req := httpc.R()
-		resp, err := req.Get("/value/gauge/testUnknown" + id)
+		resp, err := req.Get("value/gauge/testUnknown" + id)
 		noRespErr := suite.Assert().NoError(err, "Ошибка при попытке сделать запрос для получения значения gauge")
 		validStatus := suite.Assert().Equalf(http.StatusNotFound, resp.StatusCode(),
 			"Несоответствие статус кода ответа ожидаемому в хендлере '%s %s'", req.Method, req.URL)
@@ -168,7 +167,7 @@ func (suite *Iteration3bSuite) TestCounter() {
 		req := httpc.R()
 
 		id := strconv.Itoa(rand.Intn(256))
-		resp, err := req.Get("/value/counter/testSetGet" + id)
+		resp, err := req.Get("value/counter/testSetGet" + id)
 		noRespErr := suite.Assert().NoError(err, "Ошибка при попытке сделать запрос для получения значения counter")
 
 		if !noRespErr {
@@ -182,7 +181,7 @@ func (suite *Iteration3bSuite) TestCounter() {
 		for i := 0; i < count; i++ {
 			v := rand.Intn(1024)
 			a += int64(v)
-			resp, err = req.Post("/update/counter/testSetGet" + id + "/" + strconv.Itoa(v))
+			resp, err = req.Post("update/counter/testSetGet" + id + "/" + strconv.Itoa(v))
 
 			noRespErr := suite.Assert().NoError(err, "Ошибка при попытке сделать запрос для обновления значения counter")
 			validStatus := suite.Assert().Equalf(http.StatusOK, resp.StatusCode(),
@@ -194,7 +193,7 @@ func (suite *Iteration3bSuite) TestCounter() {
 				continue
 			}
 
-			resp, err := req.Get("/value/counter/testSetGet" + id)
+			resp, err := req.Get("value/counter/testSetGet" + id)
 			noRespErr = suite.Assert().NoError(err, "Ошибка при попытке сделать запрос для получения значения counter")
 			validStatus = suite.Assert().Equalf(http.StatusOK, resp.StatusCode(),
 				"Несоответствие статус кода ответа ожидаемому в хендлере '%s %s'", req.Method, req.URL)
@@ -212,7 +211,7 @@ func (suite *Iteration3bSuite) TestCounter() {
 	suite.Run("get unknown", func() {
 		id := strconv.Itoa(rand.Intn(256))
 		req := httpc.R()
-		resp, err := req.Get("/value/counter/testUnknown" + id)
+		resp, err := req.Get("value/counter/testUnknown" + id)
 		noRespErr := suite.Assert().NoError(err, "Ошибка при попытке сделать запрос для получения значения counter")
 		validStatus := suite.Assert().Equalf(http.StatusNotFound, resp.StatusCode(),
 			"Несоответствие статус кода ответа ожидаемому в хендлере '%s %s'", req.Method, req.URL)

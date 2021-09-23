@@ -55,7 +55,7 @@ func (suite *Iteration6Suite) SetupSuite() {
 
 		"SHUTDOWN_TIMEOUT=5s",
 		"RESTORE=true",
-		"STORE_INTERVAL=5m",
+		"STORE_INTERVAL=3s",
 		"STORE_FILE=" + flagFileStoragePath,
 	}...)
 
@@ -359,7 +359,9 @@ func (suite *Iteration6Suite) TestGaugeHandlers() {
 			dump = dumpResponse(resp.RawResponse, true)
 			suite.T().Logf("Оригинальный ответ:\n\n%s", dump)
 		}
-		storage = *result.Value
+		if result.Value != nil {
+			storage = *result.Value
+		}
 	})
 
 	suite.Run("restart server", func() {

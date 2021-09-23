@@ -1,30 +1,19 @@
 package main
 
 import (
-	"context"
 	"fmt"
 	"go/ast"
 	"go/parser"
 	"go/token"
 	"io/fs"
-	"net"
 	"net/http"
 	"net/http/httputil"
 	"path/filepath"
 	"strings"
 	"testing"
-	"time"
 
 	"golang.org/x/tools/go/ast/astutil"
-
-	"github.com/Yandex-Practicum/go-autotests/internal/random"
 )
-
-// generateTestURL returns valid random URL
-func generateTestURL(t *testing.T) string {
-	t.Helper()
-	return random.URL().String()
-}
 
 // usesKnownPackage checks if any file in given rootdir uses at least one of given knownPackages
 func usesKnownPackage(t *testing.T, rootdir string, knownPackages []string) error {
@@ -85,23 +74,8 @@ func importsKnownPackage(t *testing.T, filepath string, knownPackages []string) 
 	return nil, nil
 }
 
-// dialContextFunc is a function that is suitable to be setted as an (*http.Transport).DialContext
-type dialContextFunc = func(ctx context.Context, network, addr string) (net.Conn, error)
-
-// mockResolver returns dialContextFunc that intercepts network requests
-// and resolves given address as custom IP address
-func mockResolver(network, requestAddress, responseIP string) dialContextFunc {
-	dialer := &net.Dialer{
-		Timeout:   time.Second,
-		KeepAlive: 30 * time.Second,
-	}
-	return func(ctx context.Context, net, addr string) (net.Conn, error) {
-		if net == network && addr == requestAddress {
-			addr = responseIP
-		}
-		return dialer.DialContext(ctx, net, addr)
-	}
-}
+// // dialContextFunc is a function that is suitable to be setted as an (*http.Transport).DialContext
+// type dialContextFunc = func(ctx context.Context, network, addr string) (net.Conn, error)
 
 // dumpRequest is a shorthand to httputil.DumpRequest
 func dumpRequest(req *http.Request, body bool) (dump []byte) {
