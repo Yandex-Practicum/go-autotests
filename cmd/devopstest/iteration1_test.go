@@ -17,21 +17,21 @@ import (
 type Iteration1Suite struct {
 	suite.Suite
 
-	serverAddress string
-	serverProcess *fork.BackgroundProcess
+	agentAddress string
+	agentProcess *fork.BackgroundProcess
 }
 
 // SetupSuite bootstraps suite dependencies
 func (suite *Iteration1Suite) SetupSuite() {
 	// check required flags
-	suite.Require().NotEmpty(flagTargetBinaryPath, "-binary-path non-empty flag required")
+	suite.Require().NotEmpty(flagAgentBinaryPath, "-agent-binary-path non-empty flag required")
 
-	suite.serverAddress = "http://localhost:8080"
+	suite.agentAddress = "http://localhost:8080"
 
 	// start server
 	{
 		envs := append(os.Environ(), "DATABASE_DSN="+flagDatabaseDSN)
-		p := fork.NewBackgroundProcess(context.Background(), flagTargetBinaryPath,
+		p := fork.NewBackgroundProcess(context.Background(), flagAgentBinaryPath,
 			fork.WithEnv(envs...),
 		)
 
@@ -51,17 +51,17 @@ func (suite *Iteration1Suite) SetupSuite() {
 			return
 		}
 
-		suite.serverProcess = p
+		suite.agentProcess = p
 	}
 }
 
 // TearDownSuite teardowns suite dependencies
 func (suite *Iteration1Suite) TearDownSuite() {
-	if suite.serverProcess == nil {
+	if suite.agentProcess == nil {
 		return
 	}
 
-	exitCode, err := suite.serverProcess.Stop(syscall.SIGINT, syscall.SIGKILL)
+	exitCode, err := suite.agentProcess.Stop(syscall.SIGINT, syscall.SIGKILL)
 	if err != nil {
 		if errors.Is(err, os.ErrProcessDone) {
 			return
@@ -78,11 +78,11 @@ func (suite *Iteration1Suite) TearDownSuite() {
 	ctx, cancel := context.WithTimeout(context.Background(), 500*time.Millisecond)
 	defer cancel()
 
-	out := suite.serverProcess.Stderr(ctx)
+	out := suite.agentProcess.Stderr(ctx)
 	if len(out) > 0 {
 		suite.T().Logf("Получен STDERR лог процесса:\n\n%s", string(out))
 	}
-	out = suite.serverProcess.Stdout(ctx)
+	out = suite.agentProcess.Stdout(ctx)
 	if len(out) > 0 {
 		suite.T().Logf("Получен STDOUT лог процесса:\n\n%s", string(out))
 	}

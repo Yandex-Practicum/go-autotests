@@ -29,14 +29,14 @@ type Iteration3bSuite struct {
 // SetupSuite bootstraps suite dependencies
 func (suite *Iteration3bSuite) SetupSuite() {
 	// check required flags
-	suite.Require().NotEmpty(flagTargetBinaryPath, "-binary-path non-empty flag required")
+	suite.Require().NotEmpty(flagServerBinaryPath, "-binary-path non-empty flag required")
 
 	suite.serverAddress = "http://localhost:8080"
 
 	// start server
 	{
 		envs := append(os.Environ(), "DATABASE_DSN="+flagDatabaseDSN)
-		p := fork.NewBackgroundProcess(context.Background(), flagTargetBinaryPath,
+		p := fork.NewBackgroundProcess(context.Background(), flagServerBinaryPath,
 			fork.WithEnv(envs...),
 		)
 
