@@ -376,7 +376,7 @@ cont:
 				MType: tt.method,
 			}).
 				SetResult(&result).
-				Post(config.TargetAddress + "/value/")
+				Post("/value/")
 
 			dumpErr := suite.Assert().NoErrorf(err, "Ошибка при попытке сделать запрос с получением значения %s", tt.name)
 
