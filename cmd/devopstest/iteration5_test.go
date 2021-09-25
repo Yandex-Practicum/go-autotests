@@ -232,10 +232,11 @@ cont:
 			time.Sleep(100 * time.Millisecond)
 
 			var result Metrics
-			resp, err = req.SetBody(&Metrics{
-				ID:    tt.name,
-				MType: tt.method,
-			}).
+			resp, err = req.
+				SetBody(&Metrics{
+					ID:    tt.name,
+					MType: tt.method,
+				}).
 				SetResult(&result).
 				Post("/value/")
 

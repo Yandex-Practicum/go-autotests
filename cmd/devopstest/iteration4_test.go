@@ -202,9 +202,10 @@ func (suite *Iteration4Suite) TestCounterHandlers() {
 
 		// Вдруг на сервере уже есть значение, на всякий случай запросим.
 		var result Metrics
-		resp, err := req.SetBody(&Metrics{
-			ID:    "GetSet" + id,
-			MType: "counter"}).
+		resp, err := req.
+			SetBody(&Metrics{
+				ID:    "GetSet" + id,
+				MType: "counter"}).
 			SetResult(&result).
 			Post("value/")
 
@@ -221,31 +222,36 @@ func (suite *Iteration4Suite) TestCounterHandlers() {
 			value0 = *result.Delta
 		case http.StatusNotFound:
 		default:
-			suite.T().Fatalf("Несоответствие статус кода %d ответа ожидаемому в хендлере %q: %q", resp.StatusCode(), req.Method, req.URL)
+			suite.T().Fatalf("Несоответствие статус кода %d ответа ожидаемому http.StatusNotFound или http.StatusOK в хендлере %q: %q", resp.StatusCode(), req.Method, req.URL)
 			return
 		}
 
-		resp, err = req.SetBody(&Metrics{
-			ID:    "GetSet" + id,
-			MType: "counter",
-			Delta: &value1,
-		}).Post("update/")
+		resp, err = req.
+			SetBody(&Metrics{
+				ID:    "GetSet" + id,
+				MType: "counter",
+				Delta: &value1,
+			}).
+			Post("update/")
 		dumpErr = dumpErr && suite.Assert().NoError(err, "Ошибка при попытке сделать запрос с обновлением counter")
 		dumpErr = dumpErr && suite.Assert().Equalf(http.StatusOK, resp.StatusCode(),
 			"Несоответствие статус кода ответа ожидаемому в хендлере %q: %q ", req.Method, req.URL)
 
-		resp, err = req.SetBody(&Metrics{
-			ID:    "GetSet" + id,
-			MType: "counter",
-			Delta: &value2,
-		}).Post("update/")
+		resp, err = req.
+			SetBody(&Metrics{
+				ID:    "GetSet" + id,
+				MType: "counter",
+				Delta: &value2,
+			}).
+			Post("update/")
 		dumpErr = dumpErr && suite.Assert().NoError(err, "Ошибка при попытке сделать запрос с обновлением counter")
 		dumpErr = dumpErr && suite.Assert().Equalf(http.StatusOK, resp.StatusCode(),
 			"Несоответствие статус кода ответа ожидаемому в хендлере %q: %q ", req.Method, req.URL)
 
-		resp, err = req.SetBody(&Metrics{
-			ID:    "GetSet" + id,
-			MType: "counter"}).
+		resp, err = req.
+			SetBody(&Metrics{
+				ID:    "GetSet" + id,
+				MType: "counter"}).
 			SetResult(&result).
 			Post("value/")
 
@@ -286,19 +292,22 @@ func (suite *Iteration4Suite) TestGaugeHandlers() {
 		req := httpc.R().
 			SetHeader("Content-Type", "application/json")
 
-		resp, err := req.SetBody(&Metrics{
-			ID:    "GetSet" + id,
-			MType: "gauge",
-			Value: &value}).Post("update/")
+		resp, err := req.
+			SetBody(&Metrics{
+				ID:    "GetSet" + id,
+				MType: "gauge",
+				Value: &value}).
+			Post("update/")
 		dumpErr := suite.Assert().NoError(err, "Ошибка при попытке сделать запрос с обновлением gauge")
 		dumpErr = dumpErr && suite.Assert().Equalf(http.StatusOK, resp.StatusCode(),
 			"Несоответствие статус кода ответа ожидаемому в хендлере %q: %q ", req.Method, req.URL)
 
 		var result Metrics
-		resp, err = req.SetBody(&Metrics{
-			ID:    "GetSet" + id,
-			MType: "gauge",
-		}).
+		resp, err = req.
+			SetBody(&Metrics{
+				ID:    "GetSet" + id,
+				MType: "gauge",
+			}).
 			SetResult(&result).
 			Post("value/")
 
@@ -397,10 +406,11 @@ cont:
 			time.Sleep(100 * time.Millisecond)
 
 			var result Metrics
-			resp, err = req.SetBody(&Metrics{
-				ID:    tt.name,
-				MType: tt.method,
-			}).
+			resp, err = req.
+				SetBody(&Metrics{
+					ID:    tt.name,
+					MType: tt.method,
+				}).
 				SetResult(&result).
 				Post("/value/")
 
