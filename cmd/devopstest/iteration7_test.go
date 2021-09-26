@@ -56,8 +56,8 @@ func (suite *Iteration7Suite) SetupSuite() {
 
 	suite.agentArgs = []string{
 		"-a=localhost:" + flagServerPort,
-		"-r=10s",
-		"-p=2s",
+		"-r=2s",
+		"-p=1s",
 	}
 	suite.serverArgs = []string{
 		"-a=localhost:" + flagServerPort,
@@ -193,7 +193,7 @@ func (suite *Iteration7Suite) TestCounterHandlers() {
 		SetHostURL(suite.serverAddress).
 		SetRedirectPolicy(redirPolicy)
 
-	id := strconv.Itoa(suite.rnd.Intn(256))
+	id := "GetSet" + strconv.Itoa(suite.rnd.Intn(256))
 	var storage int64
 
 	suite.Run("update", func() {
@@ -205,7 +205,7 @@ func (suite *Iteration7Suite) TestCounterHandlers() {
 		var result Metrics
 		resp, err := req.
 			SetBody(&Metrics{
-				ID:    "GetSet" + id,
+				ID:    id,
 				MType: "counter"}).
 			SetResult(&result).
 			Post("value/")
@@ -223,13 +223,14 @@ func (suite *Iteration7Suite) TestCounterHandlers() {
 			value0 = *result.Delta
 		case http.StatusNotFound:
 		default:
+			dumpErr = false
 			suite.T().Fatalf("Несоответствие статус кода %d ответа ожидаемому http.StatusNotFound или http.StatusOK в хендлере %q: %q", resp.StatusCode(), req.Method, req.URL)
 			return
 		}
 
 		resp, err = req.
 			SetBody(&Metrics{
-				ID:    "GetSet" + id,
+				ID:    id,
 				MType: "counter",
 				Delta: &value1,
 			}).
@@ -240,7 +241,7 @@ func (suite *Iteration7Suite) TestCounterHandlers() {
 
 		resp, err = req.
 			SetBody(&Metrics{
-				ID:    "GetSet" + id,
+				ID:    id,
 				MType: "counter",
 				Delta: &value2,
 			}).
@@ -251,7 +252,7 @@ func (suite *Iteration7Suite) TestCounterHandlers() {
 
 		resp, err = req.
 			SetBody(&Metrics{
-				ID:    "GetSet" + id,
+				ID:    id,
 				MType: "counter"}).
 			SetResult(&result).
 			Post("value/")
@@ -295,7 +296,7 @@ func (suite *Iteration7Suite) TestCounterHandlers() {
 		var result Metrics
 		resp, err := req.
 			SetBody(&Metrics{
-				ID:    "GetSet" + id,
+				ID:    id,
 				MType: "counter"}).
 			SetResult(&result).
 			Post("value/")
@@ -336,7 +337,7 @@ func (suite *Iteration7Suite) TestGaugeHandlers() {
 		SetHostURL(suite.serverAddress).
 		SetRedirectPolicy(redirPolicy)
 
-	id := strconv.Itoa(suite.rnd.Intn(256))
+	id := "GetSet" + strconv.Itoa(suite.rnd.Intn(256))
 	var storage float64
 
 	suite.Run("update", func() {
@@ -346,7 +347,7 @@ func (suite *Iteration7Suite) TestGaugeHandlers() {
 
 		resp, err := req.
 			SetBody(&Metrics{
-				ID:    "GetSet" + id,
+				ID:    id,
 				MType: "gauge",
 				Value: &value}).
 			Post("update/")
@@ -357,7 +358,7 @@ func (suite *Iteration7Suite) TestGaugeHandlers() {
 		var result Metrics
 		resp, err = req.
 			SetBody(&Metrics{
-				ID:    "GetSet" + id,
+				ID:    id,
 				MType: "gauge",
 			}).
 			SetResult(&result).
@@ -400,7 +401,7 @@ func (suite *Iteration7Suite) TestGaugeHandlers() {
 		var result Metrics
 		resp, err := req.
 			SetBody(&Metrics{
-				ID:    "GetSet" + id,
+				ID:    id,
 				MType: "gauge"}).
 			SetResult(&result).
 			Post("value/")

@@ -53,8 +53,8 @@ func (suite *Iteration8Suite) SetupSuite() {
 
 	suite.agentArgs = []string{
 		"-a=localhost:" + flagServerPort,
-		"-r=10s",
-		"-p=2s",
+		"-r=2s",
+		"-p=1s",
 	}
 	suite.serverArgs = []string{
 		"-a=localhost:" + flagServerPort,
@@ -190,7 +190,7 @@ func (suite *Iteration8Suite) TestCounterGzipHandlers() {
 		SetHostURL(suite.serverAddress).
 		SetRedirectPolicy(redirPolicy)
 
-	id := strconv.Itoa(suite.rnd.Intn(256))
+	id := "GetSetZip" + strconv.Itoa(suite.rnd.Intn(256))
 
 	suite.Run("update", func() {
 		value1, value2 := suite.rnd.Int63(), suite.rnd.Int63()
@@ -201,7 +201,7 @@ func (suite *Iteration8Suite) TestCounterGzipHandlers() {
 		var result Metrics
 		resp, err := req.
 			SetBody(&Metrics{
-				ID:    "GetSetZip" + id,
+				ID:    id,
 				MType: "counter"}).
 			SetResult(&result).
 			Post("value/")
@@ -219,13 +219,14 @@ func (suite *Iteration8Suite) TestCounterGzipHandlers() {
 			value0 = *result.Delta
 		case http.StatusNotFound:
 		default:
+			dumpErr = false
 			suite.T().Fatalf("Несоответствие статус кода %d ответа ожидаемому http.StatusNotFound или http.StatusOK в хендлере %q: %q", resp.StatusCode(), req.Method, req.URL)
 			return
 		}
 
 		resp, err = req.
 			SetBody(&Metrics{
-				ID:    "GetSetZip" + id,
+				ID:    id,
 				MType: "counter",
 				Delta: &value1,
 			}).
@@ -237,7 +238,7 @@ func (suite *Iteration8Suite) TestCounterGzipHandlers() {
 
 		resp, err = req.
 			SetBody(&Metrics{
-				ID:    "GetSetZip" + id,
+				ID:    id,
 				MType: "counter",
 				Delta: &value2,
 			}).
@@ -249,7 +250,7 @@ func (suite *Iteration8Suite) TestCounterGzipHandlers() {
 
 		resp, err = req.
 			SetBody(&Metrics{
-				ID:    "GetSetZip" + id,
+				ID:    id,
 				MType: "counter"}).
 			// SetResult(&result). // Декодируем "руками"
 			SetDoNotParseResponse(true).
@@ -286,7 +287,7 @@ func (suite *Iteration8Suite) TestGaugeGzipHandlers() {
 		SetHostURL(suite.serverAddress).
 		SetRedirectPolicy(redirPolicy)
 
-	id := strconv.Itoa(suite.rnd.Intn(256))
+	id := "GetSetZip" + strconv.Itoa(suite.rnd.Intn(256))
 
 	suite.Run("update", func() {
 		value := suite.rnd.Float64() * 1e6
@@ -296,7 +297,7 @@ func (suite *Iteration8Suite) TestGaugeGzipHandlers() {
 
 		resp, err := req.
 			SetBody(&Metrics{
-				ID:    "GetSetZip" + id,
+				ID:    id,
 				MType: "gauge",
 				Value: &value}).
 			Post("update/")
@@ -307,7 +308,7 @@ func (suite *Iteration8Suite) TestGaugeGzipHandlers() {
 		var result Metrics
 		resp, err = req.
 			SetBody(&Metrics{
-				ID:    "GetSetZip" + id,
+				ID:    id,
 				MType: "gauge",
 			}).
 			SetDoNotParseResponse(true).

@@ -3,7 +3,10 @@ package main
 // Basic imports
 import (
 	"context"
+	"crypto/hmac"
+	"crypto/sha256"
 	"errors"
+	"fmt"
 	"math/rand"
 	"net/http"
 	"os"
@@ -17,62 +20,74 @@ import (
 	"github.com/Yandex-Practicum/go-autotests/internal/fork"
 )
 
-// Iteration4Suite is a suite of autotests
-type Iteration4Suite struct {
+// Iteration9Suite is a suite of autotests
+type Iteration9Suite struct {
 	suite.Suite
 
 	serverAddress string
+	serverPort    string
 	serverProcess *fork.BackgroundProcess
+	serverArgs    []string
 	agentProcess  *fork.BackgroundProcess
+	agentArgs     []string
+	// knownPgLibraries []string
 
-	knownEncodingLibs []string
+	rnd  *rand.Rand
+	envs []string
 
-	rnd *rand.Rand
+	key []byte
 }
 
-type Metrics struct {
-	ID    string   `json:"id"`
-	MType string   `json:"type"`            // Параметр кодирую строкой, принося производительность в угоду наглядности.
-	Delta *int64   `json:"delta,omitempty"` //counter
-	Value *float64 `json:"value,omitempty"` //gauge
-	Hash  string   `json:"hash,omitempty"`  //counter
-}
-
-// SetupSuite bootstraps suite dependencies
-func (suite *Iteration4Suite) SetupSuite() {
+func (suite *Iteration9Suite) SetupSuite() {
 	// check required flags
 	suite.Require().NotEmpty(flagTargetSourcePath, "-source-path non-empty flag required")
 	suite.Require().NotEmpty(flagServerBinaryPath, "-binary-path non-empty flag required")
 	suite.Require().NotEmpty(flagAgentBinaryPath, "-agent-binary-path non-empty flag required")
+	suite.Require().NotEmpty(flagServerPort, "-server-port non-empty flag required")
+	suite.Require().NotEmpty(flagFileStoragePath, "-file-storage-path non-empty flag required")
+	suite.Require().NotEmpty(flagSHA256Key, "-key non-empty flag required")
 
 	suite.rnd = rand.New(rand.NewSource(int64(time.Now().Nanosecond())))
+	suite.serverAddress = "http://localhost:" + flagServerPort
+	suite.serverPort = flagServerPort
 
-	suite.knownEncodingLibs = []string{
-		"encoding/json",
-		"github.com/mailru/easyjson",
-		"github.com/pquerna/ffjson",
+	suite.key = []byte(flagSHA256Key)
+
+	suite.envs = append(os.Environ(), []string{
+		"RESTORE=true",
+		// "KEY=" + flagSHA256Key,
+	}...)
+
+	suite.agentArgs = []string{
+		"-a=localhost:" + flagServerPort,
+		"-r=2s",
+		"-p=1s",
+		"-k=" + flagSHA256Key,
+	}
+	suite.serverArgs = []string{
+		"-a=localhost:" + flagServerPort,
+		// "-s=5s",
+		"-r=false",
+		"-i=5m",
+		"-f=" + flagFileStoragePath,
+		"-k=" + flagSHA256Key,
 	}
 
-	suite.serverAddress = "http://localhost:8080"
-
-	envs := append(os.Environ(), []string{
-		"RESTORE=false",
-		// "KEY=hohoho",
-	}...)
 	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 	defer cancel()
-	suite.agentUp(ctx, envs, "8080")
-	suite.serverUp(ctx, envs, "8080")
+	suite.agentUp(ctx, suite.envs, suite.agentArgs, flagServerPort)
+	suite.serverUp(ctx, suite.envs, suite.serverArgs, flagServerPort)
 }
 
-func (suite *Iteration4Suite) serverUp(ctx context.Context, envs []string, port string) {
+func (suite *Iteration9Suite) serverUp(ctx context.Context, envs, args []string, port string) {
 	p := fork.NewBackgroundProcess(context.Background(), flagServerBinaryPath,
 		fork.WithEnv(envs...),
+		fork.WithArgs(args...),
 	)
 
 	err := p.Start(ctx)
 	if err != nil {
-		suite.T().Errorf("Невозможно запустить процесс командой %s: %s. Переменные окружения: %+v", p, err, envs)
+		suite.T().Errorf("Невозможно запустить процесс командой %q: %s. Переменные окружения: %+v, флаги командной строки: %+v", p, err, envs, args)
 		return
 	}
 
@@ -84,14 +99,15 @@ func (suite *Iteration4Suite) serverUp(ctx context.Context, envs []string, port 
 	suite.serverProcess = p
 }
 
-func (suite *Iteration4Suite) agentUp(ctx context.Context, envs []string, port string) {
+func (suite *Iteration9Suite) agentUp(ctx context.Context, envs, args []string, port string) {
 	p := fork.NewBackgroundProcess(context.Background(), flagAgentBinaryPath,
 		fork.WithEnv(envs...),
+		fork.WithArgs(args...),
 	)
 
 	err := p.Start(ctx)
 	if err != nil {
-		suite.T().Errorf("Невозможно запустить процесс командой %s: %s. Переменные окружения: %+v", p, err, envs)
+		suite.T().Errorf("Невозможно запустить процесс командой %q: %s. Переменные окружения: %+v, флаги командной строки: %+v", p, err, envs, args)
 		return
 	}
 
@@ -104,12 +120,12 @@ func (suite *Iteration4Suite) agentUp(ctx context.Context, envs []string, port s
 }
 
 // TearDownSuite teardowns suite dependencies
-func (suite *Iteration4Suite) TearDownSuite() {
+func (suite *Iteration9Suite) TearDownSuite() {
 	suite.agentShutdown()
 	suite.serverShutdown()
 }
 
-func (suite *Iteration4Suite) serverShutdown() {
+func (suite *Iteration9Suite) serverShutdown() {
 	if suite.serverProcess == nil {
 		return
 	}
@@ -141,7 +157,7 @@ func (suite *Iteration4Suite) serverShutdown() {
 	}
 }
 
-func (suite *Iteration4Suite) agentShutdown() {
+func (suite *Iteration9Suite) agentShutdown() {
 	if suite.agentProcess == nil {
 		return
 	}
@@ -173,19 +189,7 @@ func (suite *Iteration4Suite) agentShutdown() {
 	}
 }
 
-// TestEncoderUsage attempts to recursively find usage of known HTTP frameworks in given sources
-func (suite *Iteration4Suite) TestEncoderUsage() {
-	err := usesKnownPackage(suite.T(), flagTargetSourcePath, suite.knownEncodingLibs)
-	if errors.Is(err, errUsageNotFound) {
-		suite.T().Errorf("Не найдено использование известных библиотек кодирования JSON %q", flagTargetSourcePath)
-		return
-	}
-	if !errors.Is(err, errUsageFound) {
-		suite.T().Errorf("Неожиданная ошибка при поиске использования библиотек кодирования JSON по пути %q: %v", flagTargetSourcePath, err)
-	}
-}
-
-func (suite *Iteration4Suite) TestCounterHandlers() {
+func (suite *Iteration9Suite) TestCounterGzipHandlers() {
 	// create HTTP client without redirects support
 	errRedirectBlocked := errors.New("HTTP redirect blocked")
 	redirPolicy := resty.RedirectPolicyFunc(func(_ *http.Request, _ []*http.Request) error {
@@ -195,14 +199,14 @@ func (suite *Iteration4Suite) TestCounterHandlers() {
 		SetHostURL(suite.serverAddress).
 		SetRedirectPolicy(redirPolicy)
 
-	id := "GetSet" + strconv.Itoa(suite.rnd.Intn(256))
+	id := "GetSetZip" + strconv.Itoa(suite.rnd.Intn(256))
 
 	suite.Run("update", func() {
 		value1, value2 := suite.rnd.Int63(), suite.rnd.Int63()
 		req := httpc.R().
+			SetHeader("Accept-Encoding", "gzip").
 			SetHeader("Content-Type", "application/json")
 
-		// Вдруг на сервере уже есть значение, на всякий случай запросим.
 		var result Metrics
 		resp, err := req.
 			SetBody(&Metrics{
@@ -229,24 +233,24 @@ func (suite *Iteration4Suite) TestCounterHandlers() {
 			return
 		}
 
-		resp, err = req.
-			SetBody(&Metrics{
+		resp, err = suite.SetHBody(req,
+			&Metrics{
 				ID:    id,
 				MType: "counter",
 				Delta: &value1,
-			}).
-			Post("update/")
+			}).Post("update/")
+
 		dumpErr = dumpErr && suite.Assert().NoError(err, "Ошибка при попытке сделать запрос с обновлением counter")
 		dumpErr = dumpErr && suite.Assert().Equalf(http.StatusOK, resp.StatusCode(),
 			"Несоответствие статус кода ответа ожидаемому в хендлере %q: %q ", req.Method, req.URL)
 
-		resp, err = req.
-			SetBody(&Metrics{
+		resp, err = suite.SetHBody(req,
+			&Metrics{
 				ID:    id,
 				MType: "counter",
 				Delta: &value2,
-			}).
-			Post("update/")
+			}).Post("update/")
+
 		dumpErr = dumpErr && suite.Assert().NoError(err, "Ошибка при попытке сделать запрос с обновлением counter")
 		dumpErr = dumpErr && suite.Assert().Equalf(http.StatusOK, resp.StatusCode(),
 			"Несоответствие статус кода ответа ожидаемому в хендлере %q: %q ", req.Method, req.URL)
@@ -261,14 +265,15 @@ func (suite *Iteration4Suite) TestCounterHandlers() {
 		dumpErr = dumpErr && suite.Assert().NoError(err, "Ошибка при попытке сделать запрос с получением значения counter")
 		dumpErr = dumpErr && suite.Assert().Equalf(http.StatusOK, resp.StatusCode(),
 			"Несоответствие статус кода ответа ожидаемому в хендлере %q: %q ", req.Method, req.URL)
-
 		dumpErr = dumpErr && suite.Assert().Containsf(resp.Header().Get("Content-Type"), "application/json",
 			"Заголовок ответа Content-Type содержит несоответствующее значение")
+		dumpErr = dumpErr && suite.Assert().Containsf(resp.Header().Get("Content-Encoding"), "gzip",
+			"Заголовок ответа Content-Encoding содержит несоответствующее значение")
 		dumpErr = dumpErr && suite.NotNil(result.Delta,
 			"Несоответствие отправленного значения counter (%d) полученному от сервера (nil), '%q %s'", value0+value1+value2, req.Method, req.URL)
-
 		dumpErr = dumpErr && suite.Assert().Equalf(value0+value1+value2, *result.Delta,
 			"Несоответствие отправленного значения counter (%d) полученному от сервера (%d), '%q %s'", value0+value1+value2, *result.Delta, req.Method, req.URL)
+		dumpErr = dumpErr && suite.Equal(suite.Hash(&result), result.Hash, "Хеш-сумма не соответствует расчетной")
 
 		if !dumpErr {
 			dump := dumpRequest(req.RawRequest, true)
@@ -279,7 +284,7 @@ func (suite *Iteration4Suite) TestCounterHandlers() {
 	})
 }
 
-func (suite *Iteration4Suite) TestGaugeHandlers() {
+func (suite *Iteration9Suite) TestGaugeGzipHandlers() {
 	errRedirectBlocked := errors.New("HTTP redirect blocked")
 	redirPolicy := resty.RedirectPolicyFunc(func(_ *http.Request, _ []*http.Request) error {
 		return errRedirectBlocked
@@ -288,19 +293,22 @@ func (suite *Iteration4Suite) TestGaugeHandlers() {
 		SetHostURL(suite.serverAddress).
 		SetRedirectPolicy(redirPolicy)
 
-	id := "GetSet" + strconv.Itoa(suite.rnd.Intn(256))
+	id := "GetSetZip" + strconv.Itoa(suite.rnd.Intn(256))
 
 	suite.Run("update", func() {
 		value := suite.rnd.Float64() * 1e6
 		req := httpc.R().
+			SetHeader("Hash", "none").
+			SetHeader("Accept-Encoding", "gzip").
 			SetHeader("Content-Type", "application/json")
 
-		resp, err := req.
-			SetBody(&Metrics{
+		resp, err := suite.SetHBody(req,
+			&Metrics{
 				ID:    id,
 				MType: "gauge",
-				Value: &value}).
-			Post("update/")
+				Value: &value,
+			}).Post("update/")
+
 		dumpErr := suite.Assert().NoError(err, "Ошибка при попытке сделать запрос с обновлением gauge")
 		dumpErr = dumpErr && suite.Assert().Equalf(http.StatusOK, resp.StatusCode(),
 			"Несоответствие статус кода ответа ожидаемому в хендлере %q: %q ", req.Method, req.URL)
@@ -317,15 +325,15 @@ func (suite *Iteration4Suite) TestGaugeHandlers() {
 		dumpErr = dumpErr && suite.Assert().NoError(err, "Ошибка при попытке сделать запрос с получением значения gauge")
 		dumpErr = dumpErr && suite.Assert().Equalf(http.StatusOK, resp.StatusCode(),
 			"Несоответствие статус кода ответа ожидаемому в хендлере %q: %q ", req.Method, req.URL)
-
 		dumpErr = dumpErr && suite.Assert().Containsf(resp.Header().Get("Content-Type"), "application/json",
 			"Заголовок ответа Content-Type содержит несоответствующее значение")
-
+		dumpErr = dumpErr && suite.Assert().Containsf(resp.Header().Get("Content-Encoding"), "gzip",
+			"Заголовок ответа Content-Encoding содержит несоответствующее значение")
 		dumpErr = dumpErr && suite.Assert().NotEqualf(nil, result.Value,
 			"Несоответствие отправленного значения gauge (%f) полученному от сервера (nil), '%q %s'", value, req.Method, req.URL)
-
 		dumpErr = dumpErr && suite.Assert().Equalf(value, *result.Value,
 			"Несоответствие отправленного значения gauge (%f) полученному от сервера (%f), '%q %s'", value, *result.Value, req.Method, req.URL)
+		dumpErr = dumpErr && suite.Equal(suite.Hash(&result), result.Hash, "Хеш-сумма не соответствует расчетной")
 
 		if !dumpErr {
 			dump := dumpRequest(req.RawRequest, true)
@@ -336,7 +344,7 @@ func (suite *Iteration4Suite) TestGaugeHandlers() {
 	})
 }
 
-func (suite *Iteration4Suite) TestCollectAgentMetrics() {
+func (suite *Iteration9Suite) TestCollectAgentMetrics() {
 	errRedirectBlocked := errors.New("HTTP redirect blocked")
 	redirPolicy := resty.RedirectPolicyFunc(func(_ *http.Request, _ []*http.Request) error {
 		return errRedirectBlocked
@@ -392,7 +400,6 @@ func (suite *Iteration4Suite) TestCollectAgentMetrics() {
 
 cont:
 	for ok := 0; ok != len(tests); {
-		// suite.T().Log("tick", len(tests)-ok)
 		select {
 		case <-timer.C:
 			break cont
@@ -425,21 +432,17 @@ cont:
 
 			dumpErr = dumpErr && suite.Assert().Containsf(resp.Header().Get("Content-Type"), "application/json",
 				"Заголовок ответа Content-Type содержит несоответствующее значение")
-
 			dumpErr = dumpErr && suite.Assert().True(((result.MType == "gauge" && result.Value != nil) || (result.MType == "counter" && result.Delta != nil)),
 				"Получен не однозначный результат (тип метода не соответствует возвращаемому значению) '%q %s'", req.Method, req.URL)
-
 			dumpErr = dumpErr && suite.Assert().False(result.Delta == nil && result.Value == nil,
 				"Получен результат без данных (Dalta == nil && Value == nil) '%q %s'", req.Method, req.URL)
-
 			dumpErr = dumpErr && suite.Assert().False(result.Delta != nil && result.Value != nil,
 				"Получен не однозначный результат (Dalta != nil && Value != nil) '%q %s'", req.Method, req.URL)
-
 			dumpErr = dumpErr && suite.Assert().Equalf(http.StatusOK, resp.StatusCode(),
 				"Несоответствие статус кода ответа ожидаемому в хендлере %q: %q ", req.Method, req.URL)
-
 			dumpErr = dumpErr && suite.Assert().True(result.MType == "gauge" || result.MType == "counter",
 				"Получен ответ с неизвестным значением типа: %q, '%q %s'", result.MType, req.Method, req.URL)
+			dumpErr = dumpErr && suite.Equal(suite.Hash(&result), result.Hash, "Хеш-сумма не соответствует расчетной")
 
 			if !dumpErr {
 				dump := dumpRequest(req.RawRequest, true)
@@ -474,4 +477,23 @@ cont:
 			suite.Assert().Truef(tt.ok, "Отсутствует изменение метрики: %s, тип: %s", tt.name, tt.method)
 		})
 	}
+}
+
+func (suite *Iteration9Suite) SetHBody(r *resty.Request, m *Metrics) *resty.Request {
+	hash := suite.Hash(m)
+	m.Hash = hash
+	return r.SetBody(m)
+}
+
+func (suite *Iteration9Suite) Hash(m *Metrics) string {
+	var data string
+	switch m.MType {
+	case "counter":
+		data = fmt.Sprintf("%s:%s:%d", m.ID, m.MType, *m.Delta)
+	case "gauge":
+		data = fmt.Sprintf("%s:%s:%f", m.ID, m.MType, *m.Value)
+	}
+	h := hmac.New(sha256.New, suite.key)
+	h.Write([]byte(data))
+	return fmt.Sprintf("%x", h.Sum(nil))
 }

@@ -99,7 +99,11 @@ func (suite *Iteration3bSuite) TestGauge() {
 		return errRedirectBlocked
 	})
 
-	httpc := resty.New().
+	httpc := resty.NewWithClient(&http.Client{
+		Transport: &http.Transport{
+			DisableCompression: true,
+		},
+	}).
 		SetHostURL(suite.serverAddress).
 		SetRedirectPolicy(redirPolicy)
 
@@ -157,7 +161,11 @@ func (suite *Iteration3bSuite) TestCounter() {
 		return errRedirectBlocked
 	})
 
-	httpc := resty.New().
+	httpc := resty.NewWithClient(&http.Client{
+		Transport: &http.Transport{
+			DisableCompression: true,
+		},
+	}).
 		SetHostURL(suite.serverAddress).
 		SetRedirectPolicy(redirPolicy)
 
@@ -165,7 +173,6 @@ func (suite *Iteration3bSuite) TestCounter() {
 
 	suite.Run("update sequence", func() {
 		req := httpc.R()
-
 		id := strconv.Itoa(rand.Intn(256))
 		resp, err := req.Get("value/counter/testSetGet" + id)
 		noRespErr := suite.Assert().NoError(err, "Ошибка при попытке сделать запрос для получения значения counter")
