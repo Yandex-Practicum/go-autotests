@@ -34,6 +34,10 @@ jobs:
         run: |
           go test -c -o=cmd/shortenertest/shortenertest ./cmd/shortenertest/...
 
+      - name: Compile devopstest
+        run: |
+          go test -c -o=cmd/devopstest/devopstest ./cmd/devopstest/...
+
       - name: Compile random
         run: |
           go build -o=cmd/random/random ./cmd/random/...
