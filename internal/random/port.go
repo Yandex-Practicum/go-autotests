@@ -1,7 +1,6 @@
 package random
 
 import (
-	mathrand "math/rand"
 	"net"
 )
 
@@ -13,7 +12,7 @@ func Port(from, to int) int {
 	if to <= 0 || to > 65535 {
 		to = 65535
 	}
-	return mathrand.Intn(to-from) + from
+	return rnd.Intn(to-from) + from
 }
 
 // UnusedPort returns random unused port

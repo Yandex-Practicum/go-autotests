@@ -1,7 +1,6 @@
 package random
 
 import (
-	mathrand "math/rand"
 	"net/url"
 	"strings"
 )
@@ -14,7 +13,7 @@ func URL() *url.URL {
 	res.Scheme = "http"
 	res.Host = Domain(5, 15)
 
-	for i := 0; i < mathrand.Intn(4); i++ {
+	for i := 0; i < rnd.Intn(4); i++ {
 		res.Path += "/" + strings.ToLower(ASCIIString(5, 15))
 	}
 	return &res
@@ -36,9 +35,9 @@ func Domain(minLen, maxLen int, zones ...string) string {
 		zone = zones[0]
 	case 0:
 		zones = []string{"com", "ru", "net", "biz", "yandex"}
-		zone = zones[mathrand.Intn(len(zones))]
+		zone = zones[rnd.Intn(len(zones))]
 	default:
-		zone = zones[mathrand.Intn(len(zones))]
+		zone = zones[rnd.Intn(len(zones))]
 	}
 
 	// generate HOST

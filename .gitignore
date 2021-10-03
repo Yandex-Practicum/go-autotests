@@ -19,5 +19,6 @@ vendor/
 
 # Ignore artifacts
 cmd/shortenertest/shortenertest
+cmd/devopstest/devopstest
 cmd/statictest/statictest
 cmd/random/random
