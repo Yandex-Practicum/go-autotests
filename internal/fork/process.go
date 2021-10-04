@@ -1,10 +1,9 @@
 package fork
 
 import (
-	"bufio"
+	"bytes"
 	"context"
 	"fmt"
-	"io"
 	"net"
 	"os"
 	"os/exec"
@@ -14,8 +13,8 @@ import (
 
 type BackgroundProcess struct {
 	cmd    *exec.Cmd
-	stdout *bufio.Scanner
-	stderr *bufio.Scanner
+	stdout *bytes.Buffer
+	stderr *bytes.Buffer
 
 	waitPortInterval    time.Duration
 	waitPortConnTimeout time.Duration
@@ -33,19 +32,10 @@ func NewBackgroundProcess(ctx context.Context, command string, opts ...ProcessOp
 		opt(p)
 	}
 
-	p.cmd.Stdout = io.Discard
-	rStdout, wStdout, err := os.Pipe()
-	if err == nil {
-		p.cmd.Stdout = wStdout
-		p.stdout = bufio.NewScanner(rStdout)
-	}
-
-	p.cmd.Stderr = io.Discard
-	rStderr, wStderr, err := os.Pipe()
-	if err == nil {
-		p.cmd.Stderr = wStderr
-		p.stderr = bufio.NewScanner(rStderr)
-	}
+	p.stdout = new(bytes.Buffer)
+	p.cmd.Stdout = p.stdout
+	p.stderr = new(bytes.Buffer)
+	p.cmd.Stderr = p.stdout
 
 	return p
 }
@@ -126,13 +116,13 @@ func (p *BackgroundProcess) ListenPort(ctx context.Context, network, port string
 // Stdout reads and returns next portion of bytes from stdout.
 // This function may block until next newline is present in output
 func (p *BackgroundProcess) Stdout(ctx context.Context) []byte {
-	return readOutput(ctx, p.stdout)
+	return p.stdout.Bytes()
 }
 
 // Stderr reads and returns next portion of bytes from stderr.
 // This function may block until next newline is present in output
 func (p *BackgroundProcess) Stderr(ctx context.Context) []byte {
-	return readOutput(ctx, p.stderr)
+	return p.stderr.Bytes()
 }
 
 // Stop attempts to send given signals to process one by one.
@@ -159,22 +149,4 @@ func (p *BackgroundProcess) Stop(signals ...os.Signal) (exitCode int, err error)
 // String returns a human-readable representation of process command.
 func (p *BackgroundProcess) String() string {
 	return p.cmd.String()
-}
-
-// readOutput reads process output in a non-blocking way
-func readOutput(ctx context.Context, output *bufio.Scanner) []byte {
-	outChan := make(chan []byte, 1)
-	go func() {
-		output.Scan()
-		outChan <- output.Bytes()
-	}()
-
-	for {
-		select {
-		case <-ctx.Done():
-			return nil
-		case out := <-outChan:
-			return out
-		}
-	}
 }
