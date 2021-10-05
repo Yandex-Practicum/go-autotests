@@ -140,10 +140,17 @@ func (suite *Iteration14Suite) TestDelete() {
 	jar, err := cookiejar.New(nil)
 	suite.Require().NoError(err, "Неожиданная ошибка при создании Cookie Jar")
 
+	// create HTTP client without redirects support
+	errRedirectBlocked := errors.New("HTTP redirect blocked")
+	redirPolicy := resty.RedirectPolicyFunc(func(_ *http.Request, _ []*http.Request) error {
+		return errRedirectBlocked
+	})
+
 	httpc := resty.New().
 		SetHostURL(suite.serverAddress).
 		SetHeader("Accept-Encoding", "identity").
-		SetCookieJar(jar)
+		SetCookieJar(jar).
+		SetRedirectPolicy(redirPolicy)
 
 	shortenURLs := make(map[string]string)
 
@@ -205,10 +212,12 @@ func (suite *Iteration14Suite) TestDelete() {
 		for _, shorten := range shortenURLs {
 			req := httpc.R()
 			resp, err := req.Get(shorten)
+			noRespErr := true
+			if !errors.Is(err, errRedirectBlocked) {
+				noRespErr = suite.Assert().NoErrorf(err, "Ошибка при попытке сделать запрос для получения исходного URL")
+			}
 
-			noRespErr := suite.Assert().NoError(err, "Ошибка при попытке сделать запрос для получения URL")
-
-			validStatus := noRespErr && suite.Assert().Equalf(http.StatusGone, resp.StatusCode(),
+			validStatus := suite.Assert().Equalf(http.StatusGone, resp.StatusCode(),
 				"Несоответствие статус кода ответа ожидаемому в хендлере '%s %s'", req.Method, req.URL)
 
 			if !noRespErr || !validStatus {
