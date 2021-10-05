@@ -178,7 +178,10 @@ func (suite *Iteration14Suite) TestDelete() {
 	suite.Run("remove", func() {
 		var body []string
 		for _, shorten := range shortenURLs {
-			u, _ := url.Parse(shorten)
+			u, err := url.Parse(shorten)
+			if err != nil {
+				continue
+			}
 			body = append(body, strings.Trim(u.Path, "/"))
 		}
 
@@ -205,7 +208,7 @@ func (suite *Iteration14Suite) TestDelete() {
 
 			noRespErr := suite.Assert().NoError(err, "Ошибка при попытке сделать запрос для получения URL")
 
-			validStatus := suite.Assert().Equalf(http.StatusGone, resp.StatusCode(),
+			validStatus := noRespErr && suite.Assert().Equalf(http.StatusGone, resp.StatusCode(),
 				"Несоответствие статус кода ответа ожидаемому в хендлере '%s %s'", req.Method, req.URL)
 
 			if !noRespErr || !validStatus {
