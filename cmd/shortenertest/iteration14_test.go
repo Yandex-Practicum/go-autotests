@@ -209,20 +209,28 @@ func (suite *Iteration14Suite) TestDelete() {
 	})
 
 	suite.Run("check_state", func() {
-		for _, shorten := range shortenURLs {
-			req := httpc.R()
-			resp, err := req.Get(shorten)
-			noRespErr := true
-			if !errors.Is(err, errRedirectBlocked) {
-				noRespErr = suite.Assert().NoErrorf(err, "Ошибка при попытке сделать запрос для получения исходного URL")
-			}
+		ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+		defer cancel()
 
-			validStatus := suite.Assert().Equalf(http.StatusGone, resp.StatusCode(),
-				"Несоответствие статус кода ответа ожидаемому в хендлере '%s %s'", req.Method, req.URL)
+		ticker := time.NewTicker(1 * time.Second)
+		defer ticker.Stop()
 
-			if !noRespErr || !validStatus {
-				dump := dumpRequest(req.RawRequest, true)
-				suite.T().Logf("Оригинальный запрос:\n\n%s", dump)
+		for {
+			select {
+			case <-ctx.Done():
+				suite.T().Errorf("Не удалось дождаться удаления переданных URL в течении 20 секунд")
+				return
+			case <-ticker.C:
+				var deletedCount int
+				for _, shorten := range shortenURLs {
+					resp, err := httpc.R().Get(shorten)
+					if err == nil && resp != nil && resp.StatusCode() == http.StatusGone {
+						deletedCount++
+					}
+				}
+				if deletedCount == len(shortenURLs) {
+					return
+				}
 			}
 		}
 	})
