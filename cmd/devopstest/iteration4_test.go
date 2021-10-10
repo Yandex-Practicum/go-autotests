@@ -265,10 +265,10 @@ func (suite *Iteration4Suite) TestCounterHandlers() {
 		dumpErr = dumpErr && suite.Assert().Containsf(resp.Header().Get("Content-Type"), "application/json",
 			"Заголовок ответа Content-Type содержит несоответствующее значение")
 		dumpErr = dumpErr && suite.NotNil(result.Delta,
-			"Несоответствие отправленного значения counter (%d) полученному от сервера (nil), '%q %s'", value0+value1+value2, req.Method, req.URL)
+			"Несоответствие расчетой суммы отправленных значений counter (%d) и полученной от сервера (nil), '%q %s'", value0+value1+value2, req.Method, req.URL)
 
 		dumpErr = dumpErr && suite.Assert().Equalf(value0+value1+value2, *result.Delta,
-			"Несоответствие отправленного значения counter (%d) полученному от сервера (%d), '%q %s'", value0+value1+value2, *result.Delta, req.Method, req.URL)
+			"Несоответствие расчетой суммы отправленных значений counter (%d) и полученной от сервера (%d), '%q %s'", value0+value1+value2, *result.Delta, req.Method, req.URL)
 
 		if !dumpErr {
 			dump := dumpRequest(req.RawRequest, true)
