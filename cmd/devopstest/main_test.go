@@ -55,13 +55,17 @@ func TestIteration9(t *testing.T) {
 	suite.Run(t, new(Iteration9Suite))
 }
 
-// func TestIteration10(t *testing.T) {
-// 	suite.Run(t, new(Iteration10Suite))
-// }
+func TestIteration10(t *testing.T) {
+	suite.Run(t, new(Iteration10Suite))
+}
 
-// func TestIteration11(t *testing.T) {
-// 	suite.Run(t, new(Iteration11Suite))
-// }
+func TestIteration10b(t *testing.T) {
+	suite.Run(t, new(Iteration10bSuite))
+}
+
+func TestIteration11(t *testing.T) {
+	suite.Run(t, new(Iteration11Suite))
+}
 
 // func TestIteration12(t *testing.T) {
 // 	suite.Run(t, new(Iteration12Suite))

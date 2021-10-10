@@ -46,6 +46,7 @@ func (suite *Iteration9Suite) SetupSuite() {
 	suite.Require().NotEmpty(flagServerPort, "-server-port non-empty flag required")
 	suite.Require().NotEmpty(flagFileStoragePath, "-file-storage-path non-empty flag required")
 	suite.Require().NotEmpty(flagSHA256Key, "-key non-empty flag required")
+	suite.Require().NotEmpty(flagDatabaseDSN, "-database-dsn non-empty flag required")
 
 	suite.rnd = rand.New(rand.NewSource(int64(time.Now().Nanosecond())))
 	suite.serverAddress = "http://localhost:" + flagServerPort
@@ -55,6 +56,7 @@ func (suite *Iteration9Suite) SetupSuite() {
 
 	suite.envs = append(os.Environ(), []string{
 		"RESTORE=true",
+		"DATABASE_DSN=" + flagDatabaseDSN,
 		// "KEY=" + flagSHA256Key,
 	}...)
 
@@ -202,7 +204,7 @@ func (suite *Iteration9Suite) TestCounterGzipHandlers() {
 	id := "GetSetZip" + strconv.Itoa(suite.rnd.Intn(256))
 
 	suite.Run("update", func() {
-		value1, value2 := suite.rnd.Int63(), suite.rnd.Int63()
+		value1, value2 := int64(suite.rnd.Int31()), int64(suite.rnd.Int31())
 		req := httpc.R().
 			SetHeader("Accept-Encoding", "gzip").
 			SetHeader("Content-Type", "application/json")
@@ -270,9 +272,9 @@ func (suite *Iteration9Suite) TestCounterGzipHandlers() {
 		dumpErr = dumpErr && suite.Assert().Containsf(resp.Header().Get("Content-Encoding"), "gzip",
 			"Заголовок ответа Content-Encoding содержит несоответствующее значение")
 		dumpErr = dumpErr && suite.NotNil(result.Delta,
-			"Несоответствие отправленного значения counter (%d) полученному от сервера (nil), '%q %s'", value0+value1+value2, req.Method, req.URL)
+			"Несоответствие отправленного значения counter (r:%d+w:%d+w:%d) полученному от сервера (nil), '%q %s'", value0, value1, value2, req.Method, req.URL)
 		dumpErr = dumpErr && suite.Assert().Equalf(value0+value1+value2, *result.Delta,
-			"Несоответствие отправленного значения counter (%d) полученному от сервера (%d), '%q %s'", value0+value1+value2, *result.Delta, req.Method, req.URL)
+			"Несоответствие отправленного значения counter (r:%d+w:%d+w:%d) полученному от сервера (%d), '%q %s'", value0, value1, value2, *result.Delta, req.Method, req.URL)
 		dumpErr = dumpErr && suite.Equal(suite.Hash(&result), result.Hash, "Хеш-сумма не соответствует расчетной")
 
 		if !dumpErr {

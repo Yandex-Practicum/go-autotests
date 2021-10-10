@@ -38,6 +38,7 @@ func (suite *Iteration6Suite) SetupSuite() {
 	suite.Require().NotEmpty(flagAgentBinaryPath, "-agent-binary-path non-empty flag required")
 	suite.Require().NotEmpty(flagServerPort, "-server-port non-empty flag required")
 	suite.Require().NotEmpty(flagFileStoragePath, "-file-storage-path non-empty flag required")
+	suite.Require().NotEmpty(flagDatabaseDSN, "-database-dsn non-empty flag required")
 
 	suite.rnd = rand.New(rand.NewSource(int64(time.Now().Nanosecond())))
 	// suite.knownPgLibraries = []string{
@@ -57,6 +58,7 @@ func (suite *Iteration6Suite) SetupSuite() {
 		"RESTORE=true",
 		"STORE_INTERVAL=3s",
 		"STORE_FILE=" + flagFileStoragePath,
+		"DATABASE_DSN=" + flagDatabaseDSN,
 	}...)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
@@ -187,7 +189,7 @@ func (suite *Iteration6Suite) TestCounterHandlers() {
 	var storage int64
 
 	suite.Run("update", func() {
-		value1, value2 := suite.rnd.Int63(), suite.rnd.Int63()
+		value1, value2 := int64(suite.rnd.Int31()), int64(suite.rnd.Int31())
 		req := httpc.R().
 			SetHeader("Content-Type", "application/json")
 

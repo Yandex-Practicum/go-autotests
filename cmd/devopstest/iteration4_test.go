@@ -198,7 +198,7 @@ func (suite *Iteration4Suite) TestCounterHandlers() {
 	id := "GetSet" + strconv.Itoa(suite.rnd.Intn(256))
 
 	suite.Run("update", func() {
-		value1, value2 := suite.rnd.Int63(), suite.rnd.Int63()
+		value1, value2 := int64(suite.rnd.Int31()), int64(suite.rnd.Int31())
 		req := httpc.R().
 			SetHeader("Content-Type", "application/json")
 

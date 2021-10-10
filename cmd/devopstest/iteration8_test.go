@@ -42,6 +42,7 @@ func (suite *Iteration8Suite) SetupSuite() {
 	suite.Require().NotEmpty(flagAgentBinaryPath, "-agent-binary-path non-empty flag required")
 	suite.Require().NotEmpty(flagServerPort, "-server-port non-empty flag required")
 	suite.Require().NotEmpty(flagFileStoragePath, "-file-storage-path non-empty flag required")
+	suite.Require().NotEmpty(flagDatabaseDSN, "-database-dsn non-empty flag required")
 
 	suite.rnd = rand.New(rand.NewSource(int64(time.Now().Nanosecond())))
 	suite.serverAddress = "http://localhost:" + flagServerPort
@@ -49,6 +50,7 @@ func (suite *Iteration8Suite) SetupSuite() {
 
 	suite.envs = append(os.Environ(), []string{
 		"RESTORE=true",
+		"DATABASE_DSN=" + flagDatabaseDSN,
 	}...)
 
 	suite.agentArgs = []string{
@@ -193,7 +195,7 @@ func (suite *Iteration8Suite) TestCounterGzipHandlers() {
 	id := "GetSetZip" + strconv.Itoa(suite.rnd.Intn(256))
 
 	suite.Run("update", func() {
-		value1, value2 := suite.rnd.Int63(), suite.rnd.Int63()
+		value1, value2 := int64(suite.rnd.Int31()), int64(suite.rnd.Int31())
 		req := httpc.R().
 			SetHeader("Accept-Encoding", "gzip").
 			SetHeader("Content-Type", "application/json")
