@@ -93,13 +93,13 @@ func (suite *Iteration3Suite) SetupSuite() {
 }
 
 // TestFrameworkUsage attempts to recursively find usage of known HTTP frameworks in given sources
-func (suite *Iteration3Suite) TestFrameworkUsage() {
+func (suite *Iteration3Suite) TestHTTPFrameworkUsage() {
 	err := usesKnownPackage(suite.T(), flagTargetSourcePath, suite.knownFrameworks)
 	if errors.Is(err, errUsageFound) {
 		return
 	}
-	if errors.Is(err, errUsageNotFound) {
-		suite.T().Errorf("Не найдено использование хотя бы одного известного HTTP фреймворка по пути %s", flagTargetSourcePath)
+	if err == nil || errors.Is(err, errUsageNotFound) {
+		suite.T().Errorf("Не найдено использование хотя бы одного известного HTTP фреймворка по пути %q", flagTargetSourcePath)
 		return
 	}
 	suite.T().Errorf("Неожиданная ошибка при поиске использования фреймворка по пути %q, %v", flagTargetSourcePath, err)

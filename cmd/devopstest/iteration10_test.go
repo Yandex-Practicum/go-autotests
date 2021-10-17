@@ -129,16 +129,16 @@ func (suite *Iteration10Suite) serverShutdown() {
 }
 
 // TestLibraryUsage attempts to recursively find usage of database/sql in given sources
-func (suite *Iteration10Suite) TestLibraryUsage() {
-	err := usesKnownPackage(suite.T(), ".", suite.knownLibraries)
+func (suite *Iteration10Suite) TestDBLibraryUsage() {
+	err := usesKnownPackage(suite.T(), flagTargetSourcePath, suite.knownLibraries)
 	if errors.Is(err, errUsageFound) {
 		return
 	}
-	if errors.Is(err, errUsageNotFound) {
-		suite.T().Errorf("Не найдено использование библиотеки database/sql по пути %s", flagTargetSourcePath)
+	if err == nil || errors.Is(err, errUsageNotFound) {
+		suite.T().Errorf("Не найдено использование библиотеки database/sql по пути %q", flagTargetSourcePath)
 		return
 	}
-	suite.T().Errorf("Неожиданная ошибка при поиске использования библиотеки database/sql по пути %s: %s", flagTargetSourcePath, err)
+	suite.T().Errorf("Неожиданная ошибка при поиске использования библиотеки по пути %q, %v", flagTargetSourcePath, err)
 }
 
 // TestPingHandler attempts to call for ping handler and check positive result

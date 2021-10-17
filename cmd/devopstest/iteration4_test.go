@@ -173,16 +173,16 @@ func (suite *Iteration4Suite) agentShutdown() {
 	}
 }
 
-// TestEncoderUsage attempts to recursively find usage of known HTTP frameworks in given sources
-func (suite *Iteration4Suite) TestEncoderUsage() {
+func (suite *Iteration4Suite) TestEncoderLibraryUsage() {
 	err := usesKnownPackage(suite.T(), flagTargetSourcePath, suite.knownEncodingLibs)
-	if errors.Is(err, errUsageNotFound) {
+	if errors.Is(err, errUsageFound) {
+		return
+	}
+	if err == nil || errors.Is(err, errUsageNotFound) {
 		suite.T().Errorf("Не найдено использование известных библиотек кодирования JSON %q", flagTargetSourcePath)
 		return
 	}
-	if !errors.Is(err, errUsageFound) {
-		suite.T().Errorf("Неожиданная ошибка при поиске использования библиотек кодирования JSON по пути %q: %v", flagTargetSourcePath, err)
-	}
+	suite.T().Errorf("Неожиданная ошибка при поиске использования фреймворка по пути %q, %v", flagTargetSourcePath, err)
 }
 
 func (suite *Iteration4Suite) TestCounterHandlers() {
