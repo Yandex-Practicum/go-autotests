@@ -136,7 +136,7 @@ func (suite *Iteration7Suite) serverShutdown() {
 	}
 
 	if exitCode > 0 {
-		suite.T().Logf("Процесс завершился с не нулевым статусом %d: %s", exitCode, err)
+		suite.T().Logf("Процесс завершился с не нулевым статусом %d: %s", exitCode, err.Error())
 	}
 
 	// try to read stdout/stderr
@@ -262,13 +262,10 @@ func (suite *Iteration7Suite) TestCounterHandlers() {
 		dumpErr = dumpErr && suite.Assert().NoError(err, "Ошибка при попытке сделать запрос с получением значения counter")
 		dumpErr = dumpErr && suite.Assert().Equalf(http.StatusOK, resp.StatusCode(),
 			"Несоответствие статус кода ответа ожидаемому в хендлере %q: %q ", req.Method, req.URL)
-
 		dumpErr = dumpErr && suite.Assert().Containsf(resp.Header().Get("Content-Type"), "application/json",
 			"Заголовок ответа Content-Type содержит несоответствующее значение")
-
 		dumpErr = dumpErr && suite.NotNil(result.Delta,
 			"Несоответствие отправленного значения counter (%d) полученному от сервера (nil), '%q %s'", value0+value1+value2, req.Method, req.URL)
-
 		dumpErr = dumpErr && suite.Assert().Equalf(value0+value1+value2, *result.Delta,
 			"Несоответствие отправленного значения counter (%d) полученному от сервера (%d), '%q %s'", value0+value1+value2, *result.Delta, req.Method, req.URL)
 
@@ -313,10 +310,8 @@ func (suite *Iteration7Suite) TestCounterHandlers() {
 			"Заголовок ответа Content-Type содержит несоответствующее значение")
 		dumpErr = dumpErr && suite.NotNil(result.Delta,
 			"Получено не инициализированное значение Delta '%q %s'", req.Method, req.URL)
-
 		dumpErr = dumpErr && suite.NotNil(result.Delta,
 			"Несоответствие ожидаемого значения counter (%d) полученному от сервера (nil), '%q %s'", storage, req.Method, req.URL)
-
 		dumpErr = dumpErr && suite.Assert().Equalf(storage, *result.Delta,
 			"Несоответствие ожидаемого значения counter (%d) полученному от сервера (%d), '%q %s'", storage, *result.Delta, req.Method, req.URL)
 

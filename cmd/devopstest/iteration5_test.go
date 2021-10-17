@@ -248,19 +248,16 @@ cont:
 
 			dumpErr = dumpErr && suite.Assert().Containsf(resp.Header().Get("Content-Type"), "application/json",
 				"Заголовок ответа Content-Type содержит несоответствующее значение")
-
-			dumpErr = dumpErr && suite.Assert().True(((result.MType == "gauge" && result.Value != nil) || (result.MType == "counter" && result.Delta != nil)),
-				"Получен не однозначный результат (тип метода не соответствует возвращаемому значению) '%q %s'", req.Method, req.URL)
-
+			dumpErr = dumpErr && suite.Assert().True(result.MType != "gauge" || result.Value != nil,
+				"Получен не однозначный результат (возвращаемое значение value=nil не соответствет типу gauge) '%q %s'", req.Method, req.URL)
+			dumpErr = dumpErr && suite.Assert().True(result.MType != "counter" || result.Delta != nil,
+				"Получен не однозначный результат (возвращаемое значение delta=nil не соответствет типу counter) '%q %s'", req.Method, req.URL)
 			dumpErr = dumpErr && suite.Assert().False(result.Delta == nil && result.Value == nil,
 				"Получен результат без данных (Dalta == nil && Value == nil) '%q %s'", req.Method, req.URL)
-
 			dumpErr = dumpErr && suite.Assert().False(result.Delta != nil && result.Value != nil,
 				"Получен не однозначный результат (Dalta != nil && Value != nil) '%q %s'", req.Method, req.URL)
-
 			dumpErr = dumpErr && suite.Assert().Equalf(http.StatusOK, resp.StatusCode(),
 				"Несоответствие статус кода ответа ожидаемому в хендлере %q: %q ", req.Method, req.URL)
-
 			dumpErr = dumpErr && suite.Assert().True(result.MType == "gauge" || result.MType == "counter",
 				"Получен ответ с неизвестным значением типа: %q, '%q %s'", result.MType, req.Method, req.URL)
 

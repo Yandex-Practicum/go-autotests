@@ -190,7 +190,6 @@ func (suite *Iteration11Suite) TestInspectDatabase() {
 		dumpErr := suite.Assert().NoError(err, "Ошибка при попытке сделать запрос с обновлением counter")
 		dumpErr = dumpErr && suite.Assert().Equalf(http.StatusOK, resp.StatusCode(),
 			"Несоответствие статус кода ответа ожидаемому в хендлере %q: %q ", req.Method, req.URL)
-
 		dumpErr = dumpErr && suite.Assert().NoError(err, "Ошибка при попытке сделать запрос для сокращения URL")
 
 		if !dumpErr {
