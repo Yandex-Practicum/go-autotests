@@ -81,9 +81,9 @@ func (suite *Iteration10Suite) TearDownSuite() {
 		suite.T().Logf("Не удалось остановить процесс с помощью сигнала ОС: %s", err)
 		return
 	}
-	
+
 	if exitCode > 0 {
-		suite.T().Logf("Процесс завершился с не нулевым статусом %d: %s", exitCode, err)
+		suite.T().Logf("Процесс завершился с не нулевым статусом %d", exitCode)
 	}
 
 	// try to read stdout/stderr

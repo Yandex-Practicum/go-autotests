@@ -115,7 +115,7 @@ func (suite *Iteration14Suite) TearDownSuite() {
 	}
 
 	if exitCode > 0 {
-		suite.T().Logf("Процесс завершился с не нулевым статусом %d: %s", exitCode, err)
+		suite.T().Logf("Процесс завершился с не нулевым статусом %d", exitCode)
 	}
 
 	// try to read stdout/stderr
