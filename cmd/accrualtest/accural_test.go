@@ -259,6 +259,138 @@ func (suite *AccrualSuite) TestRegisterMechanic() {
 	})
 }
 
+// TestRegisterOrder checks order register handler
+func (suite *AccrualSuite) TestRegisterOrder() {
+	httpc := resty.New().
+		SetHostURL(suite.serverAddress)
+
+	successOrderNumber, err := generateOrderNumber(suite.T())
+	suite.Require().NoErrorf(err, "не удалось сгенерировать номер заказа")
+
+	suite.Run("non_json", func() {
+		orderNumber, err := generateOrderNumber(suite.T())
+		suite.Require().NoErrorf(err, "не удалось сгенерировать номер заказа")
+
+		o := []byte(`
+			{
+				"order": "` + orderNumber + `",
+				"goods": [
+					{
+						"description": "Стиральная машинка LG",
+						"price": 47399.99
+					}
+				]
+			}
+		`)
+
+		req := httpc.R().
+			SetHeader("Content-Type", "text/plain; charset=utf-8").
+			SetBody(o)
+
+		resp, err := req.Post("/api/orders")
+
+		noRespErr := suite.Assert().NoErrorf(err, "Ошибка при попытке сделать запрос на регистрацию механики")
+		validStatus := suite.Assert().Equalf(http.StatusBadRequest, resp.StatusCode(),
+			"Несоответствие статус кода ответа ожидаемому в хендлере '%s %s'", req.Method, req.URL,
+		)
+
+		if !noRespErr || !validStatus {
+			dump := dumpRequest(suite.T(), req.RawRequest, bytes.NewReader(o))
+			suite.T().Logf("Оригинальный запрос:\n\n%s", dump)
+		}
+	})
+
+	suite.Run("bad_order_number", func() {
+		o := []byte(`
+			{
+				"order": "12345678901",
+				"goods": [
+					{
+						"description": "Стиральная машинка LG",
+						"price": 47399.99
+					}
+				]
+			}
+		`)
+
+		req := httpc.R().
+			SetHeader("Content-Type", "application/json").
+			SetBody(o)
+
+		resp, err := req.Post("/api/orders")
+
+		noRespErr := suite.Assert().NoErrorf(err, "Ошибка при попытке сделать запрос на регистрацию механики")
+		validStatus := suite.Assert().Equalf(http.StatusBadRequest, resp.StatusCode(),
+			"Несоответствие статус кода ответа ожидаемому в хендлере '%s %s'", req.Method, req.URL,
+		)
+
+		if !noRespErr || !validStatus {
+			dump := dumpRequest(suite.T(), req.RawRequest, bytes.NewReader(o))
+			suite.T().Logf("Оригинальный запрос:\n\n%s", dump)
+		}
+	})
+
+	suite.Run("successful_registration", func() {
+		o := []byte(`
+			{
+				"order": "` + successOrderNumber + `",
+				"goods": [
+					{
+						"description": "Стиральная машинка LG",
+						"price": 47399.99
+					}
+				]
+			}
+		`)
+
+		req := httpc.R().
+			SetHeader("Content-Type", "application/json").
+			SetBody(o)
+
+		resp, err := req.Post("/api/orders")
+
+		noRespErr := suite.Assert().NoErrorf(err, "Ошибка при попытке сделать запрос на регистрацию механики")
+		validStatus := suite.Assert().Equalf(http.StatusAccepted, resp.StatusCode(),
+			"Несоответствие статус кода ответа ожидаемому в хендлере '%s %s'", req.Method, req.URL,
+		)
+
+		if !noRespErr || !validStatus {
+			dump := dumpRequest(suite.T(), req.RawRequest, bytes.NewReader(o))
+			suite.T().Logf("Оригинальный запрос:\n\n%s", dump)
+		}
+	})
+
+	suite.Run("duplicate_order", func() {
+		o := []byte(`
+			{
+				"order": "` + successOrderNumber + `",
+				"goods": [
+					{
+						"description": "Холодильник Beko",
+						"price": 22599.99
+					}
+				]
+			}
+		`)
+
+		req := httpc.R().
+			SetHeader("Content-Type", "application/json").
+			SetBody(o)
+
+		resp, err := req.Post("/api/orders")
+
+		noRespErr := suite.Assert().NoErrorf(err, "Ошибка при попытке сделать запрос на регистрацию механики")
+		validStatus := suite.Assert().Equalf(http.StatusConflict, resp.StatusCode(),
+			"Несоответствие статус кода ответа ожидаемому в хендлере '%s %s'", req.Method, req.URL,
+		)
+
+		if !noRespErr || !validStatus {
+			dump := dumpRequest(suite.T(), req.RawRequest, bytes.NewReader(o))
+			suite.T().Logf("Оригинальный запрос:\n\n%s", dump)
+		}
+	})
+}
+
 // TestEndToEndAccrual attempts to:
 // - register new mechanics
 // - register new order with appropriate goods
