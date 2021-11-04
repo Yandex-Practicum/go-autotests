@@ -117,7 +117,7 @@ func (suite *AccrualSuite) TestRegisterMechanic() {
 
 		resp, err := req.Post("/api/goods")
 
-		noRespErr := suite.Assert().NoErrorf(err, "Ошибка при попытке сделать запрос для получения исходного URL")
+		noRespErr := suite.Assert().NoErrorf(err, "Ошибка при попытке сделать запрос на регистрацию механики")
 		validStatus := suite.Assert().Equalf(http.StatusBadRequest, resp.StatusCode(),
 			"Несоответствие статус кода ответа ожидаемому в хендлере '%s %s'", req.Method, req.URL,
 		)
@@ -143,7 +143,7 @@ func (suite *AccrualSuite) TestRegisterMechanic() {
 
 		resp, err := req.Post("/api/goods")
 
-		noRespErr := suite.Assert().NoErrorf(err, "Ошибка при попытке сделать запрос для получения исходного URL")
+		noRespErr := suite.Assert().NoErrorf(err, "Ошибка при попытке сделать запрос на регистрацию механики")
 		validStatus := suite.Assert().Equalf(http.StatusBadRequest, resp.StatusCode(),
 			"Несоответствие статус кода ответа ожидаемому в хендлере '%s %s'", req.Method, req.URL,
 		)
@@ -169,7 +169,7 @@ func (suite *AccrualSuite) TestRegisterMechanic() {
 
 		resp, err := req.Post("/api/goods")
 
-		noRespErr := suite.Assert().NoErrorf(err, "Ошибка при попытке сделать запрос для получения исходного URL")
+		noRespErr := suite.Assert().NoErrorf(err, "Ошибка при попытке сделать запрос на регистрацию механики")
 		validStatus := suite.Assert().Equalf(http.StatusBadRequest, resp.StatusCode(),
 			"Несоответствие статус кода ответа ожидаемому в хендлере '%s %s'", req.Method, req.URL,
 		)
@@ -195,7 +195,7 @@ func (suite *AccrualSuite) TestRegisterMechanic() {
 
 		resp, err := req.Post("/api/goods")
 
-		noRespErr := suite.Assert().NoErrorf(err, "Ошибка при попытке сделать запрос для получения исходного URL")
+		noRespErr := suite.Assert().NoErrorf(err, "Ошибка при попытке сделать запрос на регистрацию механики")
 		validStatus := suite.Assert().Equalf(http.StatusBadRequest, resp.StatusCode(),
 			"Несоответствие статус кода ответа ожидаемому в хендлере '%s %s'", req.Method, req.URL,
 		)
@@ -210,7 +210,7 @@ func (suite *AccrualSuite) TestRegisterMechanic() {
 		m := []byte(`
 			{
 				"match": "Milka",
-				"reward": 10,
+				"reward": 11.5,
 				"reward_type": "%"
 			}
 		`)
@@ -221,7 +221,7 @@ func (suite *AccrualSuite) TestRegisterMechanic() {
 
 		resp, err := req.Post("/api/goods")
 
-		noRespErr := suite.Assert().NoErrorf(err, "Ошибка при попытке сделать запрос для получения исходного URL")
+		noRespErr := suite.Assert().NoErrorf(err, "Ошибка при попытке сделать запрос на регистрацию механики")
 		validStatus := suite.Assert().Equalf(http.StatusOK, resp.StatusCode(),
 			"Несоответствие статус кода ответа ожидаемому в хендлере '%s %s'", req.Method, req.URL,
 		)
@@ -247,7 +247,7 @@ func (suite *AccrualSuite) TestRegisterMechanic() {
 
 		resp, err := req.Post("/api/goods")
 
-		noRespErr := suite.Assert().NoErrorf(err, "Ошибка при попытке сделать запрос для получения исходного URL")
+		noRespErr := suite.Assert().NoErrorf(err, "Ошибка при попытке сделать запрос на регистрацию механики")
 		validStatus := suite.Assert().Equalf(http.StatusConflict, resp.StatusCode(),
 			"Несоответствие статус кода ответа ожидаемому в хендлере '%s %s'", req.Method, req.URL,
 		)
@@ -255,6 +255,123 @@ func (suite *AccrualSuite) TestRegisterMechanic() {
 		if !noRespErr || !validStatus {
 			dump := dumpRequest(suite.T(), req.RawRequest, bytes.NewReader(m))
 			suite.T().Logf("Оригинальный запрос:\n\n%s", dump)
+		}
+	})
+}
+
+// TestEndToEndAccrual attempts to:
+// - register new mechanics
+// - register new order with appropriate goods
+// - check accrual amount
+func (suite *AccrualSuite) TestEndToEndAccrual() {
+	httpc := resty.New().
+		SetHostURL(suite.serverAddress)
+
+	orderNumber, err := generateOrderNumber(suite.T())
+	suite.Require().NoError(err, "не удалось сгенерировать номер заказа")
+
+	suite.Run("register_mechanics", func() {
+		mechanics := [][]byte{
+			[]byte(`{"match": "Pringles", "reward": 10, "reward_type": "%"}`),
+			[]byte(`{"match": "Coca-Cola", "reward": 12.5, "reward_type": "pt"}`),
+		}
+
+		for _, mechanic := range mechanics {
+			req := httpc.R().
+				SetHeader("Content-Type", "application/json").
+				SetBody(mechanic)
+
+			resp, err := req.Post("/api/goods")
+
+			noRespErr := suite.Assert().NoErrorf(err, "Ошибка при попытке сделать запрос на регистрацию механики")
+			validStatus := suite.Assert().Equalf(http.StatusOK, resp.StatusCode(),
+				"Несоответствие статус кода ответа ожидаемому в хендлере '%s %s'", req.Method, req.URL,
+			)
+
+			if !noRespErr || !validStatus {
+				dump := dumpRequest(suite.T(), req.RawRequest, bytes.NewReader(mechanic))
+				suite.T().Logf("Оригинальный запрос:\n\n%s", dump)
+			}
+		}
+	})
+
+	suite.Run("register_order", func() {
+		order := []byte(`{
+			"order": "` + orderNumber + `",
+			"goods": [
+				{
+					"description": "Чайник Tefal",
+					"price": 7000
+				},
+				{
+					"description": "Чипсы Pringles бекон",
+					"price": 147.5
+				},
+				{
+					"description": "Напиток Coca-Cola Zero 0.5л",
+					"price": 55
+				}
+			]
+		}`)
+
+		req := httpc.R().
+			SetHeader("Content-Type", "application/json").
+			SetBody(order)
+
+		resp, err := req.Post("/api/orders")
+
+		noRespErr := suite.Assert().NoErrorf(err, "Ошибка при попытке сделать запрос на регистрацию заказа")
+		validStatus := suite.Assert().Equalf(http.StatusAccepted, resp.StatusCode(),
+			"Несоответствие статус кода ответа ожидаемому в хендлере '%s %s'", req.Method, req.URL,
+		)
+
+		if !noRespErr || !validStatus {
+			dump := dumpRequest(suite.T(), req.RawRequest, bytes.NewReader(order))
+			suite.T().Logf("Оригинальный запрос:\n\n%s", dump)
+		}
+	})
+
+	suite.Run("fetch_accrual", func() {
+		ticker := time.NewTicker(time.Second)
+		defer ticker.Stop()
+
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+
+		for {
+			select {
+			case <-ctx.Done():
+				suite.T().Errorf("не удалось дождаться окончания расчета за 10 секунд")
+				return
+			case <-ticker.C:
+				var acc accrual
+
+				req := httpc.R().
+					SetResult(&acc).
+					SetPathParam("number", orderNumber)
+
+				resp, err := req.Get("/api/orders/{number}")
+
+				noRespErr := suite.Assert().NoErrorf(err, "Ошибка при попытке сделать запрос на регистрацию заказа")
+				validStatus := suite.Assert().Equalf(http.StatusOK, resp.StatusCode(),
+					"Несоответствие статус кода ответа ожидаемому в хендлере '%s %s'", req.Method, req.URL,
+				)
+
+				expectedStatus := suite.Assert().NotEqualf("INVALID", acc.Status, "неожиданный статус расчета начисления")
+				if acc.Status != "PROCESSED" {
+					continue
+				}
+
+				expectedAccrual := suite.Assert().Equalf(float32(27.25), acc.Accrual, "не верная сумма начислений за заказ")
+
+				// success
+				if noRespErr && validStatus && expectedStatus && expectedAccrual {
+					return
+				}
+
+				dump := dumpRequest(suite.T(), req.RawRequest, nil)
+				suite.T().Logf("Оригинальный запрос:\n\n%s", dump)
+			}
 		}
 	})
 }
