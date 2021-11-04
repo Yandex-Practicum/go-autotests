@@ -28,6 +28,7 @@ type AccrualSuite struct {
 func (suite *AccrualSuite) SetupSuite() {
 	// check required flags
 	suite.Require().NotEmpty(flagTargetBinaryPath, "-binary-path non-empty flag required")
+	suite.Require().NotEmpty(flagDatabaseURI, "-database-uri non-empty flag required")
 	suite.Require().NotEmpty(flagServerHost, "-server-host non-empty flag required")
 	suite.Require().NotEmpty(flagServerPort, "-server-port non-empty flag required")
 
@@ -102,7 +103,7 @@ func (suite *AccrualSuite) TestRegisterMechanic() {
 		SetHostURL(suite.serverAddress)
 
 	suite.Run("non_json", func() {
-		m := bytes.NewBufferString(`
+		m := []byte(`
 			{
 				"match": "Bork",
 				"reward": 10,
@@ -122,13 +123,13 @@ func (suite *AccrualSuite) TestRegisterMechanic() {
 		)
 
 		if !noRespErr || !validStatus {
-			dump := dumpRequest(req.RawRequest, true)
+			dump := dumpRequest(suite.T(), req.RawRequest, bytes.NewReader(m))
 			suite.T().Logf("Оригинальный запрос:\n\n%s", dump)
 		}
 	})
 
 	suite.Run("bad_match", func() {
-		m := bytes.NewBufferString(`
+		m := []byte(`
 			{
 				"match": "",
 				"reward": 10,
@@ -148,13 +149,13 @@ func (suite *AccrualSuite) TestRegisterMechanic() {
 		)
 
 		if !noRespErr || !validStatus {
-			dump := dumpRequest(req.RawRequest, true)
+			dump := dumpRequest(suite.T(), req.RawRequest, bytes.NewReader(m))
 			suite.T().Logf("Оригинальный запрос:\n\n%s", dump)
 		}
 	})
 
 	suite.Run("bad_reward", func() {
-		m := bytes.NewBufferString(`
+		m := []byte(`
 			{
 				"match": "Milka",
 				"reward": -10,
@@ -174,13 +175,13 @@ func (suite *AccrualSuite) TestRegisterMechanic() {
 		)
 
 		if !noRespErr || !validStatus {
-			dump := dumpRequest(req.RawRequest, true)
+			dump := dumpRequest(suite.T(), req.RawRequest, bytes.NewReader(m))
 			suite.T().Logf("Оригинальный запрос:\n\n%s", dump)
 		}
 	})
 
 	suite.Run("bad_reward_type", func() {
-		m := bytes.NewBufferString(`
+		m := []byte(`
 			{
 				"match": "Milka",
 				"reward": 10,
@@ -200,13 +201,13 @@ func (suite *AccrualSuite) TestRegisterMechanic() {
 		)
 
 		if !noRespErr || !validStatus {
-			dump := dumpRequest(req.RawRequest, true)
+			dump := dumpRequest(suite.T(), req.RawRequest, bytes.NewReader(m))
 			suite.T().Logf("Оригинальный запрос:\n\n%s", dump)
 		}
 	})
 
 	suite.Run("successful_register", func() {
-		m := bytes.NewBufferString(`
+		m := []byte(`
 			{
 				"match": "Milka",
 				"reward": 10,
@@ -226,13 +227,13 @@ func (suite *AccrualSuite) TestRegisterMechanic() {
 		)
 
 		if !noRespErr || !validStatus {
-			dump := dumpRequest(req.RawRequest, true)
+			dump := dumpRequest(suite.T(), req.RawRequest, bytes.NewReader(m))
 			suite.T().Logf("Оригинальный запрос:\n\n%s", dump)
 		}
 	})
 
 	suite.Run("duplicate_mechanic", func() {
-		m := bytes.NewBufferString(`
+		m := []byte(`
 			{
 				"match": "Milka",
 				"reward": 42,
@@ -252,7 +253,7 @@ func (suite *AccrualSuite) TestRegisterMechanic() {
 		)
 
 		if !noRespErr || !validStatus {
-			dump := dumpRequest(req.RawRequest, true)
+			dump := dumpRequest(suite.T(), req.RawRequest, bytes.NewReader(m))
 			suite.T().Logf("Оригинальный запрос:\n\n%s", dump)
 		}
 	})
