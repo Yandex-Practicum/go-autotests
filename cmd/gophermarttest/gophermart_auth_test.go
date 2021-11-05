@@ -11,9 +11,6 @@ import (
 
 // TestUserAuth checks registration and authentication
 func (suite *GophermartSuite) TestUserAuth() {
-	httpc := resty.New().
-		SetHostURL(suite.gophermartServerAddress)
-
 	login := random.ASCIIString(4, 10)
 	password := random.ASCIIString(16, 32)
 
@@ -25,7 +22,9 @@ func (suite *GophermartSuite) TestUserAuth() {
 			}
 		`)
 
-		req := httpc.R().
+		req := resty.New().
+			SetHostURL(suite.gophermartServerAddress).
+			R().
 			SetHeader("Content-Type", "application/json").
 			SetBody(m)
 
@@ -55,7 +54,9 @@ func (suite *GophermartSuite) TestUserAuth() {
 			}
 		`)
 
-		req := httpc.R().
+		req := resty.New().
+			SetHostURL(suite.gophermartServerAddress).
+			R().
 			SetHeader("Content-Type", "application/json").
 			SetBody(m)
 

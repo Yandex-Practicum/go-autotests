@@ -184,6 +184,7 @@ func (suite *GophermartSuite) TestUserOrders() {
 		suite.Require().NoError(err, "Не удалось создать объект cookie jar")
 
 		dhttpc := resty.New().
+			SetHostURL(suite.gophermartServerAddress).
 			SetCookieJar(djar)
 
 		// register new user

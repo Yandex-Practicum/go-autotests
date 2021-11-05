@@ -22,7 +22,7 @@ import (
 // - performs partial balance withdrawal
 func (suite *GophermartSuite) TestEndToEnd() {
 	trademark := random.ASCIIString(10, 20)
-	expectedAccrual := float32(1459.95)
+	expectedAccrual := float32(729.98)
 
 	orderNum, err := generateOrderNumber(suite.T())
 	suite.Require().NoError(err, "Не удалось сгенерировать номер заказа")
@@ -141,7 +141,7 @@ func (suite *GophermartSuite) TestEndToEnd() {
 		resp, err := req.Post("/api/user/orders")
 
 		noRespErr := suite.Assert().NoErrorf(err, "Ошибка при попытке сделать запрос на регистрацию механики")
-		validStatus := suite.Assert().Equalf(http.StatusUnauthorized, resp.StatusCode(),
+		validStatus := suite.Assert().Equalf(http.StatusAccepted, resp.StatusCode(),
 			"Несоответствие статус кода ответа ожидаемому в хендлере '%s %s'", req.Method, req.URL,
 		)
 
@@ -183,7 +183,8 @@ func (suite *GophermartSuite) TestEndToEnd() {
 				}
 
 				// wait for miracle
-				if resp.StatusCode() != http.StatusOK || len(orders) == 0 {
+				if resp.StatusCode() != http.StatusOK || len(orders) == 0 ||
+					orders[0].Status != "PROCESSED" {
 					continue
 				}
 
@@ -191,6 +192,8 @@ func (suite *GophermartSuite) TestEndToEnd() {
 				suite.Assert().Equal(orderNum, o.Number, "Номер заказа не соответствует ожидаемому")
 				suite.Assert().Equal("PROCESSED", o.Status, "Статус заказа не соответствует ожидаемому")
 				suite.Assert().Equal(expectedAccrual, o.Accrual, "Начисление за заказ не соответствует ожидаемому")
+
+				return
 			}
 		}
 	})
@@ -228,7 +231,7 @@ func (suite *GophermartSuite) TestEndToEnd() {
 
 		body := []byte(`{
 			"order": "` + withdrawOrder + `",
-    		"sum": 1000.95
+    		"sum": 700.98
 		}`)
 
 		req := httpc.R().
@@ -263,8 +266,8 @@ func (suite *GophermartSuite) TestEndToEnd() {
 		)
 
 		expected := userBalance{
-			Current:   459,
-			Withdrawn: 1000.95,
+			Current:   29,
+			Withdrawn: 700.98,
 		}
 
 		validBalance := suite.Assert().Equal(expected, balance, "Баланс пользователя не соответствует ожидаемому")

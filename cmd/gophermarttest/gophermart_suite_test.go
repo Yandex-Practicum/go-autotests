@@ -41,8 +41,8 @@ func (suite *GophermartSuite) SetupSuite() {
 		suite.accrualServerAddress = "http://" + flagAccrualHost + ":" + flagAccrualPort
 
 		envs := append(os.Environ(),
-			"RUN_ADDRESS="+flagGophermartHost+":"+flagGophermartPort,
-			"DATABASE_URI="+flagGophermartDatabaseURI,
+			"RUN_ADDRESS="+flagAccrualHost+":"+flagAccrualPort,
+			"DATABASE_URI="+flagAccrualDatabaseURI,
 		)
 		p := fork.NewBackgroundProcess(context.Background(), flagAccrualBinaryPath,
 			fork.WithEnv(envs...),
