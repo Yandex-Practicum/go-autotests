@@ -1,6 +1,5 @@
 package main
 
-// Basic imports
 import (
 	"bytes"
 	"context"
@@ -38,7 +37,7 @@ func (suite *AccrualSuite) SetupSuite() {
 	{
 		envs := append(os.Environ(),
 			"RUN_ADDRESS="+flagServerHost+":"+flagServerPort,
-			"DATABASE_DSN="+flagDatabaseURI,
+			"DATABASE_URI="+flagDatabaseURI,
 		)
 		p := fork.NewBackgroundProcess(context.Background(), flagTargetBinaryPath,
 			fork.WithEnv(envs...),
