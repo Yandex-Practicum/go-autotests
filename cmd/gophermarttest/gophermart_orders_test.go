@@ -123,7 +123,7 @@ func (suite *GophermartSuite) TestUserOrders() {
 		resp, err := req.Post("/api/user/orders")
 
 		noRespErr := suite.Assert().NoErrorf(err, "Ошибка при попытке сделать запрос на регистрацию механики")
-		validStatus := suite.Assert().Equalf(http.StatusUnauthorized, resp.StatusCode(),
+		validStatus := suite.Assert().Equalf(http.StatusAccepted, resp.StatusCode(),
 			"Несоответствие статус кода ответа ожидаемому в хендлере '%s %s'", req.Method, req.URL,
 		)
 
