@@ -78,7 +78,7 @@ func (p *BackgroundProcess) WaitPort(ctx context.Context, network, port string) 
 	}
 }
 
-// WaitPort tries to perform network connection to given port.
+// ListenPort tries to perform network connection to given port.
 func (p *BackgroundProcess) ListenPort(ctx context.Context, network, port string) error {
 	ticker := time.NewTicker(p.waitPortInterval)
 	defer ticker.Stop()

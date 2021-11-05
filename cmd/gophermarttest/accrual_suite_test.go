@@ -19,27 +19,27 @@ import (
 type AccrualSuite struct {
 	suite.Suite
 
-	serverAddress string
-	serverProcess *fork.BackgroundProcess
+	accrualServerAddress string
+	accrualProcess       *fork.BackgroundProcess
 }
 
 // SetupSuite bootstraps suite dependencies
 func (suite *AccrualSuite) SetupSuite() {
 	// check required flags
-	suite.Require().NotEmpty(flagTargetBinaryPath, "-binary-path non-empty flag required")
-	suite.Require().NotEmpty(flagDatabaseURI, "-database-uri non-empty flag required")
-	suite.Require().NotEmpty(flagServerHost, "-server-host non-empty flag required")
-	suite.Require().NotEmpty(flagServerPort, "-server-port non-empty flag required")
+	suite.Require().NotEmpty(flagAccrualBinaryPath, "-accrual-binary-path non-empty flag required")
+	suite.Require().NotEmpty(flagAccrualDatabaseURI, "-accrual-database-uri non-empty flag required")
+	suite.Require().NotEmpty(flagAccrualHost, "-accrual-host non-empty flag required")
+	suite.Require().NotEmpty(flagAccrualPort, "-accrual-port non-empty flag required")
 
-	suite.serverAddress = "http://" + flagServerHost + ":" + flagServerPort
-
-	// start server
+	// start accrual server
 	{
+		suite.accrualServerAddress = "http://" + flagAccrualHost + ":" + flagAccrualPort
+
 		envs := append(os.Environ(),
-			"RUN_ADDRESS="+flagServerHost+":"+flagServerPort,
-			"DATABASE_URI="+flagDatabaseURI,
+			"RUN_ADDRESS="+flagGophermartHost+":"+flagGophermartPort,
+			"DATABASE_URI="+flagGophermartDatabaseURI,
 		)
-		p := fork.NewBackgroundProcess(context.Background(), flagTargetBinaryPath,
+		p := fork.NewBackgroundProcess(context.Background(), flagAccrualBinaryPath,
 			fork.WithEnv(envs...),
 		)
 
@@ -52,24 +52,24 @@ func (suite *AccrualSuite) SetupSuite() {
 			return
 		}
 
-		port := flagServerPort
+		port := flagAccrualPort
 		err = p.WaitPort(ctx, "tcp", port)
 		if err != nil {
 			suite.T().Errorf("Не удалось дождаться пока порт %s станет доступен для запроса: %s", port, err)
 			return
 		}
 
-		suite.serverProcess = p
+		suite.accrualProcess = p
 	}
 }
 
 // TearDownSuite teardowns suite dependencies
 func (suite *AccrualSuite) TearDownSuite() {
-	if suite.serverProcess == nil {
+	if suite.accrualProcess == nil {
 		return
 	}
 
-	exitCode, err := suite.serverProcess.Stop(syscall.SIGINT, syscall.SIGKILL)
+	exitCode, err := suite.accrualProcess.Stop(syscall.SIGINT, syscall.SIGKILL)
 	if err != nil {
 		if errors.Is(err, os.ErrProcessDone) {
 			return
@@ -86,46 +86,20 @@ func (suite *AccrualSuite) TearDownSuite() {
 	ctx, cancel := context.WithTimeout(context.Background(), 500*time.Millisecond)
 	defer cancel()
 
-	out := suite.serverProcess.Stderr(ctx)
+	out := suite.accrualProcess.Stderr(ctx)
 	if len(out) > 0 {
 		suite.T().Logf("Получен STDERR лог процесса:\n\n%s", string(out))
 	}
-	out = suite.serverProcess.Stdout(ctx)
+	out = suite.accrualProcess.Stdout(ctx)
 	if len(out) > 0 {
 		suite.T().Logf("Получен STDOUT лог процесса:\n\n%s", string(out))
 	}
 }
 
-// TestNewMechanic checks accrual mechanics register handler
+// TestRegisterMechanic checks orderAccrual mechanics register handler
 func (suite *AccrualSuite) TestRegisterMechanic() {
 	httpc := resty.New().
-		SetHostURL(suite.serverAddress)
-
-	suite.Run("non_json", func() {
-		m := []byte(`
-			{
-				"match": "Bork",
-				"reward": 10,
-				"reward_type": "%"
-			}
-		`)
-
-		req := httpc.R().
-			SetHeader("Content-Type", "text/plain; charset=utf-8").
-			SetBody(m)
-
-		resp, err := req.Post("/api/goods")
-
-		noRespErr := suite.Assert().NoErrorf(err, "Ошибка при попытке сделать запрос на регистрацию механики")
-		validStatus := suite.Assert().Equalf(http.StatusBadRequest, resp.StatusCode(),
-			"Несоответствие статус кода ответа ожидаемому в хендлере '%s %s'", req.Method, req.URL,
-		)
-
-		if !noRespErr || !validStatus {
-			dump := dumpRequest(suite.T(), req.RawRequest, bytes.NewReader(m))
-			suite.T().Logf("Оригинальный запрос:\n\n%s", dump)
-		}
-	})
+		SetHostURL(suite.accrualServerAddress)
 
 	suite.Run("bad_match", func() {
 		m := []byte(`
@@ -258,46 +232,13 @@ func (suite *AccrualSuite) TestRegisterMechanic() {
 	})
 }
 
-// TestRegisterOrder checks order register handler
+// TestRegisterOrder checks orderAccrual order register handler
 func (suite *AccrualSuite) TestRegisterOrder() {
 	httpc := resty.New().
-		SetHostURL(suite.serverAddress)
+		SetHostURL(suite.accrualServerAddress)
 
 	successOrderNumber, err := generateOrderNumber(suite.T())
 	suite.Require().NoErrorf(err, "не удалось сгенерировать номер заказа")
-
-	suite.Run("non_json", func() {
-		orderNumber, err := generateOrderNumber(suite.T())
-		suite.Require().NoErrorf(err, "не удалось сгенерировать номер заказа")
-
-		o := []byte(`
-			{
-				"order": "` + orderNumber + `",
-				"goods": [
-					{
-						"description": "Стиральная машинка LG",
-						"price": 47399.99
-					}
-				]
-			}
-		`)
-
-		req := httpc.R().
-			SetHeader("Content-Type", "text/plain; charset=utf-8").
-			SetBody(o)
-
-		resp, err := req.Post("/api/orders")
-
-		noRespErr := suite.Assert().NoErrorf(err, "Ошибка при попытке сделать запрос на регистрацию механики")
-		validStatus := suite.Assert().Equalf(http.StatusBadRequest, resp.StatusCode(),
-			"Несоответствие статус кода ответа ожидаемому в хендлере '%s %s'", req.Method, req.URL,
-		)
-
-		if !noRespErr || !validStatus {
-			dump := dumpRequest(suite.T(), req.RawRequest, bytes.NewReader(o))
-			suite.T().Logf("Оригинальный запрос:\n\n%s", dump)
-		}
-	})
 
 	suite.Run("bad_order_number", func() {
 		o := []byte(`
@@ -390,13 +331,13 @@ func (suite *AccrualSuite) TestRegisterOrder() {
 	})
 }
 
-// TestEndToEndAccrual attempts to:
+// TestEndToEnd attempts to:
 // - register new mechanics
 // - register new order with appropriate goods
-// - check accrual amount
-func (suite *AccrualSuite) TestEndToEndAccrual() {
+// - check orderAccrual amount
+func (suite *AccrualSuite) TestEndToEnd() {
 	httpc := resty.New().
-		SetHostURL(suite.serverAddress)
+		SetHostURL(suite.accrualServerAddress)
 
 	orderNumber, err := generateOrderNumber(suite.T())
 	suite.Require().NoError(err, "не удалось сгенерировать номер заказа")
@@ -475,7 +416,7 @@ func (suite *AccrualSuite) TestEndToEndAccrual() {
 				suite.T().Errorf("не удалось дождаться окончания расчета за 10 секунд")
 				return
 			case <-ticker.C:
-				var acc accrual
+				var acc orderAccrual
 
 				req := httpc.R().
 					SetResult(&acc).

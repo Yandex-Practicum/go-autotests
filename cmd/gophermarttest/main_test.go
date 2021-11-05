@@ -14,3 +14,7 @@ func TestMain(m *testing.M) {
 func TestGophermart(t *testing.T) {
 	suite.Run(t, new(GophermartSuite))
 }
+
+func TestAccrual(t *testing.T) {
+	suite.Run(t, new(AccrualSuite))
+}

@@ -16,29 +16,35 @@ import (
 type GophermartSuite struct {
 	suite.Suite
 
-	serverAddress string
-	serverProcess *fork.BackgroundProcess
+	gophermartServerAddress string
+	gophermartProcess       *fork.BackgroundProcess
+
+	accrualServerAddress string
+	accrualProcess       *fork.BackgroundProcess
 }
 
 // SetupSuite bootstraps suite dependencies
 func (suite *GophermartSuite) SetupSuite() {
 	// check required flags
-	suite.Require().NotEmpty(flagTargetBinaryPath, "-binary-path non-empty flag required")
-	suite.Require().NotEmpty(flagDatabaseURI, "-database-uri non-empty flag required")
-	suite.Require().NotEmpty(flagServerHost, "-server-host non-empty flag required")
-	suite.Require().NotEmpty(flagServerPort, "-server-port non-empty flag required")
-	suite.Require().NotEmpty(flagAccrualServiceAddr, "-accrual-addr non-empty flag required")
+	suite.Require().NotEmpty(flagGophermartBinaryPath, "-gophermart-binary-path non-empty flag required")
+	suite.Require().NotEmpty(flagGophermartDatabaseURI, "-gophermart-database-uri non-empty flag required")
+	suite.Require().NotEmpty(flagGophermartHost, "-gophermart-host non-empty flag required")
+	suite.Require().NotEmpty(flagGophermartPort, "-gophermart-port non-empty flag required")
 
-	suite.serverAddress = "http://" + flagServerHost + ":" + flagServerPort
+	suite.Require().NotEmpty(flagAccrualBinaryPath, "-accrual-binary-path non-empty flag required")
+	suite.Require().NotEmpty(flagAccrualDatabaseURI, "-accrual-database-uri non-empty flag required")
+	suite.Require().NotEmpty(flagAccrualHost, "-accrual-host non-empty flag required")
+	suite.Require().NotEmpty(flagAccrualPort, "-accrual-port non-empty flag required")
 
-	// start server
+	// start accrual server
 	{
+		suite.accrualServerAddress = "http://" + flagAccrualHost + ":" + flagAccrualPort
+
 		envs := append(os.Environ(),
-			"RUN_ADDRESS="+flagServerHost+":"+flagServerPort,
-			"DATABASE_URI="+flagDatabaseURI,
-			"ACCRUAL_SYSTEM_ADDRESS="+flagAccrualServiceAddr,
+			"RUN_ADDRESS="+flagGophermartHost+":"+flagGophermartPort,
+			"DATABASE_URI="+flagGophermartDatabaseURI,
 		)
-		p := fork.NewBackgroundProcess(context.Background(), flagTargetBinaryPath,
+		p := fork.NewBackgroundProcess(context.Background(), flagAccrualBinaryPath,
 			fork.WithEnv(envs...),
 		)
 
@@ -51,24 +57,64 @@ func (suite *GophermartSuite) SetupSuite() {
 			return
 		}
 
-		port := flagServerPort
+		port := flagAccrualPort
 		err = p.WaitPort(ctx, "tcp", port)
 		if err != nil {
 			suite.T().Errorf("Не удалось дождаться пока порт %s станет доступен для запроса: %s", port, err)
 			return
 		}
 
-		suite.serverProcess = p
+		suite.accrualProcess = p
+	}
+
+	// start gophermart server
+	{
+		suite.gophermartServerAddress = "http://" + flagGophermartHost + ":" + flagGophermartPort
+
+		envs := append(os.Environ(),
+			"RUN_ADDRESS="+flagGophermartHost+":"+flagGophermartPort,
+			"DATABASE_URI="+flagGophermartDatabaseURI,
+			"ACCRUAL_SYSTEM_ADDRESS="+suite.accrualServerAddress,
+		)
+		p := fork.NewBackgroundProcess(context.Background(), flagGophermartBinaryPath,
+			fork.WithEnv(envs...),
+		)
+
+		ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+		defer cancel()
+
+		err := p.Start(ctx)
+		if err != nil {
+			suite.T().Errorf("Невозможно запустить процесс командой %s: %s. Переменные окружения: %+v", p, err, envs)
+			return
+		}
+
+		port := flagGophermartPort
+		err = p.WaitPort(ctx, "tcp", port)
+		if err != nil {
+			suite.T().Errorf("Не удалось дождаться пока порт %s станет доступен для запроса: %s", port, err)
+			return
+		}
+
+		suite.gophermartProcess = p
 	}
 }
 
 // TearDownSuite teardowns suite dependencies
 func (suite *GophermartSuite) TearDownSuite() {
-	if suite.serverProcess == nil {
+	suite.T().Logf("останавливаем процесс gophermart")
+	suite.stopBinaryProcess(suite.gophermartProcess)
+
+	suite.T().Log("останавливаем процесс accrual")
+	suite.stopBinaryProcess(suite.accrualProcess)
+}
+
+func (suite GophermartSuite) stopBinaryProcess(p *fork.BackgroundProcess) {
+	if p == nil {
 		return
 	}
 
-	exitCode, err := suite.serverProcess.Stop(syscall.SIGINT, syscall.SIGKILL)
+	exitCode, err := p.Stop(syscall.SIGINT, syscall.SIGKILL)
 	if err != nil {
 		if errors.Is(err, os.ErrProcessDone) {
 			return
@@ -85,11 +131,11 @@ func (suite *GophermartSuite) TearDownSuite() {
 	ctx, cancel := context.WithTimeout(context.Background(), 500*time.Millisecond)
 	defer cancel()
 
-	out := suite.serverProcess.Stderr(ctx)
+	out := p.Stderr(ctx)
 	if len(out) > 0 {
 		suite.T().Logf("Получен STDERR лог процесса:\n\n%s", string(out))
 	}
-	out = suite.serverProcess.Stdout(ctx)
+	out = p.Stdout(ctx)
 	if len(out) > 0 {
 		suite.T().Logf("Получен STDOUT лог процесса:\n\n%s", string(out))
 	}
