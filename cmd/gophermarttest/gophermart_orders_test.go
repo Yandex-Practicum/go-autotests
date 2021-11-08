@@ -215,7 +215,7 @@ func (suite *GophermartSuite) TestUserOrders() {
 			}
 
 			if authHeader != "" {
-				httpc.SetHeader("Authorization", authHeader)
+				dhttpc.SetHeader("Authorization", authHeader)
 			}
 		}
 
