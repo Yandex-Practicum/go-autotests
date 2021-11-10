@@ -95,6 +95,8 @@ func (suite *GophermartSuite) TestEndToEnd() {
 	suite.Require().NoError(err, "Не удалось создать объект cookie jar")
 
 	httpc := resty.New().
+		SetDebug(true).
+		SetDebugBodyLimit(2048).
 		SetHostURL(suite.gophermartServerAddress).
 		SetCookieJar(jar)
 
@@ -166,7 +168,11 @@ func (suite *GophermartSuite) TestEndToEnd() {
 			case <-ticker.C:
 				var orders []order
 
+				ctx, cancel := context.WithTimeout(ctx, time.Second)
+				defer cancel()
+
 				req := httpc.R().
+					SetContext(ctx).
 					SetResult(&orders)
 
 				resp, err := req.Get("/api/user/orders")
