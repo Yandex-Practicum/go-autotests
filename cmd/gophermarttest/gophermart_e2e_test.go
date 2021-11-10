@@ -95,8 +95,6 @@ func (suite *GophermartSuite) TestEndToEnd() {
 	suite.Require().NoError(err, "Не удалось создать объект cookie jar")
 
 	httpc := resty.New().
-		SetDebug(true).
-		SetDebugBodyLimit(2048).
 		SetHostURL(suite.gophermartServerAddress).
 		SetCookieJar(jar)
 
@@ -181,8 +179,11 @@ func (suite *GophermartSuite) TestEndToEnd() {
 				validStatus := suite.Assert().Containsf([]int{http.StatusOK, http.StatusNoContent}, resp.StatusCode(),
 					"Несоответствие статус кода ответа ожидаемому в хендлере '%s %s'", req.Method, req.URL,
 				)
+				validContentType := suite.Assert().Containsf(resp.Header().Get("Content-Type"), "application/json",
+					"Заголовок ответа Content-Type содержит несоответствующее значение",
+				)
 
-				if !noRespErr || !validStatus {
+				if !noRespErr || !validStatus || !validContentType {
 					dump := dumpRequest(suite.T(), req.RawRequest, nil)
 					suite.T().Logf("Оригинальный запрос:\n\n%s", dump)
 					return
@@ -216,6 +217,9 @@ func (suite *GophermartSuite) TestEndToEnd() {
 		validStatus := suite.Assert().Containsf([]int{http.StatusOK, http.StatusNoContent}, resp.StatusCode(),
 			"Несоответствие статус кода ответа ожидаемому в хендлере '%s %s'", req.Method, req.URL,
 		)
+		validContentType := suite.Assert().Containsf(resp.Header().Get("Content-Type"), "application/json",
+			"Заголовок ответа Content-Type содержит несоответствующее значение",
+		)
 
 		expected := userBalance{
 			Current:   expectedAccrual,
@@ -224,7 +228,7 @@ func (suite *GophermartSuite) TestEndToEnd() {
 
 		validBalance := suite.Assert().Equal(expected, balance, "Баланс пользователя не соответствует ожидаемому")
 
-		if !noRespErr || !validStatus || !validBalance {
+		if !noRespErr || !validStatus || !validBalance || !validContentType {
 			dump := dumpRequest(suite.T(), req.RawRequest, nil)
 			suite.T().Logf("Оригинальный запрос:\n\n%s", dump)
 			return
@@ -270,6 +274,9 @@ func (suite *GophermartSuite) TestEndToEnd() {
 		validStatus := suite.Assert().Equal(http.StatusOK, resp.StatusCode(),
 			"Несоответствие статус кода ответа ожидаемому в хендлере '%s %s'", req.Method, req.URL,
 		)
+		validContentType := suite.Assert().Containsf(resp.Header().Get("Content-Type"), "application/json",
+			"Заголовок ответа Content-Type содержит несоответствующее значение",
+		)
 
 		expected := userBalance{
 			Current:   29,
@@ -278,7 +285,7 @@ func (suite *GophermartSuite) TestEndToEnd() {
 
 		validBalance := suite.Assert().Equal(expected, balance, "Баланс пользователя не соответствует ожидаемому")
 
-		if !noRespErr || !validStatus || !validBalance {
+		if !noRespErr || !validStatus || !validBalance || !validContentType {
 			dump := dumpRequest(suite.T(), req.RawRequest, nil)
 			suite.T().Logf("Оригинальный запрос:\n\n%s", dump)
 			return

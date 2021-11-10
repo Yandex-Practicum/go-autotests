@@ -165,6 +165,9 @@ func (suite *GophermartSuite) TestUserOrders() {
 		validStatus := suite.Assert().Equalf(http.StatusOK, resp.StatusCode(),
 			"Несоответствие статус кода ответа ожидаемому в хендлере '%s %s'", req.Method, req.URL,
 		)
+		validContentType := suite.Assert().Containsf(resp.Header().Get("Content-Type"), "application/json",
+			"Заголовок ответа Content-Type содержит несоответствующее значение",
+		)
 
 		validOrdersLen := suite.Assert().Len(orders, 1, "Ожидаем отличное от полученного кол-во заказов")
 		validOrderNum := validOrdersLen && suite.Assert().Equal(orderNum, orders[0].Number,
@@ -173,7 +176,7 @@ func (suite *GophermartSuite) TestUserOrders() {
 			"Ожидаем другой статус заказа в ответе")
 
 		if !noRespErr || !validStatus || !validOrdersLen ||
-			!validOrderNum || !validOrderStatus {
+			!validOrderNum || !validOrderStatus || !validContentType {
 			dump := dumpRequest(suite.T(), req.RawRequest, nil)
 			suite.T().Logf("Оригинальный запрос:\n\n%s", dump)
 		}
