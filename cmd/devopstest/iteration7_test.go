@@ -52,6 +52,7 @@ func (suite *Iteration7Suite) SetupSuite() {
 	suite.serverPort = flagServerPort
 
 	suite.envs = append(os.Environ(), []string{
+		"STORE_INTERVAL=1s",
 		"RESTORE=true",
 		"DATABASE_DSN=" + flagDatabaseDSN,
 	}...)

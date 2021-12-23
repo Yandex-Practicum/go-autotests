@@ -56,7 +56,7 @@ func (suite *Iteration6Suite) SetupSuite() {
 
 		"SHUTDOWN_TIMEOUT=5s",
 		"RESTORE=true",
-		"STORE_INTERVAL=3s",
+		"STORE_INTERVAL=1s",
 		"STORE_FILE=" + flagFileStoragePath,
 		"DATABASE_DSN=" + flagDatabaseDSN,
 	}...)
