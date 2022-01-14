@@ -31,7 +31,6 @@ func (suite *Iteration3Suite) SetupSuite() {
 		"github.com/astaxie/beego",
 		"github.com/beatlabs/patron",
 		"github.com/bnkamalesh/webgo",
-		"github.com/buaazp/fasthttprouter",
 		"github.com/claygod/Bxog",
 		"github.com/claygod/microservice",
 		"github.com/dimfeld/httptreemux",
