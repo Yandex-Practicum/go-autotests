@@ -1,0 +1,1 @@
+Run `go generate ./...` from root to produce artifacts.

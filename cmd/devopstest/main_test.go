@@ -1,5 +1,7 @@
 package main
 
+//go:generate go test -c -o=../../bin/devopstest
+
 import (
 	"os"
 	"testing"

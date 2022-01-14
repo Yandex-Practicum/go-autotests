@@ -1,5 +1,7 @@
 package main
 
+//go:generate go build -o=../../bin/statictest
+
 import (
 	"github.com/jingyugao/rowserrcheck/passes/rowserr"
 	"github.com/timakin/bodyclose/passes/bodyclose"

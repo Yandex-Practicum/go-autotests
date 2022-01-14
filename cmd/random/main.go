@@ -1,5 +1,7 @@
 package main
 
+//go:generate go build -o=../../bin/random
+
 import (
 	"flag"
 	"fmt"

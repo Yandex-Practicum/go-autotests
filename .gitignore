@@ -24,3 +24,7 @@ cmd/accrualtest/accrualtest
 cmd/gophermarttest/gophermarttest
 cmd/statictest/statictest
 cmd/random/random
+
+# Allow bin directory but not artifacts
+bin/*
+!bin/README.md
