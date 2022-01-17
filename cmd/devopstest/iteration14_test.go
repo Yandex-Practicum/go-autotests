@@ -393,7 +393,7 @@ func (suite *Iteration14Suite) TestCollectAgentMetrics() {
 		{method: "gauge", name: "StackSys", static: true},
 		{method: "gauge", name: "Sys", static: true},
 		{method: "gauge", name: "TotalAlloc"},
-		{method: "gauge", name: "TotalMemory"},
+		{method: "gauge", name: "TotalMemory", static: true},
 		{method: "gauge", name: "FreeMemory"},
 		{method: "gauge", name: "CPUutilization1"},
 	}
