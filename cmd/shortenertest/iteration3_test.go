@@ -11,7 +11,8 @@ import (
 type Iteration3Suite struct {
 	suite.Suite
 
-	knownFrameworks []string
+	knownFrameworks      []string
+	restrictedFrameworks []string
 }
 
 // SetupSuite bootstraps suite dependencies
@@ -89,11 +90,23 @@ func (suite *Iteration3Suite) SetupSuite() {
 		"gobuffalo.io",
 		"rest-layer.io",
 	}
+
+	suite.restrictedFrameworks = []string{
+		"github.com/valyala/fasthttp",
+		"github.com/fasthttp/router",
+	}
 }
 
 // TestFrameworkUsage attempts to recursively find usage of known HTTP frameworks in given sources
 func (suite *Iteration3Suite) TestFrameworkUsage() {
-	err := usesKnownPackage(suite.T(), flagTargetSourcePath, suite.knownFrameworks)
+	err := usesKnownPackage(suite.T(), flagTargetSourcePath, suite.restrictedFrameworks)
+	if err == nil {
+		suite.T().Errorf("Найдено использование одного из не рекомендуемых фреймворков по пути %s: %s",
+			flagTargetSourcePath, suite.restrictedFrameworks)
+		return
+	}
+
+	err = usesKnownPackage(suite.T(), flagTargetSourcePath, suite.knownFrameworks)
 	if err == nil {
 		return
 	}

@@ -140,7 +140,7 @@ func (suite *Iteration9Suite) TestAuth() {
 		req := httpc.R().
 			SetHeader("Accept-Encoding", "identity").
 			SetResult(&respBody)
-		resp, err := req.Get("/user/urls")
+		resp, err := req.Get("/api/user/urls")
 
 		noRespErr := suite.Assert().NoErrorf(err, "Ошибка при попытке сделать запрос для получения списка сокращенных URL")
 
@@ -172,7 +172,7 @@ func (suite *Iteration9Suite) TestAuth() {
 		req := resty.New().
 			SetHostURL(suite.serverAddress).
 			R()
-		resp, err := req.Get("/user/urls")
+		resp, err := req.Get("/api/user/urls")
 		if err != nil {
 			dump := dumpRequest(req.RawRequest, false)
 			suite.Require().NoErrorf(err, "Ошибка при попытке сделать запрос для получения списка сокращенных URL:\n\n %s", dump)
