@@ -5,6 +5,9 @@
 *.so
 *.dylib
 
+# meta files
+.DS_Store
+
 # Test binary, built with `go test -c`
 *.test
 
