@@ -5,6 +5,7 @@ go 1.19
 require (
 	github.com/go-resty/resty/v2 v2.7.0
 	github.com/gofrs/uuid v4.3.0+incompatible
+	github.com/google/pprof v0.0.0-20220829040838-70bd9ae97f40
 	github.com/jackc/pgx v3.6.2+incompatible
 	github.com/jingyugao/rowserrcheck v1.1.1
 	github.com/stretchr/testify v1.8.0
