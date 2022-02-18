@@ -5,13 +5,16 @@ import (
 )
 
 var (
-	flagTargetBinaryPath string
-	flagTargetSourcePath string
-	flagServerHost       string
-	flagServerPort       string
-	flagServerBaseURL    string
-	flagFileStoragePath  string
-	flagDatabaseDSN      string
+	flagTargetBinaryPath  string
+	flagTargetSourcePath  string
+	flagServerHost        string
+	flagServerPort        string
+	flagServerBaseURL     string
+	flagFileStoragePath   string
+	flagDatabaseDSN       string
+	flagBaseProfilePath   string
+	flagResultProfilePath string
+	flagPackageName       string
 )
 
 func init() {
@@ -22,4 +25,7 @@ func init() {
 	flag.StringVar(&flagServerBaseURL, "server-base-url", "", "base URL of target HTTP address")
 	flag.StringVar(&flagFileStoragePath, "file-storage-path", "", "path to persistent file storage")
 	flag.StringVar(&flagDatabaseDSN, "database-dsn", "", "connection string to database")
+	flag.StringVar(&flagBaseProfilePath, "base-profile-path", "", "path to base pprof profile")
+	flag.StringVar(&flagResultProfilePath, "result-profile-path", "", "path to result pprof profile")
+	flag.StringVar(&flagPackageName, "package-name", "", "name of package to be tested")
 }
