@@ -47,7 +47,7 @@ func requireCoverage(coverage float64) error {
 
 	var unitErr coverageerrors.UnitTestFailed
 	if errors.As(err, &unitErr) {
-		return errors.New("Один или несколько юнит-тестов завершились с ошибкой")
+		return errors.New("Один или несколько юнит-тестов завершились с ошибкой. Проверьте успешность прохождения тестов с флагом `-race`")
 	}
 
 	return fmt.Errorf("Невозможно определить степень покрытия кода тестами: %w", err)
