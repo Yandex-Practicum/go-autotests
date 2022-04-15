@@ -47,7 +47,6 @@ func (suite *Iteration7Suite) SetupSuite() {
 
 		envs := append(os.Environ(), []string{
 			"SERVER_ADDRESS=" + suite.serverAddress,
-			"DATABASE_DSN=" + flagDatabaseDSN,
 		}...)
 		args := []string{
 			"-b=" + suite.serverBaseURL,

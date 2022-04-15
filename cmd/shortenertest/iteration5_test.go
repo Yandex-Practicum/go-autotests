@@ -38,7 +38,6 @@ func (suite *Iteration5Suite) SetupSuite() {
 		envs := append(os.Environ(), []string{
 			"SERVER_ADDRESS=" + suite.serverAddress,
 			"BASE_URL=" + suite.serverBaseURL,
-			"DATABASE_DSN=" + flagDatabaseDSN,
 		}...)
 
 		p := fork.NewBackgroundProcess(context.Background(), flagTargetBinaryPath,

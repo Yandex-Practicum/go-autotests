@@ -43,7 +43,6 @@ func (suite *Iteration6Suite) SetupSuite() {
 	{
 		envs := append(os.Environ(), []string{
 			"FILE_STORAGE_PATH=" + flagFileStoragePath,
-			"DATABASE_DSN=" + flagDatabaseDSN,
 		}...)
 
 		p := fork.NewBackgroundProcess(context.Background(), flagTargetBinaryPath,
