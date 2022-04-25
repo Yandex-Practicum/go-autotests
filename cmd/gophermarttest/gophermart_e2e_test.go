@@ -44,7 +44,7 @@ func (suite *GophermartSuite) TestEndToEnd() {
 
 		resp, err := req.Post("/api/goods")
 
-		noRespErr := suite.Assert().NoErrorf(err, "Ошибка при попытке сделать запрос на регистрацию механики")
+		noRespErr := suite.Assert().NoErrorf(err, "Ошибка при попытке сделать запрос на регистрацию механики в системе расчета баллов лояльности")
 		validStatus := suite.Assert().Equalf(http.StatusOK, resp.StatusCode(),
 			"Несоответствие статус кода ответа ожидаемому в хендлере '%s %s'", req.Method, req.URL,
 		)
@@ -80,7 +80,7 @@ func (suite *GophermartSuite) TestEndToEnd() {
 
 		resp, err := req.Post("/api/orders")
 
-		noRespErr := suite.Assert().NoErrorf(err, "Ошибка при попытке сделать запрос на регистрацию механики")
+		noRespErr := suite.Assert().NoErrorf(err, "Ошибка при попытке сделать запрос на регистрацию заказа в системе расчета баллов лояльности")
 		validStatus := suite.Assert().Equalf(http.StatusAccepted, resp.StatusCode(),
 			"Несоответствие статус кода ответа ожидаемому в хендлере '%s %s'", req.Method, req.URL,
 		)
@@ -110,7 +110,7 @@ func (suite *GophermartSuite) TestEndToEnd() {
 
 		resp, err := req.Post("/api/user/register")
 
-		noRespErr := suite.Assert().NoErrorf(err, "Ошибка при попытке сделать запрос на регистрацию механики")
+		noRespErr := suite.Assert().NoErrorf(err, "Ошибка при попытке сделать запрос на регистрацию пользователя в системе лояльности")
 		validStatus := suite.Assert().Equalf(http.StatusOK, resp.StatusCode(),
 			"Несоответствие статус кода ответа ожидаемому в хендлере '%s %s'", req.Method, req.URL,
 		)
@@ -140,7 +140,7 @@ func (suite *GophermartSuite) TestEndToEnd() {
 
 		resp, err := req.Post("/api/user/orders")
 
-		noRespErr := suite.Assert().NoErrorf(err, "Ошибка при попытке сделать запрос на регистрацию механики")
+		noRespErr := suite.Assert().NoErrorf(err, "Ошибка при попытке сделать запрос на загрузку заказа в систему лояльности")
 		validStatus := suite.Assert().Equalf(http.StatusAccepted, resp.StatusCode(),
 			"Несоответствие статус кода ответа ожидаемому в хендлере '%s %s'", req.Method, req.URL,
 		)
@@ -167,15 +167,15 @@ func (suite *GophermartSuite) TestEndToEnd() {
 				var orders []order
 
 				ctx, cancel := context.WithTimeout(ctx, time.Second)
-				defer cancel()
 
 				req := httpc.R().
 					SetContext(ctx).
 					SetResult(&orders)
 
 				resp, err := req.Get("/api/user/orders")
+				cancel()
 
-				noRespErr := suite.Assert().NoErrorf(err, "Ошибка при попытке сделать запрос на регистрацию механики")
+				noRespErr := suite.Assert().NoErrorf(err, "Ошибка при попытке сделать запрос на получение статуса расчета начисления в системе лояльности")
 				validStatus := suite.Assert().Containsf([]int{http.StatusOK, http.StatusNoContent}, resp.StatusCode(),
 					"Несоответствие статус кода ответа ожидаемому в хендлере '%s %s'", req.Method, req.URL,
 				)
@@ -186,7 +186,7 @@ func (suite *GophermartSuite) TestEndToEnd() {
 				if !noRespErr || !validStatus || !validContentType {
 					dump := dumpRequest(suite.T(), req.RawRequest, nil)
 					suite.T().Logf("Оригинальный запрос:\n\n%s", dump)
-					return
+					continue
 				}
 
 				// wait for miracle
@@ -213,7 +213,7 @@ func (suite *GophermartSuite) TestEndToEnd() {
 
 		resp, err := req.Get("/api/user/balance")
 
-		noRespErr := suite.Assert().NoErrorf(err, "Ошибка при попытке сделать запрос на регистрацию механики")
+		noRespErr := suite.Assert().NoErrorf(err, "Ошибка при попытке сделать запрос на проверку баланса пользователя в системе лояльности")
 		validStatus := suite.Assert().Containsf([]int{http.StatusOK, http.StatusNoContent}, resp.StatusCode(),
 			"Несоответствие статус кода ответа ожидаемому в хендлере '%s %s'", req.Method, req.URL,
 		)
@@ -250,7 +250,7 @@ func (suite *GophermartSuite) TestEndToEnd() {
 
 		resp, err := req.Post("/api/user/balance/withdraw")
 
-		noRespErr := suite.Assert().NoErrorf(err, "Ошибка при попытке сделать запрос на регистрацию механики")
+		noRespErr := suite.Assert().NoErrorf(err, "Ошибка при попытке сделать запрос на списание средств с баланса пользователя в системе лояльности")
 		validStatus := suite.Assert().Equalf(http.StatusOK, resp.StatusCode(),
 			"Несоответствие статус кода ответа ожидаемому в хендлере '%s %s'", req.Method, req.URL,
 		)
@@ -270,7 +270,7 @@ func (suite *GophermartSuite) TestEndToEnd() {
 
 		resp, err := req.Get("/api/user/balance")
 
-		noRespErr := suite.Assert().NoErrorf(err, "Ошибка при попытке сделать запрос на регистрацию механики")
+		noRespErr := suite.Assert().NoErrorf(err, "Ошибка при попытке сделать запрос на перепроверку баланса пользователя в системе лояльности")
 		validStatus := suite.Assert().Equal(http.StatusOK, resp.StatusCode(),
 			"Несоответствие статус кода ответа ожидаемому в хендлере '%s %s'", req.Method, req.URL,
 		)
