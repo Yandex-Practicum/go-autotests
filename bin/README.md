@@ -1,1 +1,1 @@
-Run `go generate ./...` from root to produce artifacts.
+Run `make all` from root to produce artifacts.
