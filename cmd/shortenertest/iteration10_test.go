@@ -36,6 +36,7 @@ func (suite *Iteration10Suite) SetupSuite() {
 		"database/sql",
 		"github.com/jackc/pgx",
 		"github.com/lib/pq",
+		"github.com/jmoiron/sqlx",
 	}
 
 	// start server
