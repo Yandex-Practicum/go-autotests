@@ -209,7 +209,7 @@ func (suite *Iteration14Suite) TestDelete() {
 	})
 
 	suite.Run("check_state", func() {
-		ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+		ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
 		defer cancel()
 
 		ticker := time.NewTicker(1 * time.Second)
@@ -218,7 +218,7 @@ func (suite *Iteration14Suite) TestDelete() {
 		for {
 			select {
 			case <-ctx.Done():
-				suite.T().Errorf("Не удалось дождаться удаления переданных URL в течении 20 секунд")
+				suite.T().Errorf("Не удалось дождаться удаления переданных URL в течении 60 секунд")
 				return
 			case <-ticker.C:
 				var deletedCount int
