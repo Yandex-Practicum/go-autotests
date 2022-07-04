@@ -71,7 +71,7 @@ func (suite *Iteration2bSuite) TestFilesPresence() {
 func (suite *Iteration2bSuite) TestServerCoverage() {
 	sourcePath := strings.TrimRight(flagTargetSourcePath, "/") + "/..."
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 	defer cancel()
 
 	cmd := exec.CommandContext(ctx, "go", "test", "-cover", sourcePath)

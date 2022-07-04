@@ -64,6 +64,7 @@ func (suite *Iteration10Suite) SetupSuite() {
 		"database/sql",
 		"github.com/jackc/pgx",
 		"github.com/lib/pq",
+		"github.com/jmoiron/sqlx",
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
