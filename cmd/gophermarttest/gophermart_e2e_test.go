@@ -3,8 +3,10 @@ package main
 import (
 	"bytes"
 	"context"
+	mathrand "math/rand"
 	"net/http"
 	"net/http/cookiejar"
+	"strconv"
 	"time"
 
 	"github.com/go-resty/resty/v2"
@@ -235,13 +237,17 @@ func (suite *GophermartSuite) TestEndToEnd() {
 		}
 	})
 
-	suite.Run("withdraw_balance", func() {
-		withdrawOrder, err := generateOrderNumber(suite.T())
-		suite.Require().NoError(err, "Не удалось сгенерировать номер заказа")
+	withdrawOrder, err := generateOrderNumber(suite.T())
+	suite.Require().NoError(err, "Не удалось сгенерировать номер заказа")
 
+	randSrc := mathrand.New(mathrand.NewSource(time.Now().UnixNano()))
+	min, max := 100, 700
+	withdrawSum := float32(randSrc.Intn(max-min)+min) + randSrc.Float32()
+
+	suite.Run("withdraw_balance", func() {
 		body := []byte(`{
 			"order": "` + withdrawOrder + `",
-    		"sum": 700.98
+    		"sum": ` + strconv.FormatFloat(float64(withdrawSum), 'f', 2, 32) + `
 		}`)
 
 		req := httpc.R().
@@ -280,7 +286,7 @@ func (suite *GophermartSuite) TestEndToEnd() {
 
 		expected := userBalance{
 			Current:   29,
-			Withdrawn: 700.98,
+			Withdrawn: withdrawSum,
 		}
 
 		validBalance := suite.Assert().Equal(expected, balance, "Баланс пользователя не соответствует ожидаемому")
@@ -290,5 +296,30 @@ func (suite *GophermartSuite) TestEndToEnd() {
 			suite.T().Logf("Оригинальный запрос:\n\n%s", dump)
 			return
 		}
+	})
+
+	suite.Run("check_withdrawals", func() {
+		var withdrawals []userWithdrawal
+
+		req := httpc.R().
+			SetHeader("Content-Type", "application/json").
+			SetResult(&withdrawals)
+
+		resp, err := req.Get("/api/user/withdrawals")
+
+		noRespErr := suite.Assert().NoErrorf(err, "Ошибка при попытке сделать запрос на получение списаний пользователя в системе лояльности")
+		validStatus := suite.Assert().Equalf(http.StatusOK, resp.StatusCode(),
+			"Несоответствие статус кода ответа ожидаемому в хендлере '%s %s'", req.Method, req.URL,
+		)
+
+		if !noRespErr || !validStatus {
+			dump := dumpRequest(suite.T(), req.RawRequest, nil)
+			suite.T().Logf("Оригинальный запрос:\n\n%s", dump)
+			return
+		}
+
+		suite.Require().NotEmpty(withdrawals)
+		suite.Assert().Equal(withdrawOrder, withdrawals[0].Order)
+		suite.Assert().Equal(withdrawSum, withdrawals[0].Sum)
 	})
 }

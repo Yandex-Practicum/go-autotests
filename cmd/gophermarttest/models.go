@@ -31,3 +31,9 @@ type orderAccrual struct {
 	Status  string  `json:"status"`
 	Accrual float32 `json:"accrual"`
 }
+
+type userWithdrawal struct {
+	Order       string    `json:"order"`
+	Sum         float32   `json:"sum"`
+	ProcessedAt time.Time `json:"processed_at"`
+}
