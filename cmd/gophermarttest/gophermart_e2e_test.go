@@ -284,14 +284,12 @@ func (suite *GophermartSuite) TestEndToEnd() {
 			"Заголовок ответа Content-Type содержит несоответствующее значение",
 		)
 
-		expected := userBalance{
-			Current:   29,
-			Withdrawn: withdrawSum,
-		}
+		expectedBalance := expectedAccrual - withdrawSum
+		expectedWithdrawn := withdrawSum
+		validBalance := suite.Assert().InDelta(expectedBalance, balance.Current, 0.01, "Баланс пользователя не соответствует ожидаемому")
+		validWithdrawn := suite.Assert().InDelta(expectedWithdrawn, balance.Withdrawn, 0.01, "Списанная сумма не соответствует ожидаемой")
 
-		validBalance := suite.Assert().Equal(expected, balance, "Баланс пользователя не соответствует ожидаемому")
-
-		if !noRespErr || !validStatus || !validBalance || !validContentType {
+		if !noRespErr || !validStatus || !validBalance || !validWithdrawn || !validContentType {
 			dump := dumpRequest(suite.T(), req.RawRequest, nil)
 			suite.T().Logf("Оригинальный запрос:\n\n%s", dump)
 			return
@@ -319,7 +317,7 @@ func (suite *GophermartSuite) TestEndToEnd() {
 		}
 
 		suite.Require().NotEmpty(withdrawals)
-		suite.Assert().Equal(withdrawOrder, withdrawals[0].Order)
-		suite.Assert().Equal(withdrawSum, withdrawals[0].Sum)
+		suite.Assert().Equal(withdrawOrder, withdrawals[0].Order, "Номер заказа не совпадает с ожидаемым")
+		suite.Assert().InDelta(withdrawSum, withdrawals[0].Sum, 0.01, "Списанная сумма не соответствует ожидаемой")
 	})
 }
