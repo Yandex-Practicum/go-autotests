@@ -133,6 +133,7 @@ func (suite *Iteration1Suite) TestHandlers() {
 
 	suite.Run("expand", func() {
 		req := resty.New().
+			SetHostURL(suite.serverAddress).
 			SetRedirectPolicy(redirPolicy).
 			R()
 		resp, err := req.Get(shortenURL)
