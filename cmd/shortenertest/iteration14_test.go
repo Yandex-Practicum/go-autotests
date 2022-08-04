@@ -75,7 +75,7 @@ func (suite *Iteration14Suite) SetupSuite() {
 	}
 
 	// connect to database
-	{
+	if flagDatabaseDSN != "" {
 		// disable prepared statements
 		driverConfig := stdlib.DriverConfig{
 			ConnConfig: pgx.ConnConfig{
