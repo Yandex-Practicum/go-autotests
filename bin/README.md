@@ -1,1 +1,0 @@
-Run `make all` from root to produce artifacts.
