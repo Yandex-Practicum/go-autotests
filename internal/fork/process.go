@@ -1,7 +1,6 @@
 package fork
 
 import (
-	"bytes"
 	"context"
 	"fmt"
 	"net"
@@ -13,8 +12,8 @@ import (
 
 type BackgroundProcess struct {
 	cmd    *exec.Cmd
-	stdout *bytes.Buffer
-	stderr *bytes.Buffer
+	stdout *buffer
+	stderr *buffer
 
 	waitPortInterval    time.Duration
 	waitPortConnTimeout time.Duration
@@ -32,9 +31,9 @@ func NewBackgroundProcess(ctx context.Context, command string, opts ...ProcessOp
 		opt(p)
 	}
 
-	p.stdout = new(bytes.Buffer)
+	p.stdout = new(buffer)
 	p.cmd.Stdout = p.stdout
-	p.stderr = new(bytes.Buffer)
+	p.stderr = new(buffer)
 	p.cmd.Stderr = p.stdout
 
 	return p
