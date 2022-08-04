@@ -242,3 +242,106 @@ func (suite *Iteration14Suite) TestDelete() {
 		}
 	})
 }
+
+// TestDeleteConcurrent is a concurrent version of TestDelete
+func (suite *Iteration14Suite) TestDeleteConcurrent() {
+	jar, err := cookiejar.New(nil)
+	suite.Require().NoError(err, "Неожиданная ошибка при создании Cookie Jar")
+
+	// create HTTP client without redirects support
+	errRedirectBlocked := errors.New("HTTP redirect blocked")
+	redirPolicy := resty.RedirectPolicyFunc(func(_ *http.Request, _ []*http.Request) error {
+		return errRedirectBlocked
+	})
+
+	httpc := resty.New().
+		SetHostURL(suite.serverAddress).
+		SetHeader("Accept-Encoding", "identity").
+		SetCookieJar(jar).
+		SetRedirectPolicy(redirPolicy)
+
+	// urlProcessor runs single URL processing sequence
+	urlProcessor := func() {
+		var shortenURL string
+
+		// shorten URL
+		{
+			originalURL := generateTestURL(suite.T())
+
+			req := httpc.R().
+				SetBody(originalURL)
+			resp, err := req.Post("/")
+
+			noRespErr := suite.Assert().NoError(err, "Ошибка при попытке сделать запрос для сокращения URL")
+
+			shortenURL = string(resp.Body())
+
+			validStatus := suite.Assert().Equalf(http.StatusCreated, resp.StatusCode(),
+				"Несоответствие статус кода ответа ожидаемому в хендлере '%s %s'", req.Method, req.URL)
+
+			_, urlParseErr := url.Parse(shortenURL)
+			validURL := suite.Assert().NoErrorf(urlParseErr,
+				"Невозможно распарсить полученный сокращенный URL - %s : %s", shortenURL, err,
+			)
+
+			if !noRespErr || !validStatus || !validURL {
+				dump := dumpRequest(req.RawRequest, true)
+				suite.T().Logf("Оригинальный запрос:\n\n%s", dump)
+			}
+		}
+
+		// remove URL
+		{
+			u, err := url.Parse(shortenURL)
+			validURL := suite.Assert().NoErrorf(err,
+				"Невозможно распарсить полученный сокращенный URL - %s : %s", shortenURL, err,
+			)
+
+			body := []string{strings.Trim(u.Path, "/")}
+
+			req := httpc.R().
+				SetHeader("Content-Type", "application/json").
+				SetBody(body)
+			resp, err := req.Delete("/api/user/urls")
+
+			noRespErr := suite.Assert().NoError(err, "Ошибка при попытке сделать запрос для удаления URL")
+
+			validStatus := suite.Assert().Equalf(http.StatusAccepted, resp.StatusCode(),
+				"Несоответствие статус кода ответа ожидаемому в хендлере '%s %s'", req.Method, req.URL)
+
+			if !noRespErr || !validStatus || !validURL {
+				dump := dumpRequest(req.RawRequest, true)
+				suite.T().Logf("Оригинальный запрос:\n\n%s", dump)
+			}
+		}
+
+		// check URL state
+		{
+			ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
+			defer cancel()
+
+			ticker := time.NewTicker(1 * time.Second)
+			defer ticker.Stop()
+
+			func() {
+				for {
+					select {
+					case <-ctx.Done():
+						suite.T().Errorf("Не удалось дождаться удаления переданных URL в течении 60 секунд")
+						return
+					case <-ticker.C:
+						resp, err := httpc.R().Get(shortenURL)
+						if err == nil && resp != nil && resp.StatusCode() == http.StatusGone {
+							return
+						}
+					}
+				}
+			}()
+		}
+	}
+
+	// run multiple requests sequences at once
+	for i := 0; i <= 20; i++ {
+		urlProcessor()
+	}
+}
