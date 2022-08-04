@@ -35,14 +35,21 @@ type Iteration14Suite struct {
 func (suite *Iteration14Suite) SetupSuite() {
 	// check required flags
 	suite.Require().NotEmpty(flagTargetBinaryPath, "-binary-path non-empty flag required")
-	suite.Require().NotEmpty(flagDatabaseDSN, "-database-dsn non-empty flag required")
+	if flagDatabaseDSN == "" {
+		suite.T().Log("WARN: -database-dsn flag not provided, will run degradation tests")
+	}
 
 	suite.serverAddress = "http://localhost:8080"
 
 	// start server
 	{
 		envs := os.Environ()
-		args := []string{"-d=" + flagDatabaseDSN}
+
+		var args []string
+		if flagDatabaseDSN != "" {
+			args = append(args, "-d="+flagDatabaseDSN)
+		}
+
 		p := fork.NewBackgroundProcess(context.Background(), flagTargetBinaryPath,
 			fork.WithEnv(envs...),
 			fork.WithArgs(args...),
