@@ -1,0 +1,35 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - '*'
+
+jobs:
+
+  release:
+    runs-on: ubuntu-latest
+    container: golang:1.18
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Cache deps
+        uses: actions/cache@v2
+        with:
+          path: ~/go/pkg/mod
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-
+
+      - name: Compile all
+        run: |
+          make all
+
+      - name: Release artifacts
+        uses: ncipollo/release-action@v1
+        with:
+          artifacts: "bin/*"
+

@@ -1,4 +1,6 @@
-all: prep gophermarttest devopstest shortenertest statictest random perm
+all: prep gophermarttest devopstest shortenertest statictest random _race perm
+default: prep gophermarttest devopstest shortenertest statictest random perm
+race: prep _race perm
 
 prep:
 	go mod tidy
@@ -19,6 +21,9 @@ statictest:
 
 random:
 	GOOS=linux GOARCH=amd64 go build -o=bin/random ./cmd/random/...
+
+_race:
+	GOOS=linux GOARCH=amd64 go test -race -c -o=bin/shortenertest-race ./cmd/shortenertest/...
 
 perm:
 	chmod -R +x bin
