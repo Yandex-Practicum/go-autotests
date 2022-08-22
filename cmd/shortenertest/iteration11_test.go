@@ -44,6 +44,7 @@ func (suite *Iteration11Suite) SetupSuite() {
 			fork.WithEnv(envs...),
 			fork.WithArgs(args...),
 		)
+		suite.serverProcess = p
 
 		ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 		defer cancel()
@@ -60,8 +61,6 @@ func (suite *Iteration11Suite) SetupSuite() {
 			suite.T().Errorf("Не удалось дождаться пока порт %s станет доступен для запроса: %s", port, err)
 			return
 		}
-
-		suite.serverProcess = p
 	}
 
 	// connect to database
@@ -96,10 +95,6 @@ func (suite *Iteration11Suite) SetupSuite() {
 func (suite *Iteration11Suite) TearDownSuite() {
 	if suite.dbconn != nil {
 		_ = suite.dbconn.Close()
-	}
-
-	if suite.serverProcess == nil {
-		return
 	}
 
 	exitCode, err := suite.serverProcess.Stop(syscall.SIGINT, syscall.SIGKILL)

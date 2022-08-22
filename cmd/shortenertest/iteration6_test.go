@@ -48,6 +48,7 @@ func (suite *Iteration6Suite) SetupSuite() {
 		p := fork.NewBackgroundProcess(context.Background(), flagTargetBinaryPath,
 			fork.WithEnv(envs...),
 		)
+		suite.serverProcess = p
 
 		ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 		defer cancel()
@@ -64,8 +65,6 @@ func (suite *Iteration6Suite) SetupSuite() {
 			suite.T().Errorf("Не удалось дождаться пока порт %s станет доступен для запроса: %s", port, err)
 			return
 		}
-
-		suite.serverProcess = p
 	}
 }
 
@@ -161,10 +160,6 @@ func (suite *Iteration6Suite) TestPersistentFile() {
 
 // TearDownSuite teardowns suite dependencies
 func (suite *Iteration6Suite) stopServer() {
-	if suite.serverProcess == nil {
-		return
-	}
-
 	exitCode, err := suite.serverProcess.Stop(syscall.SIGINT, syscall.SIGKILL)
 	if err != nil {
 		if errors.Is(err, os.ErrProcessDone) {
