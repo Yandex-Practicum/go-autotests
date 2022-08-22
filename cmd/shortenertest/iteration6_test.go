@@ -91,8 +91,12 @@ func (suite *Iteration6Suite) TestPersistentFile() {
 		SetHostURL(suite.serverAddress).
 		SetRedirectPolicy(redirPolicy)
 
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
 	suite.Run("shorten", func() {
 		req := httpc.R().
+			SetContext(ctx).
 			SetBody(originalURL)
 		resp, err := req.Post("/")
 

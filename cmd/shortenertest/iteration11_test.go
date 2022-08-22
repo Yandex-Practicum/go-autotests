@@ -139,7 +139,11 @@ func (suite *Iteration11Suite) TestInspectDatabase() {
 		SetHostURL(suite.serverAddress)
 
 	suite.Run("shorten", func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+
 		req := httpc.R().
+			SetContext(ctx).
 			SetBody(originalURL)
 		_, err := req.Post("/")
 		noRespErr := suite.Assert().NoError(err, "Ошибка при попытке сделать запрос для сокращения URL")

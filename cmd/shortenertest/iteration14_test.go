@@ -165,7 +165,11 @@ func (suite *Iteration14Suite) TestDelete() {
 		for num := 0; num <= 10; num++ {
 			originalURL := generateTestURL(suite.T())
 
+			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+			defer cancel()
+
 			req := httpc.R().
+				SetContext(ctx).
 				SetBody(originalURL)
 			resp, err := req.Post("/")
 
@@ -199,7 +203,11 @@ func (suite *Iteration14Suite) TestDelete() {
 			body = append(body, strings.Trim(u.Path, "/"))
 		}
 
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+
 		req := httpc.R().
+			SetContext(ctx).
 			SetHeader("Content-Type", "application/json").
 			SetBody(body)
 		resp, err := req.Delete("/api/user/urls")
@@ -230,7 +238,12 @@ func (suite *Iteration14Suite) TestDelete() {
 			case <-ticker.C:
 				var deletedCount int
 				for _, shorten := range shortenURLs {
-					resp, err := httpc.R().Get(shorten)
+					ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+					defer cancel()
+
+					resp, err := httpc.R().
+						SetContext(ctx).
+						Get(shorten)
 					if err == nil && resp != nil && resp.StatusCode() == http.StatusGone {
 						deletedCount++
 					}
@@ -268,7 +281,11 @@ func (suite *Iteration14Suite) TestDeleteConcurrent() {
 		{
 			originalURL := generateTestURL(suite.T())
 
+			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+			defer cancel()
+
 			req := httpc.R().
+				SetContext(ctx).
 				SetBody(originalURL)
 			resp, err := req.Post("/")
 
@@ -299,7 +316,11 @@ func (suite *Iteration14Suite) TestDeleteConcurrent() {
 
 			body := []string{strings.Trim(u.Path, "/")}
 
+			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+			defer cancel()
+
 			req := httpc.R().
+				SetContext(ctx).
 				SetHeader("Content-Type", "application/json").
 				SetBody(body)
 			resp, err := req.Delete("/api/user/urls")
@@ -330,7 +351,12 @@ func (suite *Iteration14Suite) TestDeleteConcurrent() {
 						suite.T().Errorf("Не удалось дождаться удаления переданных URL в течении 60 секунд")
 						return
 					case <-ticker.C:
-						resp, err := httpc.R().Get(shortenURL)
+						ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+						defer cancel()
+
+						resp, err := httpc.R().
+							SetContext(ctx).
+							Get(shortenURL)
 						if err == nil && resp != nil && resp.StatusCode() == http.StatusGone {
 							return
 						}

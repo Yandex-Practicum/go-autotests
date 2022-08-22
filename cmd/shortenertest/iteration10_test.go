@@ -130,7 +130,12 @@ func (suite *Iteration10Suite) TestPingHandler() {
 			suite.T().Error("Не удалось получить код ответа 200 от хендлера 'GET /ping' за отведенное время")
 			return
 		case <-ticker.C:
-			resp, _ := httpc.R().Get("/ping")
+			rctx, rcancel := context.WithTimeout(context.Background(), time.Second)
+			defer rcancel()
+
+			resp, _ := httpc.R().
+				SetContext(rctx).
+				Get("/ping")
 			if resp != nil && resp.StatusCode() == http.StatusOK {
 				return
 			}

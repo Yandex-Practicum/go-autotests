@@ -114,7 +114,11 @@ func (suite *Iteration7Suite) TestFlags() {
 	suite.Run("shorten", func() {
 		originalURL := generateTestURL(suite.T())
 
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+
 		req := httpc.R().
+			SetContext(ctx).
 			SetBody(originalURL)
 		resp, err := req.Post("/")
 
@@ -151,7 +155,11 @@ func (suite *Iteration7Suite) TestFlags() {
 
 		var result shortenResponse
 
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+
 		req := httpc.R().
+			SetContext(ctx).
 			SetHeader("Content-Type", "application/json").
 			SetBody(&shortenRequest{
 				URL: originalURL,

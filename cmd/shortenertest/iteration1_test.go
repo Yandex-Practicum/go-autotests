@@ -108,8 +108,12 @@ func (suite *Iteration1Suite) TestHandlers() {
 		SetHostURL(suite.serverAddress).
 		SetRedirectPolicy(redirPolicy)
 
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
 	suite.Run("shorten", func() {
 		req := httpc.R().
+			SetContext(ctx).
 			SetBody(originalURL)
 		resp, err := req.Post("/")
 
@@ -132,9 +136,13 @@ func (suite *Iteration1Suite) TestHandlers() {
 	})
 
 	suite.Run("expand", func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+
 		req := resty.New().
 			SetRedirectPolicy(redirPolicy).
-			R()
+			R().
+			SetContext(ctx)
 		resp, err := req.Get(shortenURL)
 
 		noRespErr := true

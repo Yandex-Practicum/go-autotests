@@ -148,7 +148,11 @@ func (suite *Iteration13Suite) TestConflict() {
 		var shortenURL string
 
 		for attempt := 0; attempt <= 2; attempt++ {
+			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+			defer cancel()
+
 			req := httpc.R().
+				SetContext(ctx).
 				SetBody(originalURL)
 			resp, err := req.Post("/")
 
