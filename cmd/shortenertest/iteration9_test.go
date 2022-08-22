@@ -107,7 +107,11 @@ func (suite *Iteration9Suite) TestAuth() {
 		SetCookieJar(jar)
 
 	suite.Run("shorten", func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+
 		req := httpc.R().
+			SetContext(ctx).
 			SetBody(originalURL)
 		resp, err := req.Post("/")
 
@@ -137,7 +141,11 @@ func (suite *Iteration9Suite) TestAuth() {
 
 		var respBody []respPair
 
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+
 		req := httpc.R().
+			SetContext(ctx).
 			SetHeader("Accept-Encoding", "identity").
 			SetResult(&respBody)
 		resp, err := req.Get("/api/user/urls")

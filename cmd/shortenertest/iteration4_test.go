@@ -142,7 +142,11 @@ func (suite *Iteration4Suite) TestJSONHandler() {
 
 		var result shortenResponse
 
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+
 		req := httpc.R().
+			SetContext(ctx).
 			SetHeader("Content-Type", "application/json").
 			SetBody(&shortenRequest{
 				URL: originalURL,

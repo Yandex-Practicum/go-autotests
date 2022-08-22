@@ -171,7 +171,11 @@ func (suite *Iteration12Suite) TestBatchShorten() {
 		SetRedirectPolicy(redirPolicy)
 
 	suite.Run("shorten_batch", func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+
 		req := httpc.R().
+			SetContext(ctx).
 			SetHeader("Content-Type", "application/json").
 			SetBody(requestData).
 			SetResult(&responseData)

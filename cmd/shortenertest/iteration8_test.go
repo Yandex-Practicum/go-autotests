@@ -119,7 +119,11 @@ func (suite *Iteration8Suite) TestGzipCompress() {
 		_, _ = zw.Write([]byte(originalURL))
 		_ = zw.Close()
 
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+
 		req := httpc.R().
+			SetContext(ctx).
 			SetBody(buf.Bytes()).
 			SetHeader("Accept-Encoding", "gzip").
 			SetHeader("Content-Encoding", "gzip")
