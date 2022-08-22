@@ -47,6 +47,7 @@ func (suite *Iteration10Suite) SetupSuite() {
 			fork.WithEnv(envs...),
 			fork.WithArgs(args...),
 		)
+		suite.serverProcess = p
 
 		ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 		defer cancel()
@@ -63,17 +64,11 @@ func (suite *Iteration10Suite) SetupSuite() {
 			suite.T().Errorf("Не удалось дождаться пока порт %s станет доступен для запроса: %s", port, err)
 			return
 		}
-
-		suite.serverProcess = p
 	}
 }
 
 // TearDownSuite teardowns suite dependencies
 func (suite *Iteration10Suite) TearDownSuite() {
-	if suite.serverProcess == nil {
-		return
-	}
-
 	exitCode, err := suite.serverProcess.Stop(syscall.SIGINT, syscall.SIGKILL)
 	if err != nil {
 		if errors.Is(err, os.ErrProcessDone) {
