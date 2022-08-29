@@ -16,7 +16,7 @@ import (
 	"github.com/Yandex-Practicum/go-autotests/internal/fork"
 )
 
-// Iteration1Suite is a suite of autotests
+// Iteration1Suite является сьютом с тестами и состоянием для первой итерации
 type Iteration1Suite struct {
 	suite.Suite
 
@@ -24,14 +24,15 @@ type Iteration1Suite struct {
 	serverProcess *fork.BackgroundProcess
 }
 
-// SetupSuite bootstraps suite dependencies
+// SetupSuite подготавливает необходимые зависимости
 func (suite *Iteration1Suite) SetupSuite() {
-	// check required flags
+	// проверяем наличие необходимых флагов
 	suite.Require().NotEmpty(flagTargetBinaryPath, "-binary-path non-empty flag required")
 
+	// прихраниваем адрес сервера
 	suite.serverAddress = "http://localhost:8080"
 
-	// start server
+	// запускаем процесс тестируемого сервера
 	{
 		envs := os.Environ()
 		p := fork.NewBackgroundProcess(context.Background(), flagTargetBinaryPath,
@@ -39,6 +40,7 @@ func (suite *Iteration1Suite) SetupSuite() {
 		)
 		suite.serverProcess = p
 
+		// ожидаем запуска процесса не более 20 секунд
 		ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 		defer cancel()
 
@@ -48,6 +50,7 @@ func (suite *Iteration1Suite) SetupSuite() {
 			return
 		}
 
+		// проверяем, что порт успешно занят процессом
 		port := "8080"
 		err = p.WaitPort(ctx, "tcp", port)
 		if err != nil {
@@ -57,8 +60,9 @@ func (suite *Iteration1Suite) SetupSuite() {
 	}
 }
 
-// TearDownSuite teardowns suite dependencies
+// TearDownSuite высвобождает имеющиеся зависимости
 func (suite *Iteration1Suite) TearDownSuite() {
+	// посылаем процессу сигналы для остановки
 	exitCode, err := suite.serverProcess.Stop(syscall.SIGINT, syscall.SIGKILL)
 	if err != nil {
 		if errors.Is(err, os.ErrProcessDone) {
@@ -68,11 +72,12 @@ func (suite *Iteration1Suite) TearDownSuite() {
 		return
 	}
 
+	// проверяем код завешения
 	if exitCode > 0 {
 		suite.T().Logf("Процесс завершился с не нулевым статусом %d", exitCode)
 	}
 
-	// try to read stdout/stderr
+	// получаем стандартные выводы (логи) процесса
 	ctx, cancel := context.WithTimeout(context.Background(), 500*time.Millisecond)
 	defer cancel()
 
@@ -86,14 +91,15 @@ func (suite *Iteration1Suite) TearDownSuite() {
 	}
 }
 
-// TestHandlers attempts to:
-// - generate and send random URL to shorten handler
-// - fetch original URL by sending shorten URL to expand handler
+// TestHandlers имеет следующую схему работы:
+// - генерирует новый псевдорандомный URL и посылает его на сокращение
+// - проверяет оригинальный URL, получая его из хендлера редиректа
 func (suite *Iteration1Suite) TestHandlers() {
+	// генерируем новый псевдорандомный URL
 	originalURL := generateTestURL(suite.T())
 	var shortenURL string
 
-	// create HTTP client without redirects support
+	// создаем HTTP клиент без поддержки редиректов
 	errRedirectBlocked := errors.New("HTTP redirect blocked")
 	redirPolicy := resty.RedirectPolicyFunc(func(_ *http.Request, _ []*http.Request) error {
 		return errRedirectBlocked
@@ -103,10 +109,12 @@ func (suite *Iteration1Suite) TestHandlers() {
 		SetHostURL(suite.serverAddress).
 		SetRedirectPolicy(redirPolicy)
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-
 	suite.Run("shorten", func() {
+		// весь тест должен проходить менее чем за 10 секунд
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+
+		// делаем запрос к серверу для сокращения URL
 		req := httpc.R().
 			SetContext(ctx).
 			SetBody(originalURL)
@@ -116,9 +124,11 @@ func (suite *Iteration1Suite) TestHandlers() {
 
 		shortenURL = string(resp.Body())
 
+		// проверяем ожидаемый статус код ответа
 		validStatus := suite.Assert().Equalf(http.StatusCreated, resp.StatusCode(),
 			"Несоответствие статус кода ответа ожидаемому в хендлере '%s %s'", req.Method, req.URL)
 
+		// проверяем URL на валидность
 		_, urlParseErr := url.Parse(shortenURL)
 		validURL := suite.Assert().NoErrorf(urlParseErr,
 			"Невозможно распарсить полученный сокращенный URL - %s : %s", shortenURL, err,
@@ -131,9 +141,11 @@ func (suite *Iteration1Suite) TestHandlers() {
 	})
 
 	suite.Run("expand", func() {
+		// весь тест должен проходить менее чем за 10 секунд
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
 
+		// делаем запрос к серверу для получения оригинального URL
 		req := resty.New().
 			SetRedirectPolicy(redirPolicy).
 			R().
@@ -145,9 +157,12 @@ func (suite *Iteration1Suite) TestHandlers() {
 			noRespErr = suite.Assert().NoErrorf(err, "Ошибка при попытке сделать запрос для получения исходного URL")
 		}
 
+		// проверяем ожидаемый статус код ответа
 		validStatus := suite.Assert().Equalf(http.StatusTemporaryRedirect, resp.StatusCode(),
 			"Несоответствие статус кода ответа ожидаемому в хендлере '%s %s'", req.Method, req.URL,
 		)
+
+		// проверяем совпадение URL из заголовка ответа и оригинального URL
 		validURL := suite.Assert().Equalf(originalURL, resp.Header().Get("Location"),
 			"Несоответствие URL полученного в заголовке Location ожидаемому",
 		)

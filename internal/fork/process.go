@@ -10,6 +10,8 @@ import (
 	"time"
 )
 
+// BackgroundProcess является удобной оберткой над exec.Cmd
+// для работы с запущенными процессами
 type BackgroundProcess struct {
 	cmd    *exec.Cmd
 	stdout *buffer
@@ -39,7 +41,7 @@ func NewBackgroundProcess(ctx context.Context, command string, opts ...ProcessOp
 	return p
 }
 
-// Start attempts to create OS process and start command execution.
+// Start является аналогом (*exec.Cmd).Start с поддержкой контекста
 func (p *BackgroundProcess) Start(ctx context.Context) error {
 	startChan := make(chan error, 1)
 	go func() {
@@ -56,7 +58,7 @@ func (p *BackgroundProcess) Start(ctx context.Context) error {
 	}
 }
 
-// WaitPort tries to perform network connection to given port.
+// WaitPort позволяет дождаться занятия порта процессом
 func (p *BackgroundProcess) WaitPort(ctx context.Context, network, port string) error {
 	ticker := time.NewTicker(p.waitPortInterval)
 	defer ticker.Stop()
@@ -77,7 +79,7 @@ func (p *BackgroundProcess) WaitPort(ctx context.Context, network, port string) 
 	}
 }
 
-// ListenPort tries to perform network connection to given port.
+// ListenPort позволяет проверить наличие свободного порта
 func (p *BackgroundProcess) ListenPort(ctx context.Context, network, port string) error {
 	ticker := time.NewTicker(p.waitPortInterval)
 	defer ticker.Stop()
@@ -112,20 +114,17 @@ func (p *BackgroundProcess) ListenPort(ctx context.Context, network, port string
 	}
 }
 
-// Stdout reads and returns next portion of bytes from stdout.
-// This function may block until next newline is present in output
+// Stdout вычитывает и возвращает новый блок данных из stdout
 func (p *BackgroundProcess) Stdout(ctx context.Context) []byte {
 	return p.stdout.Bytes()
 }
 
-// Stderr reads and returns next portion of bytes from stderr.
-// This function may block until next newline is present in output
+// Stderr вычитывает и возвращает новый блок данных из stderr
 func (p *BackgroundProcess) Stderr(ctx context.Context) []byte {
 	return p.stderr.Bytes()
 }
 
-// Stop attempts to send given signals to process one by one.
-// After first successful signal attempt exit code of process will be returned
+// Stop пытается остановить процесс последовательной передачей процессу данных сигналов
 func (p *BackgroundProcess) Stop(signals ...os.Signal) (exitCode int, err error) {
 	for _, sig := range signals {
 		err = p.cmd.Process.Signal(sig)
@@ -145,7 +144,7 @@ func (p *BackgroundProcess) Stop(signals ...os.Signal) (exitCode int, err error)
 	return state.ExitCode(), err
 }
 
-// String returns a human-readable representation of process command.
+// String возвращает человекочитаемую команду, которая породила процесс
 func (p *BackgroundProcess) String() string {
 	return p.cmd.String()
 }

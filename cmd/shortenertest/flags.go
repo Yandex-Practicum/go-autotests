@@ -4,14 +4,15 @@ import (
 	"flag"
 )
 
+// Доступные для тест-сьютов флаги командной строки
 var (
-	flagTargetBinaryPath string
-	flagTargetSourcePath string
-	flagServerHost       string
-	flagServerPort       string
-	flagServerBaseURL    string
-	flagFileStoragePath  string
-	flagDatabaseDSN      string
+	flagTargetBinaryPath string // путь до бинарного файла проекта
+	flagTargetSourcePath string // путь до исходного кода проекта
+	flagServerHost       string // адрес хоста на котором запущен проект
+	flagServerPort       string // номер порта на котором запущен проект
+	flagServerBaseURL    string // базовый URL проекта
+	flagFileStoragePath  string // путь до файла с данными проекта
+	flagDatabaseDSN      string // строка для подключения к базе данных
 )
 
 func init() {
