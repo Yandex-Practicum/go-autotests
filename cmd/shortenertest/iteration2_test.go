@@ -1,6 +1,5 @@
 package main
 
-// Basic imports
 import (
 	"context"
 	"errors"
@@ -15,25 +14,26 @@ import (
 	"github.com/stretchr/testify/suite"
 )
 
-// Iteration2Suite is a suite of autotests
+// Iteration2Suite является сьютом с тестами и состоянием для инкремента
 type Iteration2Suite struct {
 	suite.Suite
 
 	coverRegex *regexp.Regexp
 }
 
-// SetupSuite bootstraps suite dependencies
+// SetupSuite подготавливает необходимые зависимости
 func (suite *Iteration2Suite) SetupSuite() {
-	// check required flags
+	// проверяем наличие необходимых флагов
 	suite.Require().NotEmpty(flagTargetSourcePath, "-source-path non-empty flag required")
 
+	// подготавливаем регулярное выражение для проверки результатов тестов
 	regex, err := regexp.Compile(`coverage: (\d+.\d)% of statements`)
 	suite.Require().NoError(err)
 
 	suite.coverRegex = regex
 }
 
-// TestFilesPresence attempts to recursively find at least one Go test file in source path
+// TestFilesPresence пробует рекурсивно найти хотя бы один тестовый файл в директории с исходным кодом проекта
 func (suite *Iteration2Suite) TestFilesPresence() {
 	err := filepath.WalkDir(flagTargetSourcePath, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
@@ -41,22 +41,26 @@ func (suite *Iteration2Suite) TestFilesPresence() {
 		}
 
 		if d.IsDir() {
-			// skip vendor directory
+			// пропускаем служебные директории
 			if d.Name() == "vendor" || d.Name() == ".git" {
 				return filepath.SkipDir
 			}
-			// dive into regular directory
+			// проваливаемся в директорию
 			return nil
 		}
 
+		// проверяем суффикс имени файла
 		if strings.HasSuffix(d.Name(), "_test.go") {
+			// возвращаем сигнальную ошибку
 			return errUsageFound
 		}
 
 		return nil
 	})
 
+	// проверяем сигнальную ошибку
 	if errors.Is(err, errUsageFound) {
+		// найден хотя бы один файл с тестами
 		return
 	}
 
@@ -67,18 +71,23 @@ func (suite *Iteration2Suite) TestFilesPresence() {
 	suite.T().Errorf("Неожиданная ошибка при поиске тестовых файлов по пути %s: %s", flagTargetSourcePath, err)
 }
 
-// TestServerCoverage attempts to obtain and parse coverage report using standard Go tooling
+// TestServerCoverage пытается получить и прочитать результаты выполнения команды go test -cover
 func (suite *Iteration2Suite) TestServerCoverage() {
+	// подготавливаем сроку пути до исходного кода проекта
 	sourcePath := strings.TrimRight(flagTargetSourcePath, "/") + "/..."
 
+	// будем ожидать завершения выполнения команды не более 2 минут
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 	defer cancel()
 
+	// запускаем тесты
 	cmd := exec.CommandContext(ctx, "go", "test", "-cover", sourcePath)
 	cmd.Env = os.Environ() // pass parent envs
+	// получаем вывод команды
 	out, err := cmd.CombinedOutput()
 	suite.Assert().NoError(err, "Невозможно получить результат выполнения команды: %s. Вывод:\n\n %s", cmd, out)
 
+	// проверяем вывод с помощью регулярного выражения
 	matched := suite.coverRegex.Match(out)
 	found := suite.Assert().True(matched, "Отсутствует информация о покрытии кода тестами, команда: %s", cmd)
 

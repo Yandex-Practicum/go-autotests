@@ -1,6 +1,5 @@
 package main
 
-// Basic imports
 import (
 	"context"
 	"errors"
@@ -16,7 +15,7 @@ import (
 	"github.com/Yandex-Practicum/go-autotests/internal/fork"
 )
 
-// Iteration1Suite является сьютом с тестами и состоянием для первой итерации
+// Iteration1Suite является сьютом с тестами и состоянием для инкремента
 type Iteration1Suite struct {
 	suite.Suite
 

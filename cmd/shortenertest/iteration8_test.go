@@ -1,6 +1,5 @@
 package main
 
-// Basic imports
 import (
 	"bytes"
 	"compress/gzip"
@@ -18,7 +17,7 @@ import (
 	"github.com/Yandex-Practicum/go-autotests/internal/fork"
 )
 
-// Iteration8Suite is a suite of autotests
+// Iteration8Suite является сьютом с тестами и состоянием для инкремента
 type Iteration8Suite struct {
 	suite.Suite
 
@@ -26,14 +25,14 @@ type Iteration8Suite struct {
 	serverProcess *fork.BackgroundProcess
 }
 
-// SetupSuite bootstraps suite dependencies
+// SetupSuite подготавливает необходимые зависимости
 func (suite *Iteration8Suite) SetupSuite() {
-	// check required flags
+	// проверяем наличие необходимых флагов
 	suite.Require().NotEmpty(flagTargetBinaryPath, "-binary-path non-empty flag required")
 
 	suite.serverAddress = "http://localhost:8080"
 
-	// start server
+	// запускаем процесс тестируемого сервера
 	{
 		envs := os.Environ()
 		p := fork.NewBackgroundProcess(context.Background(), flagTargetBinaryPath,
@@ -59,7 +58,7 @@ func (suite *Iteration8Suite) SetupSuite() {
 	}
 }
 
-// TearDownSuite teardowns suite dependencies
+// TearDownSuite высвобождает имеющиеся зависимости
 func (suite *Iteration8Suite) TearDownSuite() {
 	exitCode, err := suite.serverProcess.Stop(syscall.SIGINT, syscall.SIGKILL)
 	if err != nil {

@@ -1,6 +1,5 @@
 package main
 
-// Basic imports
 import (
 	"context"
 	"errors"
@@ -16,7 +15,7 @@ import (
 	"github.com/Yandex-Practicum/go-autotests/internal/fork"
 )
 
-// Iteration7Suite is a suite of autotests
+// Iteration7Suite является сьютом с тестами и состоянием для инкремента
 type Iteration7Suite struct {
 	suite.Suite
 
@@ -26,9 +25,9 @@ type Iteration7Suite struct {
 	knownPgLibraries []string
 }
 
-// SetupSuite bootstraps suite dependencies
+// SetupSuite подготавливает необходимые зависимости
 func (suite *Iteration7Suite) SetupSuite() {
-	// check required flags
+	// проверяем наличие необходимых флагов
 	suite.Require().NotEmpty(flagTargetBinaryPath, "-binary-path non-empty flag required")
 	suite.Require().NotEmpty(flagServerPort, "-server-port non-empty flag required")
 	suite.Require().NotEmpty(flagFileStoragePath, "-file-storage-path non-empty flag required")
@@ -40,7 +39,7 @@ func (suite *Iteration7Suite) SetupSuite() {
 		"github.com/lib/pq",
 	}
 
-	// start server
+	// запускаем процесс тестируемого сервера
 	{
 		suite.serverAddress = "localhost:" + flagServerPort
 		suite.serverBaseURL = "http://" + suite.serverAddress
@@ -79,7 +78,7 @@ func (suite *Iteration7Suite) SetupSuite() {
 	}
 }
 
-// TearDownSuite teardowns suite dependencies
+// TearDownSuite высвобождает имеющиеся зависимости
 func (suite *Iteration7Suite) TearDownSuite() {
 	suite.stopServer()
 }
@@ -232,7 +231,7 @@ func (suite *Iteration7Suite) TestFlags() {
 	})
 }
 
-// TearDownSuite teardowns suite dependencies
+// TearDownSuite высвобождает имеющиеся зависимости
 func (suite *Iteration7Suite) stopServer() {
 	exitCode, err := suite.serverProcess.Stop(syscall.SIGINT, syscall.SIGKILL)
 	if err != nil {

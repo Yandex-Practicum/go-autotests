@@ -1,6 +1,5 @@
 package main
 
-// Basic imports
 import (
 	"context"
 	"database/sql"
@@ -18,7 +17,7 @@ import (
 	"github.com/Yandex-Practicum/go-autotests/internal/fork"
 )
 
-// Iteration11Suite is a suite of autotests
+// Iteration11Suite является сьютом с тестами и состоянием для инкремента
 type Iteration11Suite struct {
 	suite.Suite
 
@@ -28,15 +27,15 @@ type Iteration11Suite struct {
 	dbconn *sql.DB
 }
 
-// SetupSuite bootstraps suite dependencies
+// SetupSuite подготавливает необходимые зависимости
 func (suite *Iteration11Suite) SetupSuite() {
-	// check required flags
+	// проверяем наличие необходимых флагов
 	suite.Require().NotEmpty(flagTargetBinaryPath, "-binary-path non-empty flag required")
 	suite.Require().NotEmpty(flagDatabaseDSN, "-database-dsn non-empty flag required")
 
 	suite.serverAddress = "http://localhost:8080"
 
-	// start server
+	// запускаем процесс тестируемого сервера
 	{
 		envs := os.Environ()
 		args := []string{"-d=" + flagDatabaseDSN}
@@ -91,7 +90,7 @@ func (suite *Iteration11Suite) SetupSuite() {
 	}
 }
 
-// TearDownSuite teardowns suite dependencies
+// TearDownSuite высвобождает имеющиеся зависимости
 func (suite *Iteration11Suite) TearDownSuite() {
 	if suite.dbconn != nil {
 		_ = suite.dbconn.Close()

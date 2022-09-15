@@ -1,13 +1,12 @@
 package main
 
-// Basic imports
 import (
 	"errors"
 
 	"github.com/stretchr/testify/suite"
 )
 
-// Iteration3Suite is a suite of autotests
+// Iteration3Suite является сьютом с тестами и состоянием для инкремента
 type Iteration3Suite struct {
 	suite.Suite
 
@@ -15,11 +14,12 @@ type Iteration3Suite struct {
 	restrictedFrameworks []string
 }
 
-// SetupSuite bootstraps suite dependencies
+// SetupSuite подготавливает необходимые зависимости
 func (suite *Iteration3Suite) SetupSuite() {
-	// check required flags
+	// проверяем наличие необходимых флагов
 	suite.Require().NotEmpty(flagTargetSourcePath, "-source-path non-empty flag required")
 
+	// список известных фреймворков
 	suite.knownFrameworks = []string{
 		"aahframework.org",
 		"confetti-framework.com",
@@ -91,14 +91,16 @@ func (suite *Iteration3Suite) SetupSuite() {
 		"rest-layer.io",
 	}
 
+	// список запрещенных фреймворков
 	suite.restrictedFrameworks = []string{
 		"github.com/valyala/fasthttp",
 		"github.com/fasthttp/router",
 	}
 }
 
-// TestFrameworkUsage attempts to recursively find usage of known HTTP frameworks in given sources
+// TestFrameworkUsage пробует рекурсивно найти хотя бы одно использование известных фреймворков в директории с исходным кодом проекта
 func (suite *Iteration3Suite) TestFrameworkUsage() {
+	// проверяем наличие запрещенных фреймворков
 	err := usesKnownPackage(suite.T(), flagTargetSourcePath, suite.restrictedFrameworks)
 	if err == nil {
 		suite.T().Errorf("Найдено использование одного из не рекомендуемых фреймворков по пути %s: %s",
@@ -106,6 +108,7 @@ func (suite *Iteration3Suite) TestFrameworkUsage() {
 		return
 	}
 
+	// проверяем наличие известных фреймворков
 	err = usesKnownPackage(suite.T(), flagTargetSourcePath, suite.knownFrameworks)
 	if err == nil {
 		return

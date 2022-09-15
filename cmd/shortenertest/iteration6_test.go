@@ -1,6 +1,5 @@
 package main
 
-// Basic imports
 import (
 	"context"
 	"errors"
@@ -16,7 +15,7 @@ import (
 	"github.com/Yandex-Practicum/go-autotests/internal/fork"
 )
 
-// Iteration6Suite is a suite of autotests
+// Iteration6Suite является сьютом с тестами и состоянием для инкремента
 type Iteration6Suite struct {
 	suite.Suite
 
@@ -25,9 +24,9 @@ type Iteration6Suite struct {
 	knownPgLibraries []string
 }
 
-// SetupSuite bootstraps suite dependencies
+// SetupSuite подготавливает необходимые зависимости
 func (suite *Iteration6Suite) SetupSuite() {
-	// check required flags
+	// проверяем наличие необходимых флагов
 	suite.Require().NotEmpty(flagTargetBinaryPath, "-binary-path non-empty flag required")
 	suite.Require().NotEmpty(flagFileStoragePath, "-file-storage-path non-empty flag required")
 	suite.Require().NotEmpty(flagTargetSourcePath, "-source-path non-empty flag required")
@@ -39,7 +38,7 @@ func (suite *Iteration6Suite) SetupSuite() {
 		"github.com/lib/pq",
 	}
 
-	// start server
+	// запускаем процесс тестируемого сервера
 	{
 		envs := append(os.Environ(), []string{
 			"FILE_STORAGE_PATH=" + flagFileStoragePath,
@@ -68,7 +67,7 @@ func (suite *Iteration6Suite) SetupSuite() {
 	}
 }
 
-// TearDownSuite teardowns suite dependencies
+// TearDownSuite высвобождает имеющиеся зависимости
 func (suite *Iteration6Suite) TearDownSuite() {
 	suite.stopServer()
 }
@@ -158,7 +157,7 @@ func (suite *Iteration6Suite) TestPersistentFile() {
 	})
 }
 
-// TearDownSuite teardowns suite dependencies
+// TearDownSuite высвобождает имеющиеся зависимости
 func (suite *Iteration6Suite) stopServer() {
 	exitCode, err := suite.serverProcess.Stop(syscall.SIGINT, syscall.SIGKILL)
 	if err != nil {
