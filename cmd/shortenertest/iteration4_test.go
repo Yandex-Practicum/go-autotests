@@ -52,6 +52,7 @@ func (suite *Iteration4Suite) SetupSuite() {
 		ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 		defer cancel()
 
+		// запускаем процесс
 		err := p.Start(ctx)
 		if err != nil {
 			suite.T().Errorf("Невозможно запустить процесс командой %s: %s. Переменные окружения: %+v", p, err, envs)

@@ -33,6 +33,7 @@ func (suite *Iteration7Suite) SetupSuite() {
 	suite.Require().NotEmpty(flagFileStoragePath, "-file-storage-path non-empty flag required")
 	suite.Require().NotEmpty(flagTargetSourcePath, "-source-path non-empty flag required")
 
+	// список известных драйверов для PostgreSQL
 	suite.knownPgLibraries = []string{
 		"database/sql",
 		"github.com/jackc/pgx",
@@ -47,6 +48,7 @@ func (suite *Iteration7Suite) SetupSuite() {
 		envs := append(os.Environ(), []string{
 			"SERVER_ADDRESS=" + suite.serverAddress,
 		}...)
+		// передаем флаги в процесс сервера
 		args := []string{
 			"-b=" + suite.serverBaseURL,
 			"-f=" + flagFileStoragePath,
@@ -83,15 +85,10 @@ func (suite *Iteration7Suite) TearDownSuite() {
 	suite.stopServer()
 }
 
-// TestFlags attempts to:
-// - generate and send random URL to shorten handler
-// - generate and send random URL to shorten API handler
-// - fetch original URLs by sending shorten URLs to expand handler one by one
-// - check if persistent file exists and not empty
+// TestFlags повторяет тесты предыдущих итераций и проверяет, что аргументы командой строки поддерживаются сервером
 func (suite *Iteration7Suite) TestFlags() {
 	shortenURLs := make(map[string]string)
 
-	// create HTTP client without redirects support and custom resolver
 	errRedirectBlocked := errors.New("HTTP redirect blocked")
 	redirPolicy := resty.RedirectPolicyFunc(func(_ *http.Request, _ []*http.Request) error {
 		return errRedirectBlocked
@@ -100,7 +97,6 @@ func (suite *Iteration7Suite) TestFlags() {
 	restyClient := resty.New()
 	transport := restyClient.GetClient().Transport.(*http.Transport)
 
-	// mock all network requests to be resolved at localhost
 	resolveIP := "127.0.0.1:" + flagServerPort
 	transport.DialContext = mockResolver("tcp", suite.serverAddress, resolveIP)
 
@@ -246,7 +242,7 @@ func (suite *Iteration7Suite) stopServer() {
 		suite.T().Logf("Процесс завершился с не нулевым статусом %d", exitCode)
 	}
 
-	// try to read stdout/stderr
+	// получаем стандартные выводы (логи) процесса
 	ctx, cancel := context.WithTimeout(context.Background(), 500*time.Millisecond)
 	defer cancel()
 
