@@ -86,19 +86,22 @@ func (suite *Iteration9Suite) TearDownSuite() {
 	}
 }
 
-// TestAuth attempts to:
-// - generate and send random URL to shorten handler
-// - fetch URLs based on given cookie from previous handler response
+// TestAuth пробует:
+// - сгенерировать URL и вызвать хендлер сокращения
+// - получить оригинальнй URL с выставлением кук и заголовков авторизации из ответа предыдущего хендлера
 func (suite *Iteration9Suite) TestAuth() {
 	originalURL := generateTestURL(suite.T())
 	var shortenURL string
 
+	// создаем cookie jar для сохранения cookies между запросами
 	jar, err := cookiejar.New(nil)
 	suite.Require().NoError(err, "Неожиданная ошибка при создании Cookie Jar")
 
 	httpc := resty.New().
 		SetHostURL(suite.serverAddress).
 		SetCookieJar(jar)
+
+	var authorizationHeader string
 
 	suite.Run("shorten", func() {
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
@@ -125,6 +128,9 @@ func (suite *Iteration9Suite) TestAuth() {
 			dump := dumpRequest(req.RawRequest, true)
 			suite.T().Logf("Оригинальный запрос:\n\n%s", dump)
 		}
+
+		// сохраняем заголовок Authorization
+		authorizationHeader = resp.Header().Get("Authorization")
 	})
 
 	suite.Run("fetch_urls", func() {
@@ -142,6 +148,12 @@ func (suite *Iteration9Suite) TestAuth() {
 			SetContext(ctx).
 			SetHeader("Accept-Encoding", "identity").
 			SetResult(&respBody)
+
+		// выставляем заголовок Authorization, если он имеется
+		if authorizationHeader != "" {
+			req.SetHeader("Authorization", authorizationHeader)
+		}
+
 		resp, err := req.Get("/api/user/urls")
 
 		noRespErr := suite.Assert().NoErrorf(err, "Ошибка при попытке сделать запрос для получения списка сокращенных URL")
@@ -171,6 +183,7 @@ func (suite *Iteration9Suite) TestAuth() {
 	})
 
 	suite.Run("fetch_no_urls", func() {
+		// запрашиваем список URL без имеющихся идентификаторов
 		req := resty.New().
 			SetHostURL(suite.serverAddress).
 			R()
