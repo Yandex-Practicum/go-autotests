@@ -1,6 +1,5 @@
 package main
 
-// Basic imports
 import (
 	"context"
 	"errors"
@@ -15,7 +14,7 @@ import (
 	"github.com/Yandex-Practicum/go-autotests/internal/fork"
 )
 
-// Iteration10Suite is a suite of autotests
+// Iteration10Suite является сьютом с тестами и состоянием для инкремента
 type Iteration10Suite struct {
 	suite.Suite
 
@@ -24,9 +23,9 @@ type Iteration10Suite struct {
 	knownLibraries []string
 }
 
-// SetupSuite bootstraps suite dependencies
+// SetupSuite подготавливает необходимые зависимости
 func (suite *Iteration10Suite) SetupSuite() {
-	// check required flags
+	// проверяем наличие необходимых флагов
 	suite.Require().NotEmpty(flagTargetSourcePath, "-source-path non-empty flag required")
 	suite.Require().NotEmpty(flagTargetBinaryPath, "-binary-path non-empty flag required")
 	suite.Require().NotEmpty(flagDatabaseDSN, "-database-dsn non-empty flag required")
@@ -39,7 +38,7 @@ func (suite *Iteration10Suite) SetupSuite() {
 		"github.com/jmoiron/sqlx",
 	}
 
-	// start server
+	// запускаем процесс тестируемого сервера
 	{
 		envs := os.Environ()
 		args := []string{"-d=" + flagDatabaseDSN}
@@ -67,7 +66,7 @@ func (suite *Iteration10Suite) SetupSuite() {
 	}
 }
 
-// TearDownSuite teardowns suite dependencies
+// TearDownSuite высвобождает имеющиеся зависимости
 func (suite *Iteration10Suite) TearDownSuite() {
 	exitCode, err := suite.serverProcess.Stop(syscall.SIGINT, syscall.SIGKILL)
 	if err != nil {
@@ -82,7 +81,7 @@ func (suite *Iteration10Suite) TearDownSuite() {
 		suite.T().Logf("Процесс завершился с не нулевым статусом %d", exitCode)
 	}
 
-	// try to read stdout/stderr
+	// получаем стандартные выводы (логи) процесса
 	ctx, cancel := context.WithTimeout(context.Background(), 500*time.Millisecond)
 	defer cancel()
 

@@ -1,6 +1,5 @@
 package main
 
-// Basic imports
 import (
 	"bytes"
 	"compress/gzip"
@@ -18,7 +17,7 @@ import (
 	"github.com/Yandex-Practicum/go-autotests/internal/fork"
 )
 
-// Iteration8Suite is a suite of autotests
+// Iteration8Suite является сьютом с тестами и состоянием для инкремента
 type Iteration8Suite struct {
 	suite.Suite
 
@@ -26,14 +25,14 @@ type Iteration8Suite struct {
 	serverProcess *fork.BackgroundProcess
 }
 
-// SetupSuite bootstraps suite dependencies
+// SetupSuite подготавливает необходимые зависимости
 func (suite *Iteration8Suite) SetupSuite() {
-	// check required flags
+	// проверяем наличие необходимых флагов
 	suite.Require().NotEmpty(flagTargetBinaryPath, "-binary-path non-empty flag required")
 
 	suite.serverAddress = "http://localhost:8080"
 
-	// start server
+	// запускаем процесс тестируемого сервера
 	{
 		envs := os.Environ()
 		p := fork.NewBackgroundProcess(context.Background(), flagTargetBinaryPath,
@@ -59,7 +58,7 @@ func (suite *Iteration8Suite) SetupSuite() {
 	}
 }
 
-// TearDownSuite teardowns suite dependencies
+// TearDownSuite высвобождает имеющиеся зависимости
 func (suite *Iteration8Suite) TearDownSuite() {
 	exitCode, err := suite.serverProcess.Stop(syscall.SIGINT, syscall.SIGKILL)
 	if err != nil {
@@ -74,7 +73,7 @@ func (suite *Iteration8Suite) TearDownSuite() {
 		suite.T().Logf("Процесс завершился с не нулевым статусом %d", exitCode)
 	}
 
-	// try to read stdout/stderr
+	// получаем стандартные выводы (логи) процесса
 	ctx, cancel := context.WithTimeout(context.Background(), 500*time.Millisecond)
 	defer cancel()
 
@@ -88,14 +87,13 @@ func (suite *Iteration8Suite) TearDownSuite() {
 	}
 }
 
-// TestGzipCompress attempts to:
-// - generate and send random URL to shorten handler (with gzip)
-// - generate and send random URL to shorten API handler (without gzip)
-// - fetch original URLs by sending shorten URLs to expand handler one by one
+// TestGzipCompress пробует:
+// - сгенерировать URL и вызвать хендлер сокращения с gzip
+// - сгенерировать URL и вызвать хендлер сокращения без gzip
+// - получить оригинальные URL из хендлера редиректа
 func (suite *Iteration8Suite) TestGzipCompress() {
 	shortenURLs := make(map[string]string)
 
-	// create HTTP client without redirects support and custom resolver
 	errRedirectBlocked := errors.New("HTTP redirect blocked")
 	redirPolicy := resty.RedirectPolicyFunc(func(_ *http.Request, _ []*http.Request) error {
 		return errRedirectBlocked
@@ -108,7 +106,7 @@ func (suite *Iteration8Suite) TestGzipCompress() {
 	suite.Run("shorten", func() {
 		originalURL := generateTestURL(suite.T())
 
-		// gzip request body for base shorten handler
+		// сжимаем данные с помощью gzip
 		var buf bytes.Buffer
 		zw := gzip.NewWriter(&buf)
 		_, _ = zw.Write([]byte(originalURL))
@@ -117,6 +115,7 @@ func (suite *Iteration8Suite) TestGzipCompress() {
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
 
+		// выполняем запрос с выставлением необходимых заголовков
 		req := httpc.R().
 			SetContext(ctx).
 			SetBody(buf.Bytes()).

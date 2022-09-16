@@ -1,6 +1,5 @@
 package main
 
-// Basic imports
 import (
 	"context"
 	"errors"
@@ -16,7 +15,7 @@ import (
 	"github.com/Yandex-Practicum/go-autotests/internal/fork"
 )
 
-// Iteration5Suite is a suite of autotests
+// Iteration5Suite является сьютом с тестами и состоянием для инкремента
 type Iteration5Suite struct {
 	suite.Suite
 
@@ -25,13 +24,13 @@ type Iteration5Suite struct {
 	serverProcess *fork.BackgroundProcess
 }
 
-// SetupSuite bootstraps suite dependencies
+// SetupSuite подготавливает необходимые зависимости
 func (suite *Iteration5Suite) SetupSuite() {
-	// check required flags
+	// проверяем наличие необходимых флагов
 	suite.Require().NotEmpty(flagTargetBinaryPath, "-binary-path non-empty flag required")
 	suite.Require().NotEmpty(flagServerPort, "-server-port non-empty flag required")
 
-	// start server
+	// запускаем процесс тестируемого сервера
 	{
 		suite.serverAddress = "localhost:" + flagServerPort
 		suite.serverBaseURL = "http://" + suite.serverAddress
@@ -48,12 +47,14 @@ func (suite *Iteration5Suite) SetupSuite() {
 		ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 		defer cancel()
 
+		// запускаем процесс
 		err := p.Start(ctx)
 		if err != nil {
 			suite.T().Errorf("Невозможно запустить процесс командой %s: %s. Переменные окружения: %+v", p, err, envs)
 			return
 		}
 
+		// ожидаем пока порт не будет занят
 		err = p.WaitPort(ctx, "tcp", flagServerPort)
 		if err != nil {
 			suite.T().Errorf("Не удалось дождаться пока порт %s станет доступен для запроса: %s", flagServerPort, err)
@@ -62,8 +63,9 @@ func (suite *Iteration5Suite) SetupSuite() {
 	}
 }
 
-// TearDownSuite teardowns suite dependencies
+// TearDownSuite высвобождает имеющиеся зависимости
 func (suite *Iteration5Suite) TearDownSuite() {
+	// останавливаем процесс
 	exitCode, err := suite.serverProcess.Stop(syscall.SIGINT, syscall.SIGKILL)
 	if err != nil {
 		if errors.Is(err, os.ErrProcessDone) {
@@ -73,11 +75,12 @@ func (suite *Iteration5Suite) TearDownSuite() {
 		return
 	}
 
+	// проверяем код завешения
 	if exitCode > 0 {
 		suite.T().Logf("Процесс завершился с не нулевым статусом %d", exitCode)
 	}
 
-	// try to read stdout/stderr
+	// получаем стандартные выводы (логи) процесса
 	ctx, cancel := context.WithTimeout(context.Background(), 500*time.Millisecond)
 	defer cancel()
 
@@ -91,32 +94,37 @@ func (suite *Iteration5Suite) TearDownSuite() {
 	}
 }
 
-// TestEnvVars attempts to:
-// - generate and send random URL to shorten handler
-// - generate and send random URL to shorten API handler
-// - fetch original URLs by sending shorten URLs to expand handler one by one
+// TestEnvVars пробует:
+// - сгенерировать псевдослучайный URL и передать его в хендлер для сокращения
+// - сгенерировать псевдослучайный URL и передать его в JSON хендлер для сокращения
+// - получить оригинальные URL из хендлера редиректа
 func (suite *Iteration5Suite) TestEnvVars() {
+	// объявляем переменную для хранения URL пар (оригинальный/сокращенный)
 	shortenURLs := make(map[string]string)
 
-	// create HTTP client without redirects support and custom resolver
+	// создаем политику запрещающую редиректы
 	errRedirectBlocked := errors.New("HTTP redirect blocked")
 	redirPolicy := resty.RedirectPolicyFunc(func(_ *http.Request, _ []*http.Request) error {
 		return errRedirectBlocked
 	})
 
+	// создаем HTTP клиент
 	restyClient := resty.New()
 	transport := restyClient.GetClient().Transport.(*http.Transport)
 
-	// mock all network requests to be resolved at localhost
+	// подменяем DNS резолвер, чтобы любой хост находился на localhost
 	resolveIP := "127.0.0.1:" + flagServerPort
 	transport.DialContext = mockResolver("tcp", suite.serverAddress, resolveIP)
 
+	// устанавливаем транспорт и политику редиректов
 	httpc := restyClient.
 		SetTransport(transport).
 		SetHostURL(suite.serverBaseURL).
 		SetRedirectPolicy(redirPolicy)
 
+	// пробуем сократить стандартным хендлером
 	suite.Run("shorten", func() {
+		// генерируем URL
 		originalURL := generateTestURL(suite.T())
 
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
@@ -144,9 +152,11 @@ func (suite *Iteration5Suite) TestEnvVars() {
 			suite.T().Logf("Оригинальный запрос:\n\n%s", dump)
 		}
 
+		// сохраняем оригинальный и сокращенный URL для проверки позже
 		shortenURLs[originalURL] = shortenURL
 	})
 
+	// пробуем сократить JSON хендлером
 	suite.Run("shorten_api", func() {
 		originalURL := generateTestURL(suite.T())
 
@@ -196,7 +206,9 @@ func (suite *Iteration5Suite) TestEnvVars() {
 		shortenURLs[originalURL] = shortenURL
 	})
 
+	// пробуем получить оригинальные URL обратно
 	suite.Run("expand", func() {
+		// проходимся по каждой паре
 		for originalURL, shortenURL := range shortenURLs {
 			req := resty.New().
 				SetRedirectPolicy(redirPolicy).

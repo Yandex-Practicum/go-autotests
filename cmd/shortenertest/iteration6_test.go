@@ -1,6 +1,5 @@
 package main
 
-// Basic imports
 import (
 	"context"
 	"errors"
@@ -16,7 +15,7 @@ import (
 	"github.com/Yandex-Practicum/go-autotests/internal/fork"
 )
 
-// Iteration6Suite is a suite of autotests
+// Iteration6Suite является сьютом с тестами и состоянием для инкремента
 type Iteration6Suite struct {
 	suite.Suite
 
@@ -25,9 +24,9 @@ type Iteration6Suite struct {
 	knownPgLibraries []string
 }
 
-// SetupSuite bootstraps suite dependencies
+// SetupSuite подготавливает необходимые зависимости
 func (suite *Iteration6Suite) SetupSuite() {
-	// check required flags
+	// проверяем наличие необходимых флагов
 	suite.Require().NotEmpty(flagTargetBinaryPath, "-binary-path non-empty flag required")
 	suite.Require().NotEmpty(flagFileStoragePath, "-file-storage-path non-empty flag required")
 	suite.Require().NotEmpty(flagTargetSourcePath, "-source-path non-empty flag required")
@@ -39,7 +38,7 @@ func (suite *Iteration6Suite) SetupSuite() {
 		"github.com/lib/pq",
 	}
 
-	// start server
+	// запускаем процесс тестируемого сервера
 	{
 		envs := append(os.Environ(), []string{
 			"FILE_STORAGE_PATH=" + flagFileStoragePath,
@@ -68,19 +67,18 @@ func (suite *Iteration6Suite) SetupSuite() {
 	}
 }
 
-// TearDownSuite teardowns suite dependencies
+// TearDownSuite высвобождает имеющиеся зависимости
 func (suite *Iteration6Suite) TearDownSuite() {
 	suite.stopServer()
 }
 
-// TestPersistentFile attempts to:
-// - call handlers as Iteration1Suite.TestHandlers does
-// - check if file at flagFileStoragePath is not empty
+// TestPersistentFile пробует:
+// - вызвать хендлеры по аналогии с Iteration1Suite.TestHandlers
+// - проверить заполнен ли файл данными
 func (suite *Iteration6Suite) TestPersistentFile() {
 	originalURL := generateTestURL(suite.T())
 	var shortenURL string
 
-	// create HTTP client without redirects support
 	errRedirectBlocked := errors.New("HTTP redirect blocked")
 	redirPolicy := resty.RedirectPolicyFunc(func(_ *http.Request, _ []*http.Request) error {
 		return errRedirectBlocked
@@ -93,6 +91,7 @@ func (suite *Iteration6Suite) TestPersistentFile() {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
+	// сокращаем URL
 	suite.Run("shorten", func() {
 		req := httpc.R().
 			SetContext(ctx).
@@ -117,6 +116,7 @@ func (suite *Iteration6Suite) TestPersistentFile() {
 		}
 	})
 
+	// пробуем получить оригинальный URL обратно
 	suite.Run("expand", func() {
 		req := resty.New().
 			SetRedirectPolicy(redirPolicy).
@@ -141,14 +141,16 @@ func (suite *Iteration6Suite) TestPersistentFile() {
 		}
 	})
 
+	// проверяем файл на наличие данных
 	suite.Run("check_file", func() {
+		// пропускаем тест если уже подключена СУБД
 		err := usesKnownPackage(suite.T(), flagTargetSourcePath, suite.knownPgLibraries)
 		if err == nil {
 			suite.T().Skip("найдено использование СУБД")
 			return
 		}
 
-		// stop server in case of file flushed on exit
+		// останавливаем сервер на случай, если код сбрасывает данные на диск не сразу
 		suite.stopServer()
 
 		suite.Assert().FileExistsf(flagFileStoragePath, "Не удалось найти файл с сохраненными URL")
@@ -158,7 +160,7 @@ func (suite *Iteration6Suite) TestPersistentFile() {
 	})
 }
 
-// TearDownSuite teardowns suite dependencies
+// stopServer останавливает процесс сервера
 func (suite *Iteration6Suite) stopServer() {
 	exitCode, err := suite.serverProcess.Stop(syscall.SIGINT, syscall.SIGKILL)
 	if err != nil {
@@ -173,7 +175,7 @@ func (suite *Iteration6Suite) stopServer() {
 		suite.T().Logf("Процесс завершился с не нулевым статусом %d", exitCode)
 	}
 
-	// try to read stdout/stderr
+	// получаем стандартные выводы (логи) процесса
 	ctx, cancel := context.WithTimeout(context.Background(), 500*time.Millisecond)
 	defer cancel()
 

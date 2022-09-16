@@ -1,6 +1,5 @@
 package main
 
-// Basic imports
 import (
 	"context"
 	"database/sql"
@@ -20,7 +19,7 @@ import (
 	"github.com/Yandex-Practicum/go-autotests/internal/fork"
 )
 
-// Iteration13Suite is a suite of autotests
+// Iteration13Suite является сьютом с тестами и состоянием для инкремента
 type Iteration13Suite struct {
 	suite.Suite
 
@@ -30,15 +29,15 @@ type Iteration13Suite struct {
 	dbconn *sql.DB
 }
 
-// SetupSuite bootstraps suite dependencies
+// SetupSuite подготавливает необходимые зависимости
 func (suite *Iteration13Suite) SetupSuite() {
-	// check required flags
+	// проверяем наличие необходимых флагов
 	suite.Require().NotEmpty(flagTargetBinaryPath, "-binary-path non-empty flag required")
 	suite.Require().NotEmpty(flagDatabaseDSN, "-database-dsn non-empty flag required")
 
 	suite.serverAddress = "http://localhost:8080"
 
-	// start server
+	// запускаем процесс тестируемого сервера
 	{
 		envs := os.Environ()
 		args := []string{"-d=" + flagDatabaseDSN}
@@ -93,7 +92,7 @@ func (suite *Iteration13Suite) SetupSuite() {
 	}
 }
 
-// TearDownSuite teardowns suite dependencies
+// TearDownSuite высвобождает имеющиеся зависимости
 func (suite *Iteration13Suite) TearDownSuite() {
 	if suite.dbconn != nil {
 		_ = suite.dbconn.Close()
@@ -112,7 +111,7 @@ func (suite *Iteration13Suite) TearDownSuite() {
 		suite.T().Logf("Процесс завершился с не нулевым статусом %d", exitCode)
 	}
 
-	// try to read stdout/stderr
+	// получаем стандартные выводы (логи) процесса
 	ctx, cancel := context.WithTimeout(context.Background(), 500*time.Millisecond)
 	defer cancel()
 

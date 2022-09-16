@@ -4,6 +4,7 @@ import (
 	"errors"
 )
 
+// Ошибки-маркеры для интроспекции
 var (
 	// errUsageFound indicates presence of some object
 	errUsageFound = errors.New("usage found")

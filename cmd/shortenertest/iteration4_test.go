@@ -1,6 +1,5 @@
 package main
 
-// Basic imports
 import (
 	"context"
 	"errors"
@@ -16,7 +15,7 @@ import (
 	"github.com/Yandex-Practicum/go-autotests/internal/fork"
 )
 
-// Iteration4Suite is a suite of autotests
+// Iteration4Suite является сьютом с тестами и состоянием для инкремента
 type Iteration4Suite struct {
 	suite.Suite
 
@@ -26,12 +25,13 @@ type Iteration4Suite struct {
 	knownEncodingLibs []string
 }
 
-// SetupSuite bootstraps suite dependencies
+// SetupSuite подготавливает необходимые зависимости
 func (suite *Iteration4Suite) SetupSuite() {
-	// check required flags
+	// проверяем наличие необходимых флагов
 	suite.Require().NotEmpty(flagTargetSourcePath, "-source-path non-empty flag required")
 	suite.Require().NotEmpty(flagTargetBinaryPath, "-binary-path non-empty flag required")
 
+	// объявляем список известных библиотек
 	suite.knownEncodingLibs = []string{
 		"encoding/json",
 		"github.com/mailru/easyjson",
@@ -40,7 +40,7 @@ func (suite *Iteration4Suite) SetupSuite() {
 
 	suite.serverAddress = "http://localhost:8080"
 
-	// start server
+	// запускаем процесс тестируемого сервера
 	{
 		envs := os.Environ()
 		p := fork.NewBackgroundProcess(context.Background(), flagTargetBinaryPath,
@@ -48,15 +48,18 @@ func (suite *Iteration4Suite) SetupSuite() {
 		)
 		suite.serverProcess = p
 
+		// ожидаем запуска процесса не более 20 секунд
 		ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 		defer cancel()
 
+		// запускаем процесс
 		err := p.Start(ctx)
 		if err != nil {
 			suite.T().Errorf("Невозможно запустить процесс командой %s: %s. Переменные окружения: %+v", p, err, envs)
 			return
 		}
 
+		// проверяем, что порт успешно занят процессом
 		port := "8080"
 		err = p.WaitPort(ctx, "tcp", port)
 		if err != nil {
@@ -66,8 +69,9 @@ func (suite *Iteration4Suite) SetupSuite() {
 	}
 }
 
-// TearDownSuite teardowns suite dependencies
+// TearDownSuite высвобождает имеющиеся зависимости
 func (suite *Iteration4Suite) TearDownSuite() {
+	// посылаем процессу сигналы для остановки
 	exitCode, err := suite.serverProcess.Stop(syscall.SIGINT, syscall.SIGKILL)
 	if err != nil {
 		if errors.Is(err, os.ErrProcessDone) {
@@ -77,11 +81,12 @@ func (suite *Iteration4Suite) TearDownSuite() {
 		return
 	}
 
+	// проверяем код завешения
 	if exitCode > 0 {
 		suite.T().Logf("Процесс завершился с не нулевым статусом %d", exitCode)
 	}
 
-	// try to read stdout/stderr
+	// получаем стандартные выводы (логи) процесса
 	ctx, cancel := context.WithTimeout(context.Background(), 500*time.Millisecond)
 	defer cancel()
 
@@ -95,7 +100,7 @@ func (suite *Iteration4Suite) TearDownSuite() {
 	}
 }
 
-// TestEncoderUsage attempts to recursively find usage of known HTTP frameworks in given sources
+// TestEncoderUsage пробует рекурсивно найти хотя бы одно использование известных библиотек в директории с исходным кодом проекта
 func (suite *Iteration4Suite) TestEncoderUsage() {
 	err := usesKnownPackage(suite.T(), flagTargetSourcePath, suite.knownEncodingLibs)
 	if err == nil {
@@ -108,38 +113,43 @@ func (suite *Iteration4Suite) TestEncoderUsage() {
 	suite.T().Errorf("Неожиданная ошибка при поиске использования библиотек кодирования JSON по пути %s: %s", flagTargetSourcePath, err)
 }
 
-// TestJSONHandler attempts to:
-// - generate and send random URL to JSON API handler
-// - fetch original URL by sending shorten URL to expand handler
+// TestJSONHandler пробует:
+// - сгенерировать псевдослучайный URL и передать его в JSON хендлер для сокращения
+// - получить оригинальный URL из хендлера редиректа
 func (suite *Iteration4Suite) TestJSONHandler() {
-	// create HTTP client without redirects support
+	// создаем политику запрещающую редиректы
 	errRedirectBlocked := errors.New("HTTP redirect blocked")
 	redirPolicy := resty.RedirectPolicyFunc(func(_ *http.Request, _ []*http.Request) error {
 		return errRedirectBlocked
 	})
 
+	// создаем HTTP клиент и подключаем к нему политику редиректов
 	httpc := resty.New().
 		SetHostURL(suite.serverAddress).
 		SetRedirectPolicy(redirPolicy)
 
-	// declare and generate URLs
+	// генерируем URL
 	originalURL := generateTestURL(suite.T())
 	var shortenURL string
 
+	// пробуем сократить
 	suite.Run("shorten", func() {
+		// структура тела запроса
 		type shortenRequest struct {
 			URL string `json:"url"`
 		}
-
+		// структура тела ответа
 		type shortenResponse struct {
 			Result string `json:"result"`
 		}
 
 		var result shortenResponse
 
+		// будем ожидать обработки не более 10 секунд
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
 
+		// подготавливаем и выполняем запрос
 		req := httpc.R().
 			SetContext(ctx).
 			SetHeader("Content-Type", "application/json").
@@ -171,6 +181,7 @@ func (suite *Iteration4Suite) TestJSONHandler() {
 		}
 	})
 
+	// пробуем получить оригинальный URL обратно
 	suite.Run("expand", func() {
 		req := resty.New().
 			SetRedirectPolicy(redirPolicy).

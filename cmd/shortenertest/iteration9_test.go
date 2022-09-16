@@ -1,6 +1,5 @@
 package main
 
-// Basic imports
 import (
 	"context"
 	"errors"
@@ -17,7 +16,7 @@ import (
 	"github.com/Yandex-Practicum/go-autotests/internal/fork"
 )
 
-// Iteration9Suite is a suite of autotests
+// Iteration9Suite является сьютом с тестами и состоянием для инкремента
 type Iteration9Suite struct {
 	suite.Suite
 
@@ -25,14 +24,14 @@ type Iteration9Suite struct {
 	serverProcess *fork.BackgroundProcess
 }
 
-// SetupSuite bootstraps suite dependencies
+// SetupSuite подготавливает необходимые зависимости
 func (suite *Iteration9Suite) SetupSuite() {
-	// check required flags
+	// проверяем наличие необходимых флагов
 	suite.Require().NotEmpty(flagTargetBinaryPath, "-binary-path non-empty flag required")
 
 	suite.serverAddress = "http://localhost:8080"
 
-	// start server
+	// запускаем процесс тестируемого сервера
 	{
 		envs := os.Environ()
 		p := fork.NewBackgroundProcess(context.Background(), flagTargetBinaryPath,
@@ -58,7 +57,7 @@ func (suite *Iteration9Suite) SetupSuite() {
 	}
 }
 
-// TearDownSuite teardowns suite dependencies
+// TearDownSuite высвобождает имеющиеся зависимости
 func (suite *Iteration9Suite) TearDownSuite() {
 	exitCode, err := suite.serverProcess.Stop(syscall.SIGINT, syscall.SIGKILL)
 	if err != nil {
@@ -73,7 +72,7 @@ func (suite *Iteration9Suite) TearDownSuite() {
 		suite.T().Logf("Процесс завершился с не нулевым статусом %d", exitCode)
 	}
 
-	// try to read stdout/stderr
+	// получаем стандартные выводы (логи) процесса
 	ctx, cancel := context.WithTimeout(context.Background(), 500*time.Millisecond)
 	defer cancel()
 
@@ -87,19 +86,22 @@ func (suite *Iteration9Suite) TearDownSuite() {
 	}
 }
 
-// TestAuth attempts to:
-// - generate and send random URL to shorten handler
-// - fetch URLs based on given cookie from previous handler response
+// TestAuth пробует:
+// - сгенерировать URL и вызвать хендлер сокращения
+// - получить оригинальнй URL с выставлением кук и заголовков авторизации из ответа предыдущего хендлера
 func (suite *Iteration9Suite) TestAuth() {
 	originalURL := generateTestURL(suite.T())
 	var shortenURL string
 
+	// создаем cookie jar для сохранения cookies между запросами
 	jar, err := cookiejar.New(nil)
 	suite.Require().NoError(err, "Неожиданная ошибка при создании Cookie Jar")
 
 	httpc := resty.New().
 		SetHostURL(suite.serverAddress).
 		SetCookieJar(jar)
+
+	var authorizationHeader string
 
 	suite.Run("shorten", func() {
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
@@ -126,6 +128,9 @@ func (suite *Iteration9Suite) TestAuth() {
 			dump := dumpRequest(req.RawRequest, true)
 			suite.T().Logf("Оригинальный запрос:\n\n%s", dump)
 		}
+
+		// сохраняем заголовок Authorization
+		authorizationHeader = resp.Header().Get("Authorization")
 	})
 
 	suite.Run("fetch_urls", func() {
@@ -143,6 +148,12 @@ func (suite *Iteration9Suite) TestAuth() {
 			SetContext(ctx).
 			SetHeader("Accept-Encoding", "identity").
 			SetResult(&respBody)
+
+		// выставляем заголовок Authorization, если он имеется
+		if authorizationHeader != "" {
+			req.SetHeader("Authorization", authorizationHeader)
+		}
+
 		resp, err := req.Get("/api/user/urls")
 
 		noRespErr := suite.Assert().NoErrorf(err, "Ошибка при попытке сделать запрос для получения списка сокращенных URL")
@@ -172,6 +183,7 @@ func (suite *Iteration9Suite) TestAuth() {
 	})
 
 	suite.Run("fetch_no_urls", func() {
+		// запрашиваем список URL без имеющихся идентификаторов
 		req := resty.New().
 			SetHostURL(suite.serverAddress).
 			R()
