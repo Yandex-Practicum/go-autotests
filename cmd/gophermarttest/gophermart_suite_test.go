@@ -109,7 +109,7 @@ func (suite *GophermartSuite) TearDownSuite() {
 	suite.stopBinaryProcess(suite.accrualProcess)
 }
 
-func (suite GophermartSuite) stopBinaryProcess(p *fork.BackgroundProcess) {
+func (suite *GophermartSuite) stopBinaryProcess(p *fork.BackgroundProcess) {
 	if p == nil {
 		return
 	}
