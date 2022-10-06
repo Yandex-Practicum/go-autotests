@@ -56,7 +56,10 @@ func (suite *Iteration17Suite) TestDocsComments() {
 	})
 
 	suite.NoError(err, "Неожиданная ошибка")
-	suite.Empty(undocumentedFiles, "Найдены файлы с недокументированной сущностями")
+	suite.Emptyf(undocumentedFiles,
+		"Найдены файлы с недокументированной сущностями:\n\n%s",
+		strings.Join(undocumentedFiles, "\n"),
+	)
 }
 
 // TestExamplePresence пробует рекурсивно найти хотя бы один файл example_test.go в директории с исходным кодом проекта
@@ -91,10 +94,10 @@ func (suite *Iteration17Suite) TestExamplePresence() {
 	}
 
 	if err == nil {
-		suite.T().Errorf("Не найден ни один файл example_test.go по пути %s", flagTargetSourcePath)
+		suite.T().Error("Не найден ни один файл example_test.go")
 		return
 	}
-	suite.T().Errorf("Неожиданная ошибка при поиске файла example_test.go по пути %s: %s", flagTargetSourcePath, err)
+	suite.T().Errorf("Неожиданная ошибка при поиске файла example_test.go: %s", err)
 }
 
 func undocumentedFile(t *testing.T, filepath string) bool {
