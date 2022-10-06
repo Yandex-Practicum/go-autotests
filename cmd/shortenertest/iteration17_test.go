@@ -3,7 +3,6 @@ package main
 // Basic imports
 import (
 	"errors"
-	"fmt"
 	"go/ast"
 	"go/parser"
 	"go/token"
@@ -30,6 +29,7 @@ func (suite *Iteration17Suite) SetupSuite() {
 
 // TestDocsComments пробует проверить налиция документационных комментариев в коде
 func (suite *Iteration17Suite) TestDocsComments() {
+	var undocumentedFiles []string
 	err := filepath.WalkDir(flagTargetSourcePath, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return err
@@ -48,14 +48,15 @@ func (suite *Iteration17Suite) TestDocsComments() {
 		if strings.HasSuffix(d.Name(), ".go") &&
 			!strings.HasSuffix(d.Name(), "_test.go") &&
 			undocumentedFile(suite.T(), path) {
-			// возвращаем сигнальную ошибку
-			return fmt.Errorf("Найден файл с недокументированной сущностью: %s", path)
+			// сохраняем плохой файл в слайс
+			undocumentedFiles = append(undocumentedFiles, path)
 		}
 
 		return nil
 	})
 
-	suite.NoError(err)
+	suite.NoError(err, "Неожиданная ошибка")
+	suite.Empty(undocumentedFiles, "Найдены файлы с недокументированной сущностями")
 }
 
 // TestExamplePresence пробует рекурсивно найти хотя бы один файл example_test.go в директории с исходным кодом проекта
