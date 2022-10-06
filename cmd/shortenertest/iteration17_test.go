@@ -39,7 +39,7 @@ func (suite *Iteration17Suite) TestDocsComments() {
 }
 
 // TestExamplePresence пробует рекурсивно найти хотя бы один файл example_test.go в директории с исходным кодом проекта
-func (suite *Iteration2Suite) TestExamplePresence() {
+func (suite *Iteration17Suite) TestExamplePresence() {
 	err := filepath.WalkDir(flagTargetSourcePath, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return err
