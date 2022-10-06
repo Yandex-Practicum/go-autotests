@@ -30,7 +30,7 @@ func (suite *Iteration17Suite) TestDocsComments() {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	cmd := exec.CommandContext(ctx, "go doc", "-all", "-short", flagTargetSourcePath)
+	cmd := exec.CommandContext(ctx, "go", "doc", "-all", "-short", flagTargetSourcePath)
 	cmd.Env = os.Environ() // pass parent envs
 	out, err := cmd.CombinedOutput()
 
