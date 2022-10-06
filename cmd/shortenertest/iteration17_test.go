@@ -2,16 +2,19 @@ package main
 
 // Basic imports
 import (
-	"context"
 	"errors"
+	"fmt"
+	"go/ast"
+	"go/parser"
+	"go/token"
 	"io/fs"
-	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
-	"time"
+	"testing"
 
+	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
+	"golang.org/x/tools/go/ast/inspector"
 )
 
 // Iteration17Suite является сьютом с тестами и состоянием для инкремента
@@ -27,15 +30,32 @@ func (suite *Iteration17Suite) SetupSuite() {
 
 // TestDocsComments пробует проверить налиция документационных комментариев в коде
 func (suite *Iteration17Suite) TestDocsComments() {
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
+	err := filepath.WalkDir(flagTargetSourcePath, func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
 
-	cmd := exec.CommandContext(ctx, "go", "doc", "-all", "-short", flagTargetSourcePath)
-	cmd.Env = os.Environ() // pass parent envs
-	out, err := cmd.CombinedOutput()
+		if d.IsDir() {
+			// пропускаем служебные директории
+			if d.Name() == "vendor" || d.Name() == ".git" {
+				return filepath.SkipDir
+			}
+			// проваливаемся в директорию
+			return nil
+		}
 
-	suite.NoErrorf(err, "Невозможно получить результат выполнения команды: %s. Ошибка: %w", cmd, err)
-	suite.Emptyf(out, "Не найдена документация проекта:\n\n%s", cmd)
+		// проверяем только Go файлы, но не тесты
+		if strings.HasSuffix(d.Name(), ".go") &&
+			!strings.HasSuffix(d.Name(), "_test.go") &&
+			undocumentedFile(suite.T(), path) {
+			// возвращаем сигнальную ошибку
+			return fmt.Errorf("Найден файл с недокументированной сущностью: %s", path)
+		}
+
+		return nil
+	})
+
+	suite.NoError(err)
 }
 
 // TestExamplePresence пробует рекурсивно найти хотя бы один файл example_test.go в директории с исходным кодом проекта
@@ -74,4 +94,55 @@ func (suite *Iteration17Suite) TestExamplePresence() {
 		return
 	}
 	suite.T().Errorf("Неожиданная ошибка при поиске файла example_test.go по пути %s: %s", flagTargetSourcePath, err)
+}
+
+func undocumentedFile(t *testing.T, filepath string) bool {
+	t.Helper()
+
+	fset := token.NewFileSet()
+	sf, err := parser.ParseFile(fset, filepath, nil, parser.ParseComments)
+	require.NoError(t, err)
+
+	ins := inspector.New([]*ast.File{sf})
+	nodeFilter := []ast.Node{
+		(*ast.GenDecl)(nil),
+		(*ast.FuncDecl)(nil),
+	}
+
+	var undocumentedFound bool
+	ins.Nodes(nodeFilter, func(node ast.Node, push bool) (proceed bool) {
+		switch nt := node.(type) {
+		case *ast.GenDecl:
+			if undocumentedGenDecl(nt) {
+				undocumentedFound = true
+			}
+		case *ast.FuncDecl:
+			if nt.Name.IsExported() && nt.Doc == nil {
+				undocumentedFound = true
+			}
+		}
+
+		return !undocumentedFound
+	})
+
+	return undocumentedFound
+}
+
+// undocumentedGenDecl проверяет, что экспортированная декларация является недокументированной
+func undocumentedGenDecl(decl *ast.GenDecl) bool {
+	for _, spec := range decl.Specs {
+		switch st := spec.(type) {
+		case *ast.TypeSpec:
+			if st.Name.IsExported() && decl.Doc == nil {
+				return true
+			}
+		case *ast.ValueSpec:
+			for _, name := range st.Names {
+				if name.IsExported() && decl.Doc == nil {
+					return true
+				}
+			}
+		}
+	}
+	return false
 }
