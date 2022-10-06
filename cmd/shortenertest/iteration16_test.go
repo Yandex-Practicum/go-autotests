@@ -2,66 +2,67 @@ package main
 
 // Basic imports
 import (
+	"context"
+	"fmt"
 	"os"
-	"strings"
+	"os/exec"
+	"time"
 
-	"github.com/google/pprof/profile"
 	"github.com/stretchr/testify/suite"
 )
 
-// Iteration16Suite is a suite of autotests
+// Iteration16Suite является сьютом с тестами и состоянием для инкремента
 type Iteration16Suite struct {
 	suite.Suite
 }
 
-// SetupSuite bootstraps suite dependencies
+// SetupSuite подготавливает необходимые зависимости
 func (suite *Iteration16Suite) SetupSuite() {
 	// check required flags
-	suite.Require().NotEmpty(flagBaseProfilePath, "-base-profile-path non-empty flag required")
-	suite.Require().NotEmpty(flagResultProfilePath, "-result-profile-path non-empty flag required")
-	suite.Require().NotEmpty(flagPackageName, "-package-name non-empty flag required")
+	suite.Require().NotEmpty(flagTargetSourcePath, "-source-path non-empty flag required")
 }
 
-// TestProfilesDiff attempts to detect positive differences between two pprof profiles
-func (suite *Iteration16Suite) TestProfilesDiff() {
-	baseFd, err := os.Open(flagBaseProfilePath)
-	suite.Require().NoError(err, "Невозможно открыть файл с базовым профилем: %s", flagBaseProfilePath)
-	defer baseFd.Close()
+// TestStylingDiff пробует проверить правильность форматирования кода в проекте
+func (suite *Iteration16Suite) TestStylingDiff() {
+	gofmtErr := checkGofmtStyling(flagTargetSourcePath)
+	goimportsErr := checkGoimportsStyling(flagTargetSourcePath)
 
-	resultFd, err := os.Open(flagResultProfilePath)
-	suite.Require().NoError(err, "Невозможно открыть файл с результирующим профилем: %s", flagResultProfilePath)
-	defer resultFd.Close()
-
-	baseProfile, err := profile.Parse(baseFd)
-	suite.Assert().NoError(err, "Невозможно распарсить базовый профиль")
-
-	resultProfile, err := profile.Parse(resultFd)
-	suite.Assert().NoError(err, "Невозможно распарсить результирующий профиль")
-
-	baseProfile.Scale(-1)
-	mergedProfile, err := profile.Merge([]*profile.Profile{resultProfile, baseProfile})
-
-	// inspect only target package functions samples
-	for i, sample := range mergedProfile.Sample {
-		if len(mergedProfile.Function) < i {
-			break
-		}
-
-		fn := mergedProfile.Function[i]
-		fName := strings.ToLower(fn.Name)
-
-		// inspect only target package non-test functions
-		if !strings.Contains(fName, flagPackageName) ||
-			strings.Contains(fName, "test_run") {
-			continue
-		}
-
-		for _, value := range sample.Value {
-			if value < 0 {
-				return
-			}
-		}
+	if gofmtErr == nil || goimportsErr == nil {
+		return
 	}
 
-	suite.T().Error("Не удалось обнаружить положительных изменений в результирующем профиле")
+	suite.Assert().NoError(gofmtErr, "Ошибка проверки форматирования с помощью gofmt")
+	suite.Assert().NoError(goimportsErr, "Ошибка проверки форматирования с помощью goimports")
+}
+
+func checkGofmtStyling(path string) error {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	cmd := exec.CommandContext(ctx, "gofmt", "-l", "-s", path)
+	cmd.Env = os.Environ() // pass parent envs
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("Невозможно получить результат выполнения команды: %s. Ошибка: %w", cmd, err)
+	}
+	if len(out) > 0 {
+		return fmt.Errorf("Найдены неотформатированные файлы:\n\n%s", cmd)
+	}
+	return nil
+}
+
+func checkGoimportsStyling(path string) error {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	cmd := exec.CommandContext(ctx, "goimports", "-l", path)
+	cmd.Env = os.Environ() // pass parent envs
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("Невозможно получить результат выполнения команды: %s. Ошибка: %w", cmd, err)
+	}
+	if len(out) > 0 {
+		return fmt.Errorf("Найдены неотформатированные файлы:\n\n%s", cmd)
+	}
+	return nil
 }
