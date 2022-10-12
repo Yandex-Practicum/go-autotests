@@ -64,9 +64,8 @@ func (suite *Iteration12Suite) SetupSuite() {
 		}
 	}
 
-	// connect to database
+	// подключаемся к БД
 	{
-		// disable prepared statements
 		driverConfig := stdlib.DriverConfig{
 			ConnConfig: pgx.ConnConfig{
 				PreferSimpleProtocol: true,
@@ -125,22 +124,24 @@ func (suite *Iteration12Suite) TearDownSuite() {
 	}
 }
 
-// TestBatchShorten attempts to:
-// - generate and send random URLs to batch shorten handler
-// - expand fetched short urls and match them with original ones
+// TestBatchShorten пробует:
+// - сгенерировать пачку псевслучайных URL и отослать их на сокращение
+// - получить оригинальные URL и проверить их на совпадение с оргинальными
 func (suite *Iteration12Suite) TestBatchShorten() {
+	// модель запроса
 	type shortenRequest struct {
 		CorrelationID string `json:"correlation_id"`
 		OriginalURL   string `json:"original_url"`
 	}
 
+	// модель ответа
 	type shortenResponse struct {
 		CorrelationID string `json:"correlation_id"`
 		ShortURL      string `json:"short_url"`
 	}
 
 	var responseData []shortenResponse
-	requestData := []shortenRequest{
+	requestData := []shortenRequest{ // генерируем пары псевдослучайных URL
 		{
 			CorrelationID: uuid.Must(uuid.NewV4()).String(),
 			OriginalURL:   generateTestURL(suite.T()),
@@ -151,19 +152,20 @@ func (suite *Iteration12Suite) TestBatchShorten() {
 		},
 	}
 
-	// correlations between originalURLs and shortURLs
+	// здесь будем хранить ассоциированные пары URLов
 	correlations := make(map[string]string)
 
-	// create HTTP client without redirects support
+	// отключаем редиректы в HTTP клиенте
 	errRedirectBlocked := errors.New("HTTP redirect blocked")
 	redirPolicy := resty.RedirectPolicyFunc(func(_ *http.Request, _ []*http.Request) error {
 		return errRedirectBlocked
 	})
 
 	httpc := resty.New().
-		SetHostURL(suite.serverAddress).
+		SetBaseURL(suite.serverAddress).
 		SetRedirectPolicy(redirPolicy)
 
+	// посылаем запрос на сокращение
 	suite.Run("shorten_batch", func() {
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
@@ -186,6 +188,7 @@ func (suite *Iteration12Suite) TestBatchShorten() {
 
 		suite.Assert().Len(responseData, len(requestData), "Кол-во объектов в ответе не совпадает с кол-вом объектов в запросе")
 
+		// проверяем, что все переданные URL были сокращены
 		allCorrelationsFound := true
 		for _, respPair := range responseData {
 			var originalURL string
@@ -211,7 +214,9 @@ func (suite *Iteration12Suite) TestBatchShorten() {
 		}
 	})
 
+	// получаем оригинальные URL
 	suite.Run("expand", func() {
+		// проверяем каждый URL по очереди
 		for shortenURL, originalURL := range correlations {
 			req := resty.New().
 				SetRedirectPolicy(redirPolicy).

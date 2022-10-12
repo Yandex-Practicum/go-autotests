@@ -95,7 +95,7 @@ func (suite *Iteration10Suite) TearDownSuite() {
 	}
 }
 
-// TestLibraryUsage attempts to recursively find usage of database/sql in given sources
+// TestLibraryUsage пробует рекурсивно найти использование database/sql хотя бы в одном файле с исходным кодом проекта
 func (suite *Iteration10Suite) TestLibraryUsage() {
 	err := usesKnownPackage(suite.T(), ".", suite.knownLibraries)
 	if err == nil {
@@ -108,13 +108,15 @@ func (suite *Iteration10Suite) TestLibraryUsage() {
 	suite.T().Errorf("Неожиданная ошибка при поиске использования библиотеки database/sql по пути %s: %s", flagTargetSourcePath, err)
 }
 
-// TestPingHandler attempts to call for ping handler and check positive result
+// TestPingHandler пробует вызвать хендлер /ping и получить положительный ответ
 func (suite *Iteration10Suite) TestPingHandler() {
 	httpc := resty.New().
-		SetHostURL(suite.serverAddress)
+		SetBaseURL(suite.serverAddress)
 
+	// будет пробовать получить ответ раз в секунду
 	ticker := time.NewTicker(time.Second)
 
+	// будем дожидаться результата в течении 10 секунд
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
@@ -124,6 +126,7 @@ func (suite *Iteration10Suite) TestPingHandler() {
 			suite.T().Error("Не удалось получить код ответа 200 от хендлера 'GET /ping' за отведенное время")
 			return
 		case <-ticker.C:
+			// ожидаем ответа секунду
 			rctx, rcancel := context.WithTimeout(context.Background(), time.Second)
 			defer rcancel()
 

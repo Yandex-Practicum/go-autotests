@@ -64,9 +64,8 @@ func (suite *Iteration13Suite) SetupSuite() {
 		}
 	}
 
-	// connect to database
+	// подключаемся к БД
 	{
-		// disable prepared statements
 		driverConfig := stdlib.DriverConfig{
 			ConnConfig: pgx.ConnConfig{
 				PreferSimpleProtocol: true,
@@ -125,18 +124,19 @@ func (suite *Iteration13Suite) TearDownSuite() {
 	}
 }
 
-// TestConflict attempts to:
-// - generate and send random URL to shorten handler multiple times
-// - expect to get 409 status on duplicate attempts
+// TestConflict пробует:
+// - сгенрировать псевдослучайный URL и послать его на сокращение дважды
+// - проверить, что статус ответа на второй запрос будет 409 Conflict
 func (suite *Iteration13Suite) TestConflict() {
 	jar, err := cookiejar.New(nil)
 	suite.Require().NoError(err, "Неожиданная ошибка при создании Cookie Jar")
 
 	httpc := resty.New().
-		SetHostURL(suite.serverAddress).
+		SetBaseURL(suite.serverAddress).
 		SetHeader("Accept-Encoding", "identity").
 		SetCookieJar(jar)
 
+	// сокращаем URL в базовом хендлере
 	suite.Run("shorten", func() {
 		originalURL := generateTestURL(suite.T())
 		var shortenURL string
@@ -152,16 +152,18 @@ func (suite *Iteration13Suite) TestConflict() {
 
 			noRespErr := suite.Assert().NoError(err, "Ошибка при попытке сделать запрос для сокращения URL")
 
-			// save original shorten URL
+			// сохраняем сокращенный URL на первой итерации
 			if shortenURL == "" {
 				shortenURL = string(resp.Body())
 			} else {
+				// проверяем, что URL во втором ответе совпадает с URL в первом ответе
 				conflictURL := string(resp.Body())
 				suite.Assert().Equal(shortenURL, conflictURL, "Несовпадение сокращенных URL при конфликте")
 			}
 
 			expectedStatus := http.StatusCreated
 			if attempt > 0 {
+				// все последующие запросы после первого должны возвращать статус 409
 				expectedStatus = http.StatusConflict
 			}
 
@@ -180,6 +182,7 @@ func (suite *Iteration13Suite) TestConflict() {
 		}
 	})
 
+	// сокращаем URL в JSON хендлере по аналогии с базовым
 	suite.Run("shorten_api", func() {
 		type shortenRequest struct {
 			URL string `json:"url"`
@@ -205,7 +208,6 @@ func (suite *Iteration13Suite) TestConflict() {
 
 			noRespErr := suite.Assert().NoError(err, "Ошибка при попытке сделать запрос для сокращения URL")
 
-			// save original shorten URL
 			if shortenURL == "" {
 				shortenURL = result.Result
 			} else {

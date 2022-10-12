@@ -54,6 +54,7 @@ func (suite *Iteration11Suite) SetupSuite() {
 			return
 		}
 
+		// ожидаем пока порт будет занят
 		port := "8080"
 		err = p.WaitPort(ctx, "tcp", port)
 		if err != nil {
@@ -62,9 +63,9 @@ func (suite *Iteration11Suite) SetupSuite() {
 		}
 	}
 
-	// connect to database
+	// получаем соединение к БД
 	{
-		// disable prepared statements
+		// отключаем prepared statements
 		driverConfig := stdlib.DriverConfig{
 			ConnConfig: pgx.ConnConfig{
 				PreferSimpleProtocol: true,
@@ -78,9 +79,11 @@ func (suite *Iteration11Suite) SetupSuite() {
 			return
 		}
 
+		// будем ожидать ответа на пинг БД в течении 2 секунд
 		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 		defer cancel()
 
+		// пингуем соединение с БД, чтобы убежиться, что оно живое
 		if err = conn.PingContext(ctx); err != nil {
 			suite.T().Errorf("Не удалось подключиться проверить подключение к базе данных: %s", err)
 			return
@@ -123,15 +126,17 @@ func (suite *Iteration11Suite) TearDownSuite() {
 	}
 }
 
-// TestInspectDatabase attempts to:
-// - generate and send random URL to shorten handler
-// - inspect database to find original URL record
+// TestInspectDatabase пробует:
+// - сгенерировать псевдослучайный URL и послать его на сокращение
+// - проинспектировать БД на наличие исходного URL
 func (suite *Iteration11Suite) TestInspectDatabase() {
+	// генерируем URL
 	originalURL := generateTestURL(suite.T())
 
 	httpc := resty.New().
-		SetHostURL(suite.serverAddress)
+		SetBaseURL(suite.serverAddress)
 
+	// сокращаем URL
 	suite.Run("shorten", func() {
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
@@ -148,13 +153,16 @@ func (suite *Iteration11Suite) TestInspectDatabase() {
 		}
 	})
 
+	// инспектируем БД
 	suite.Run("inspect", func() {
 		suite.Require().NotNil(suite.dbconn, "Невозможно проинспектировать базу данных, нет подключения")
 
+		// получаем существющие таблицы в БД
 		tables, err := suite.fetchTables()
 		suite.Require().NoError(err, "Ошибка получения списка таблиц базы данных")
 		suite.Require().NotEmpty(tables, "Не найдено ни одной пользовательской таблицы в БД")
 
+		// инспектируем каждую таблицу по очереди
 		var found bool
 		for _, table := range tables {
 			found, err = suite.findInTable(table, originalURL)
@@ -171,6 +179,7 @@ func (suite *Iteration11Suite) TestInspectDatabase() {
 	})
 }
 
+// fetchTables возвращает имеющиеся в БД таблицы
 func (suite *Iteration11Suite) fetchTables() ([]string, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
@@ -204,12 +213,15 @@ func (suite *Iteration11Suite) fetchTables() ([]string, error) {
 	return tables, nil
 }
 
+// findInTable ищет в заданной таблице необходимый URL
 func (suite *Iteration11Suite) findInTable(table, url string) (bool, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
 
+	// искать будем по вхождению подстроки в строку
 	url = "%" + url + "%"
 
+	// `tbl::text` превращает всю запись в таблице в текстовую строку
 	query := `
 		SELECT true
 		FROM ` + table + ` AS tbl
@@ -221,6 +233,7 @@ func (suite *Iteration11Suite) findInTable(table, url string) (bool, error) {
 	var found bool
 	err := suite.dbconn.QueryRowContext(ctx, query, url).Scan(&found)
 	if errors.Is(err, sql.ErrNoRows) {
+		// не найдено ни одной записи в БД
 		return false, nil
 	}
 	return found, err

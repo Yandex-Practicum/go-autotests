@@ -72,9 +72,7 @@ func (suite *Iteration14Suite) SetupSuite() {
 		}
 	}
 
-	// connect to database
 	if flagDatabaseDSN != "" {
-		// disable prepared statements
 		driverConfig := stdlib.DriverConfig{
 			ConnConfig: pgx.ConnConfig{
 				PreferSimpleProtocol: true,
@@ -133,22 +131,21 @@ func (suite *Iteration14Suite) TearDownSuite() {
 	}
 }
 
-// TestDelete attempts to:
-// - generate and send random URLs to shorten handler
-// - send DELETE request with given URLs
-// - check URL status afterwards
+// TestDelete пробует:
+// - сгенрировать псевдослучайные URL и послать их на сокращение
+// - послать DELETE запрос с данными URL
+// - проверить статусы URLов
 func (suite *Iteration14Suite) TestDelete() {
 	jar, err := cookiejar.New(nil)
 	suite.Require().NoError(err, "Неожиданная ошибка при создании Cookie Jar")
 
-	// create HTTP client without redirects support
 	errRedirectBlocked := errors.New("HTTP redirect blocked")
 	redirPolicy := resty.RedirectPolicyFunc(func(_ *http.Request, _ []*http.Request) error {
 		return errRedirectBlocked
 	})
 
 	httpc := resty.New().
-		SetHostURL(suite.serverAddress).
+		SetBaseURL(suite.serverAddress).
 		SetHeader("Accept-Encoding", "identity").
 		SetCookieJar(jar).
 		SetRedirectPolicy(redirPolicy)
@@ -187,7 +184,9 @@ func (suite *Iteration14Suite) TestDelete() {
 		}
 	})
 
+	// удаляем URLы
 	suite.Run("remove", func() {
+		// подготавливаем URL к удалению
 		var body []string
 		for _, shorten := range shortenURLs {
 			u, err := url.Parse(shorten)
@@ -217,6 +216,7 @@ func (suite *Iteration14Suite) TestDelete() {
 		}
 	})
 
+	// проверяем статус удаления
 	suite.Run("check_state", func() {
 		ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
 		defer cancel()
@@ -239,9 +239,11 @@ func (suite *Iteration14Suite) TestDelete() {
 						SetContext(ctx).
 						Get(shorten)
 					if err == nil && resp != nil && resp.StatusCode() == http.StatusGone {
+						// URL успешно удален
 						deletedCount++
 					}
 				}
+				// все URL рано или поздно должны быть удалены
 				if deletedCount == len(shortenURLs) {
 					return
 				}
@@ -250,7 +252,7 @@ func (suite *Iteration14Suite) TestDelete() {
 	})
 }
 
-// TestDeleteConcurrent is a concurrent version of TestDelete
+// TestDeleteConcurrent - конкурентная версия TestDelete
 func (suite *Iteration14Suite) TestDeleteConcurrent() {
 	jar, err := cookiejar.New(nil)
 	suite.Require().NoError(err, "Неожиданная ошибка при создании Cookie Jar")
@@ -262,7 +264,7 @@ func (suite *Iteration14Suite) TestDeleteConcurrent() {
 	})
 
 	httpc := resty.New().
-		SetHostURL(suite.serverAddress).
+		SetBaseURL(suite.serverAddress).
 		SetHeader("Accept-Encoding", "identity").
 		SetCookieJar(jar).
 		SetRedirectPolicy(redirPolicy)
@@ -360,8 +362,8 @@ func (suite *Iteration14Suite) TestDeleteConcurrent() {
 		}
 	}
 
-	// run multiple requests sequences at once
+	// запускаем несколько запросов параллельно
 	for i := 0; i <= 20; i++ {
-		urlProcessor()
+		go urlProcessor()
 	}
 }
