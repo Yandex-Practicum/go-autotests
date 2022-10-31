@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"database/sql"
 	"errors"
@@ -37,28 +38,9 @@ func (suite *Iteration11Suite) SetupSuite() {
 
 	// запускаем процесс тестируемого сервера
 	{
-		envs := os.Environ()
-		args := []string{"-d=" + flagDatabaseDSN}
-		p := fork.NewBackgroundProcess(context.Background(), flagTargetBinaryPath,
-			fork.WithEnv(envs...),
-			fork.WithArgs(args...),
-		)
-		suite.serverProcess = p
-
-		ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
-		defer cancel()
-
-		err := p.Start(ctx)
+		err := suite.startServer()
 		if err != nil {
-			suite.T().Errorf("Невозможно запустить процесс командой %s: %s. Переменные окружения: %+v, аргументы: %+v", p, err, envs, args)
-			return
-		}
-
-		// ожидаем пока порт будет занят
-		port := "8080"
-		err = p.WaitPort(ctx, "tcp", port)
-		if err != nil {
-			suite.T().Errorf("Не удалось дождаться пока порт %s станет доступен для запроса: %s", port, err)
+			suite.T().Errorf("Не удалось запустить процесс сервера: %w", err)
 			return
 		}
 	}
@@ -99,30 +81,12 @@ func (suite *Iteration11Suite) TearDownSuite() {
 		_ = suite.dbconn.Close()
 	}
 
-	exitCode, err := suite.serverProcess.Stop(syscall.SIGINT, syscall.SIGKILL)
+	out, err := suite.stopServer()
 	if err != nil {
-		if errors.Is(err, os.ErrProcessDone) {
-			return
-		}
-		suite.T().Logf("Не удалось остановить процесс с помощью сигнала ОС: %s", err)
-		return
+		suite.T().Logf("Процесс завершился с ошибкой: %w", err)
 	}
-
-	if exitCode > 0 {
-		suite.T().Logf("Процесс завершился с не нулевым статусом %d", exitCode)
-	}
-
-	// получаем стандартные выводы (логи) процесса
-	ctx, cancel := context.WithTimeout(context.Background(), 500*time.Millisecond)
-	defer cancel()
-
-	out := suite.serverProcess.Stderr(ctx)
 	if len(out) > 0 {
-		suite.T().Logf("Получен STDERR лог процесса:\n\n%s", string(out))
-	}
-	out = suite.serverProcess.Stdout(ctx)
-	if len(out) > 0 {
-		suite.T().Logf("Получен STDOUT лог процесса:\n\n%s", string(out))
+		suite.T().Log(string(out))
 	}
 }
 
@@ -155,28 +119,110 @@ func (suite *Iteration11Suite) TestInspectDatabase() {
 
 	// инспектируем БД
 	suite.Run("inspect", func() {
-		suite.Require().NotNil(suite.dbconn, "Невозможно проинспектировать базу данных, нет подключения")
+		suite.inspectTables(originalURL)
+	})
 
-		// получаем существющие таблицы в БД
-		tables, err := suite.fetchTables()
-		suite.Require().NoError(err, "Ошибка получения списка таблиц базы данных")
-		suite.Require().NotEmpty(tables, "Не найдено ни одной пользовательской таблицы в БД")
+	// инспектируем БД после рестарта приложения
+	suite.Run("check_after_restart", func() {
+		out, err := suite.stopServer()
+		noRestartErr := suite.Assert().NoError(err, "Не удалось остановить процесс сервера")
 
-		// инспектируем каждую таблицу по очереди
-		var found bool
-		for _, table := range tables {
-			found, err = suite.findInTable(table, originalURL)
-			if err != nil {
-				suite.T().Logf("Ошибка поиска в таблице %s: %s", table, err)
-			}
-			if found {
-				break
-			}
+		if !noRestartErr && len(out) > 0 {
+			suite.T().Log(string(out))
 		}
 
-		suite.Require().Truef(found,
-			"Не удалось обнаружить запись с оригинальным URL ни в одной таблице базы данных. Оригинальный URL: %s", originalURL)
+		err = suite.startServer()
+		suite.Require().NoError(err, "Не удалось перезапустить процесс сервера")
+
+		suite.inspectTables(originalURL)
 	})
+}
+
+func (suite *Iteration11Suite) startServer() error {
+	envs := os.Environ()
+	args := []string{"-d=" + flagDatabaseDSN}
+	p := fork.NewBackgroundProcess(context.Background(), flagTargetBinaryPath,
+		fork.WithEnv(envs...),
+		fork.WithArgs(args...),
+	)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+	defer cancel()
+
+	err := p.Start(ctx)
+	if err != nil {
+		return fmt.Errorf("Невозможно запустить процесс командой %s: %s. Переменные окружения: %+v, аргументы: %+v", p, err, envs, args)
+	}
+
+	// ожидаем пока порт будет занят
+	port := "8080"
+	err = p.WaitPort(ctx, "tcp", port)
+	if err != nil {
+		return fmt.Errorf("Не удалось дождаться пока порт %s станет доступен для запроса: %s", port, err)
+	}
+
+	suite.serverProcess = p
+	return nil
+}
+
+// stopServer останавливает процесс сервера
+func (suite *Iteration11Suite) stopServer() (log []byte, err error) {
+	exitCode, err := suite.serverProcess.Stop(syscall.SIGINT, syscall.SIGKILL)
+	if err != nil {
+		if errors.Is(err, os.ErrProcessDone) {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("Не удалось остановить процесс с помощью сигнала ОС: %w", err)
+	}
+
+	if exitCode > 0 {
+		return nil, fmt.Errorf("Процесс завершился с не нулевым статусом %d", exitCode)
+	}
+
+	// получаем стандартные выводы (логи) процесса
+	ctx, cancel := context.WithTimeout(context.Background(), 500*time.Millisecond)
+	defer cancel()
+
+	var buf bytes.Buffer
+
+	out := suite.serverProcess.Stderr(ctx)
+	if len(out) > 0 {
+		buf.WriteString("Получен STDERR лог процесса:\n\n")
+		buf.Write(out)
+	}
+	out = suite.serverProcess.Stdout(ctx)
+	if len(out) > 0 {
+		buf.WriteString("Получен STDOUT лог процесса:\n\n")
+		buf.Write(out)
+	}
+
+	return buf.Bytes(), nil
+}
+
+func (suite *Iteration11Suite) inspectTables(originalURL string) {
+	suite.T().Helper()
+
+	suite.Require().NotNil(suite.dbconn, "Невозможно проинспектировать базу данных, нет подключения")
+
+	// получаем существющие таблицы в БД
+	tables, err := suite.fetchTables()
+	suite.Require().NoError(err, "Ошибка получения списка таблиц базы данных")
+	suite.Require().NotEmpty(tables, "Не найдено ни одной пользовательской таблицы в БД")
+
+	// инспектируем каждую таблицу по очереди
+	var found bool
+	for _, table := range tables {
+		found, err = suite.findInTable(table, originalURL)
+		if err != nil {
+			suite.T().Logf("Ошибка поиска в таблице %s: %s", table, err)
+		}
+		if found {
+			break
+		}
+	}
+
+	suite.Require().Truef(found,
+		"Не удалось обнаружить запись с оригинальным URL ни в одной таблице базы данных. Оригинальный URL: %s", originalURL)
 }
 
 // fetchTables возвращает имеющиеся в БД таблицы
