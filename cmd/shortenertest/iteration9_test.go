@@ -183,11 +183,16 @@ func (suite *Iteration9Suite) TestAuth() {
 	})
 
 	suite.Run("fetch_no_urls", func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+
 		// запрашиваем список URL без имеющихся идентификаторов
 		req := resty.New().
 			SetHostURL(suite.serverAddress).
 			R()
-		resp, err := req.Get("/api/user/urls")
+		resp, err := req.
+			SetContext(ctx).
+			Get("/api/user/urls")
 		if err != nil {
 			dump := dumpRequest(req.RawRequest, false)
 			suite.Require().NoErrorf(err, "Ошибка при попытке сделать запрос для получения списка сокращенных URL:\n\n %s", dump)

@@ -183,10 +183,15 @@ func (suite *Iteration4Suite) TestJSONHandler() {
 
 	// пробуем получить оригинальный URL обратно
 	suite.Run("expand", func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+
 		req := resty.New().
 			SetRedirectPolicy(redirPolicy).
 			R()
-		resp, err := req.Get(shortenURL)
+		resp, err := req.
+			SetContext(ctx).
+			Get(shortenURL)
 
 		noRespErr := true
 		if !errors.Is(err, errRedirectBlocked) {

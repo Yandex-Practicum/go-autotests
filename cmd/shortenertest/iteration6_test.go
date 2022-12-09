@@ -121,7 +121,9 @@ func (suite *Iteration6Suite) TestPersistentFile() {
 		req := resty.New().
 			SetRedirectPolicy(redirPolicy).
 			R()
-		resp, err := req.Get(shortenURL)
+		resp, err := req.
+			SetContext(ctx).
+			Get(shortenURL)
 
 		noRespErr := true
 		if !errors.Is(err, errRedirectBlocked) {
