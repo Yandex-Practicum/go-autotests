@@ -147,9 +147,10 @@ func (suite *Iteration1Suite) TestHandlers() {
 		// делаем запрос к серверу для получения оригинального URL
 		req := resty.New().
 			SetRedirectPolicy(redirPolicy).
-			R().
-			SetContext(ctx)
-		resp, err := req.Get(shortenURL)
+			R()
+		resp, err := req.
+			SetContext(ctx).
+			Get(shortenURL)
 
 		noRespErr := true
 		if !errors.Is(err, errRedirectBlocked) {

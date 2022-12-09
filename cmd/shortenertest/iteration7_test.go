@@ -187,10 +187,15 @@ func (suite *Iteration7Suite) TestFlags() {
 
 	suite.Run("expand", func() {
 		for originalURL, shortenURL := range shortenURLs {
+			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+			defer cancel()
+
 			req := resty.New().
 				SetRedirectPolicy(redirPolicy).
 				R()
-			resp, err := req.Get(shortenURL)
+			resp, err := req.
+				SetContext(ctx).
+				Get(shortenURL)
 			noRespErr := true
 			if !errors.Is(err, errRedirectBlocked) {
 				noRespErr = suite.Assert().NoErrorf(err, "Ошибка при попытке сделать запрос для получения исходного URL")

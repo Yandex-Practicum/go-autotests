@@ -196,9 +196,13 @@ func (suite *Iteration13Suite) TestConflict() {
 		var shortenURL string
 
 		for attempt := 0; attempt <= 2; attempt++ {
+			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+			defer cancel()
+
 			var result shortenResponse
 
 			req := httpc.R().
+				SetContext(ctx).
 				SetHeader("Content-Type", "application/json").
 				SetBody(&shortenRequest{
 					URL: originalURL,

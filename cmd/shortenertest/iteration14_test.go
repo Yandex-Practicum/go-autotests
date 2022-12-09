@@ -232,11 +232,11 @@ func (suite *Iteration14Suite) TestDelete() {
 			case <-ticker.C:
 				var deletedCount int
 				for _, shorten := range shortenURLs {
-					ctx, cancel := context.WithTimeout(context.Background(), time.Second)
-					defer cancel()
+					rctx, rcancel := context.WithTimeout(context.Background(), time.Second)
+					defer rcancel()
 
 					resp, err := httpc.R().
-						SetContext(ctx).
+						SetContext(rctx).
 						Get(shorten)
 					if err == nil && resp != nil && resp.StatusCode() == http.StatusGone {
 						// URL успешно удален
