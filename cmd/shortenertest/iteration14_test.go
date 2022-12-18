@@ -9,6 +9,7 @@ import (
 	"net/url"
 	"os"
 	"strings"
+	"sync"
 	"syscall"
 	"time"
 
@@ -18,6 +19,10 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	"github.com/Yandex-Practicum/go-autotests/internal/fork"
+)
+
+const (
+	defaultTestConcurrentDeleteShutdownDuration = 60 * time.Second
 )
 
 // Iteration14Suite является сьютом с тестами и состоянием для инкремента
@@ -270,9 +275,10 @@ func (suite *Iteration14Suite) TestDeleteConcurrent() {
 		SetRedirectPolicy(redirPolicy)
 
 	// urlProcessor runs single URL processing sequence
+	var wg sync.WaitGroup
 	urlProcessor := func() {
+		defer wg.Done()
 		var shortenURL string
-
 		// shorten URL
 		{
 			originalURL := generateTestURL(suite.T())
@@ -364,6 +370,19 @@ func (suite *Iteration14Suite) TestDeleteConcurrent() {
 
 	// запускаем несколько запросов параллельно
 	for i := 0; i <= 20; i++ {
+		wg.Add(1)
 		go urlProcessor()
+	}
+
+	done := make(chan struct{})
+	go func() {
+		wg.Wait()
+		close(done)
+	}()
+
+	select {
+	case <-done:
+	case <-time.After(defaultTestConcurrentDeleteShutdownDuration):
+		suite.Fail("failed to wait test shutdown for %s seconds", defaultTestConcurrentDeleteShutdownDuration)
 	}
 }
