@@ -21,10 +21,6 @@ import (
 	"github.com/Yandex-Practicum/go-autotests/internal/fork"
 )
 
-const (
-	defaultTestConcurrentDeleteShutdownDuration = 2 * time.Minute
-)
-
 // Iteration14Suite является сьютом с тестами и состоянием для инкремента
 type Iteration14Suite struct {
 	suite.Suite
@@ -275,9 +271,9 @@ func (suite *Iteration14Suite) TestDeleteConcurrent() {
 		SetRedirectPolicy(redirPolicy)
 
 	// urlProcessor runs single URL processing sequence
-	ctx, cancel := context.WithTimeout(context.Background(), defaultTestConcurrentDeleteShutdownDuration)
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 	defer cancel()
-	errg, ctx1 := errgroup.WithContext(ctx)
+	errg, ctx := errgroup.WithContext(ctx)
 	errg.SetLimit(-1)
 
 	urlProcessor := func() error {
@@ -286,7 +282,7 @@ func (suite *Iteration14Suite) TestDeleteConcurrent() {
 		{
 			originalURL := generateTestURL(suite.T())
 
-			ctx, cancel := context.WithTimeout(ctx1, 10*time.Second)
+			ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
 			defer cancel()
 
 			req := httpc.R().
@@ -321,7 +317,7 @@ func (suite *Iteration14Suite) TestDeleteConcurrent() {
 
 			body := []string{strings.Trim(u.Path, "/")}
 
-			ctx, cancel := context.WithTimeout(ctx1, 10*time.Second)
+			ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
 			defer cancel()
 
 			req := httpc.R().
@@ -342,36 +338,32 @@ func (suite *Iteration14Suite) TestDeleteConcurrent() {
 		}
 
 		// check URL state
-		f := func() error {
-			ctx, cancel := context.WithTimeout(ctx1, time.Minute)
+		{
+			ctx, cancel := context.WithTimeout(ctx, 20*time.Second)
 			defer cancel()
 
 			ticker := time.NewTicker(1 * time.Second)
 			defer ticker.Stop()
 
-			f := func() error {
-				for {
-					select {
-					case <-ctx.Done():
-						suite.T().Errorf("Не удалось дождаться удаления переданных URL в течении 60 секунд")
-						return ctx.Err()
-					case <-ticker.C:
-						ctx, cancel := context.WithTimeout(context.Background(), time.Second)
-						defer cancel()
+			for {
+				select {
+				case <-ctx.Done():
+					suite.T().Errorf("Не удалось дождаться удаления переданных URL в течении отведенного времени")
+					return ctx.Err()
+				case <-ticker.C:
+					ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+					defer cancel()
 
-						resp, err := httpc.R().
-							SetContext(ctx).
-							Get(shortenURL)
-						if err == nil && resp != nil && resp.StatusCode() == http.StatusGone {
-							return nil
-						}
-						return err
+					resp, err := httpc.R().
+						SetContext(ctx).
+						Get(shortenURL)
+					if err == nil && resp != nil && resp.StatusCode() == http.StatusGone {
+						return nil
 					}
+					return err
 				}
 			}
-			return f()
 		}
-		return f()
 	}
 
 	// запускаем несколько запросов параллельно
