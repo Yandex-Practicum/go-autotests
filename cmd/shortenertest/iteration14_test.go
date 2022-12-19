@@ -360,7 +360,6 @@ func (suite *Iteration14Suite) TestDeleteConcurrent() {
 					if err == nil && resp != nil && resp.StatusCode() == http.StatusGone {
 						return nil
 					}
-					return err
 				}
 			}
 		}
