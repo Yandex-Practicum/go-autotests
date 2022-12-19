@@ -9,7 +9,6 @@ import (
 	"net/url"
 	"os"
 	"strings"
-	"sync"
 	"syscall"
 	"time"
 
@@ -17,12 +16,13 @@ import (
 	"github.com/jackc/pgx"
 	"github.com/jackc/pgx/stdlib"
 	"github.com/stretchr/testify/suite"
+	"golang.org/x/sync/errgroup"
 
 	"github.com/Yandex-Practicum/go-autotests/internal/fork"
 )
 
 const (
-	defaultTestConcurrentDeleteShutdownDuration = 60 * time.Second
+	defaultTestConcurrentDeleteShutdownDuration = 2 * time.Minute
 )
 
 // Iteration14Suite является сьютом с тестами и состоянием для инкремента
@@ -275,15 +275,18 @@ func (suite *Iteration14Suite) TestDeleteConcurrent() {
 		SetRedirectPolicy(redirPolicy)
 
 	// urlProcessor runs single URL processing sequence
-	var wg sync.WaitGroup
-	urlProcessor := func() {
-		defer wg.Done()
+	ctx, cancel := context.WithTimeout(context.Background(), defaultTestConcurrentDeleteShutdownDuration)
+	defer cancel()
+	errg, ctx1 := errgroup.WithContext(ctx)
+	errg.SetLimit(-1)
+
+	urlProcessor := func() error {
 		var shortenURL string
 		// shorten URL
 		{
 			originalURL := generateTestURL(suite.T())
 
-			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+			ctx, cancel := context.WithTimeout(ctx1, 10*time.Second)
 			defer cancel()
 
 			req := httpc.R().
@@ -318,7 +321,7 @@ func (suite *Iteration14Suite) TestDeleteConcurrent() {
 
 			body := []string{strings.Trim(u.Path, "/")}
 
-			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+			ctx, cancel := context.WithTimeout(ctx1, 10*time.Second)
 			defer cancel()
 
 			req := httpc.R().
@@ -339,19 +342,19 @@ func (suite *Iteration14Suite) TestDeleteConcurrent() {
 		}
 
 		// check URL state
-		{
-			ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
+		f := func() error {
+			ctx, cancel := context.WithTimeout(ctx1, time.Minute)
 			defer cancel()
 
 			ticker := time.NewTicker(1 * time.Second)
 			defer ticker.Stop()
 
-			func() {
+			f := func() error {
 				for {
 					select {
 					case <-ctx.Done():
 						suite.T().Errorf("Не удалось дождаться удаления переданных URL в течении 60 секунд")
-						return
+						return ctx.Err()
 					case <-ticker.C:
 						ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 						defer cancel()
@@ -360,29 +363,24 @@ func (suite *Iteration14Suite) TestDeleteConcurrent() {
 							SetContext(ctx).
 							Get(shortenURL)
 						if err == nil && resp != nil && resp.StatusCode() == http.StatusGone {
-							return
+							return nil
 						}
+						return err
 					}
 				}
-			}()
+			}
+			return f()
 		}
+		return f()
 	}
 
 	// запускаем несколько запросов параллельно
 	for i := 0; i <= 20; i++ {
-		wg.Add(1)
-		go urlProcessor()
+		errg.Go(urlProcessor)
 	}
 
-	done := make(chan struct{})
-	go func() {
-		wg.Wait()
-		close(done)
-	}()
-
-	select {
-	case <-done:
-	case <-time.After(defaultTestConcurrentDeleteShutdownDuration):
-		suite.Fail("failed to wait test shutdown for %s seconds", defaultTestConcurrentDeleteShutdownDuration)
+	err = errg.Wait()
+	if err != nil {
+		suite.T().Error(err)
 	}
 }
