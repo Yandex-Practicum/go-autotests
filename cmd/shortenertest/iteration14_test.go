@@ -365,6 +365,10 @@ func (suite *Iteration14Suite) TestDeleteConcurrent() {
 		}
 	}
 
+	// нам нужно получить Cookie с токеном пользователя перед началом отправки других запросов
+	err = urlProcessor()
+	suite.Assert().NoError(err, "Ошибка при попытке сделать запросы для получения токена пользователя")
+
 	// запускаем несколько запросов параллельно
 	for i := 0; i <= 20; i++ {
 		errg.Go(urlProcessor)
