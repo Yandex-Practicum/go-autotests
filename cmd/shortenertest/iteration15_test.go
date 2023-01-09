@@ -35,7 +35,7 @@ func (suite *Iteration15Suite) TestBenchmarksPresence() {
 	defer cancel()
 
 	// запускаем команду стандартного тулинга
-	cmd := exec.CommandContext(ctx, "go", "test", "-bench=.", "-benchtime=100ms", "-run=^$", sourcePath)
+	cmd := exec.CommandContext(ctx, "go", "test", "-bench=.", "-benchmem", "-benchtime=100ms", "-run=^$", sourcePath)
 	cmd.Env = os.Environ() // pass parent envs
 	out, err := cmd.CombinedOutput()
 	suite.Assert().NoError(err, "Невозможно получить результат выполнения команды: %s. Вывод:\n\n %s", cmd, out)
