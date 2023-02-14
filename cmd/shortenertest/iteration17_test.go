@@ -8,6 +8,7 @@ import (
 	"go/token"
 	"io/fs"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 
@@ -103,6 +104,10 @@ func (suite *Iteration17Suite) TestExamplePresence() {
 func undocumentedFile(t *testing.T, filepath string) bool {
 	t.Helper()
 
+	// компилируем регулярное выражение для определения автоматически сгенерированных файлов
+	genRegex, err := regexp.Compile(`^// Code generated .* DO NOT EDIT\.$`)
+	require.NoError(t, err)
+
 	fset := token.NewFileSet()
 	sf, err := parser.ParseFile(fset, filepath, nil, parser.ParseComments)
 	require.NoError(t, err)
@@ -111,6 +116,7 @@ func undocumentedFile(t *testing.T, filepath string) bool {
 	nodeFilter := []ast.Node{
 		(*ast.GenDecl)(nil),
 		(*ast.FuncDecl)(nil),
+		(*ast.Comment)(nil),
 	}
 
 	var undocumentedFound bool
@@ -123,6 +129,12 @@ func undocumentedFile(t *testing.T, filepath string) bool {
 		case *ast.FuncDecl:
 			if nt.Name.IsExported() && nt.Doc == nil {
 				undocumentedFound = true
+			}
+		case *ast.Comment:
+			// останавливаемся здесь, файл сгенерирован автоматически
+			if genRegex.MatchString(nt.Text) {
+				undocumentedFound = false
+				return true
 			}
 		}
 
