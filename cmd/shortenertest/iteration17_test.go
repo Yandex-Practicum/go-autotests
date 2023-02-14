@@ -134,7 +134,7 @@ func undocumentedFile(t *testing.T, filepath string) bool {
 			// останавливаемся здесь, файл сгенерирован автоматически
 			if genRegex.MatchString(nt.Text) {
 				undocumentedFound = false
-				return true
+				return false
 			}
 		}
 
