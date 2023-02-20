@@ -40,7 +40,7 @@ func (suite *Iteration11Suite) SetupSuite() {
 	{
 		err := suite.startServer()
 		if err != nil {
-			suite.T().Errorf("Не удалось запустить процесс сервера: %w", err)
+			suite.T().Errorf("Не удалось запустить процесс сервера: %v", err)
 			return
 		}
 	}
@@ -83,7 +83,7 @@ func (suite *Iteration11Suite) TearDownSuite() {
 
 	out, err := suite.stopServer()
 	if err != nil {
-		suite.T().Logf("Процесс завершился с ошибкой: %w", err)
+		suite.T().Logf("Процесс завершился с ошибкой: %v", err)
 	}
 	if len(out) > 0 {
 		suite.T().Log(string(out))
