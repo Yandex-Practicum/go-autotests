@@ -8,7 +8,6 @@ import (
 	"go/token"
 	"io/fs"
 	"path/filepath"
-	"regexp"
 	"strings"
 	"testing"
 
@@ -104,19 +103,19 @@ func (suite *Iteration17Suite) TestExamplePresence() {
 func undocumentedFile(t *testing.T, filepath string) bool {
 	t.Helper()
 
-	// компилируем регулярное выражение для определения автоматически сгенерированных файлов
-	genRegex, err := regexp.Compile(`^// Code generated .* DO NOT EDIT\.$`)
-	require.NoError(t, err)
-
 	fset := token.NewFileSet()
 	sf, err := parser.ParseFile(fset, filepath, nil, parser.ParseComments)
 	require.NoError(t, err)
+
+	// пропускаем автоматически сгенерированные файлы
+	if isGenerated(sf) {
+		return false
+	}
 
 	ins := inspector.New([]*ast.File{sf})
 	nodeFilter := []ast.Node{
 		(*ast.GenDecl)(nil),
 		(*ast.FuncDecl)(nil),
-		(*ast.Comment)(nil),
 	}
 
 	var undocumentedFound bool
@@ -129,12 +128,6 @@ func undocumentedFile(t *testing.T, filepath string) bool {
 		case *ast.FuncDecl:
 			if nt.Name.IsExported() && nt.Doc == nil {
 				undocumentedFound = true
-			}
-		case *ast.Comment:
-			// останавливаемся здесь, файл сгенерирован автоматически
-			if genRegex.MatchString(nt.Text) {
-				undocumentedFound = false
-				return false
 			}
 		}
 
@@ -160,5 +153,26 @@ func undocumentedGenDecl(decl *ast.GenDecl) bool {
 			}
 		}
 	}
+	return false
+}
+
+// isGenerated проверяет сгенерирован ли файл автоматически
+// на основании правил, описанных в https://golang.org/s/generatedcode.
+func isGenerated(file *ast.File) bool {
+	const (
+		genCommentPrefix = "// Code generated "
+		genCommentSuffix = " DO NOT EDIT."
+	)
+
+	for _, group := range file.Comments {
+		for _, comment := range group.List {
+			if strings.HasPrefix(comment.Text, genCommentPrefix) &&
+				strings.HasSuffix(comment.Text, genCommentSuffix) &&
+				len(comment.Text) > len(genCommentPrefix)+len(genCommentSuffix) {
+				return true
+			}
+		}
+	}
+
 	return false
 }
