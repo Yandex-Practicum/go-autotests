@@ -49,10 +49,10 @@ func (suite *Iteration1Suite) SetupSuite() {
 	if err != nil {
 		suite.T().Errorf("Не удалось дождаться пока на порт %s начнут поступать данные: %s", port, err)
 		if out := p.Stderr(ctx); len(out) > 0 {
-			suite.T().Logf("Получен STDERR лог агента:\n\n%s", string(out))
+			suite.T().Logf("Получен STDERR лог агента:\n\n%s\n\n", string(out))
 		}
 		if out := p.Stdout(ctx); len(out) > 0 {
-			suite.T().Logf("Получен STDOUT лог агента:\n\n%s", string(out))
+			suite.T().Logf("Получен STDOUT лог агента:\n\n%s\n\n", string(out))
 		}
 		return
 	}
@@ -84,10 +84,10 @@ func (suite *Iteration1Suite) TearDownSuite() {
 	defer cancel()
 
 	if out := suite.agentProcess.Stderr(ctx); len(out) > 0 {
-		suite.T().Logf("Получен STDERR лог агента:\n\n%s", string(out))
+		suite.T().Logf("Получен STDERR лог агента:\n\n%s\n\n", string(out))
 	}
 	if out := suite.agentProcess.Stdout(ctx); len(out) > 0 {
-		suite.T().Logf("Получен STDOUT лог агента:\n\n%s", string(out))
+		suite.T().Logf("Получен STDOUT лог агента:\n\n%s\n\n", string(out))
 	}
 }
 

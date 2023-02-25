@@ -54,10 +54,10 @@ func (suite *Iteration3bSuite) SetupSuite() {
 	if err != nil {
 		suite.T().Errorf("Не удалось дождаться пока порт %s станет доступен для запроса: %s", port, err)
 		if out := p.Stderr(ctx); len(out) > 0 {
-			suite.T().Logf("Получен STDERR лог сервера:\n\n%s", string(out))
+			suite.T().Logf("Получен STDERR лог сервера:\n\n%s\n\n", string(out))
 		}
 		if out := p.Stdout(ctx); len(out) > 0 {
-			suite.T().Logf("Получен STDOUT лог сервера:\n\n%s", string(out))
+			suite.T().Logf("Получен STDOUT лог сервера:\n\n%s\n\n", string(out))
 		}
 		return
 	}
@@ -89,10 +89,10 @@ func (suite *Iteration3bSuite) TearDownSuite() {
 	defer cancel()
 
 	if out := suite.serverProcess.Stderr(ctx); len(out) > 0 {
-		suite.T().Logf("Получен STDERR лог сервера:\n\n%s", string(out))
+		suite.T().Logf("Получен STDERR лог сервера:\n\n%s\n\n", string(out))
 	}
 	if out := suite.serverProcess.Stdout(ctx); len(out) > 0 {
-		suite.T().Logf("Получен STDOUT лог сервера:\n\n%s", string(out))
+		suite.T().Logf("Получен STDOUT лог сервера:\n\n%s\n\n", string(out))
 	}
 }
 

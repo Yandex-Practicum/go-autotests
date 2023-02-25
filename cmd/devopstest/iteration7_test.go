@@ -157,10 +157,10 @@ func (suite *Iteration7Suite) serverShutdown() {
 	defer cancel()
 
 	if out := suite.serverProcess.Stderr(ctx); len(out) > 0 {
-		suite.T().Logf("Получен STDERR лог сервера:\n\n%s", string(out))
+		suite.T().Logf("Получен STDERR лог сервера:\n\n%s\n\n", string(out))
 	}
 	if out := suite.serverProcess.Stdout(ctx); len(out) > 0 {
-		suite.T().Logf("Получен STDOUT лог сервера:\n\n%s", string(out))
+		suite.T().Logf("Получен STDOUT лог сервера:\n\n%s\n\n", string(out))
 	}
 }
 
@@ -187,10 +187,10 @@ func (suite *Iteration7Suite) agentShutdown() {
 	defer cancel()
 
 	if out := suite.agentProcess.Stderr(ctx); len(out) > 0 {
-		suite.T().Logf("Получен STDERR лог агента:\n\n%s", string(out))
+		suite.T().Logf("Получен STDERR лог агента:\n\n%s\n\n", string(out))
 	}
 	if out := suite.agentProcess.Stdout(ctx); len(out) > 0 {
-		suite.T().Logf("Получен STDOUT лог агента:\n\n%s", string(out))
+		suite.T().Logf("Получен STDOUT лог агента:\n\n%s\n\n", string(out))
 	}
 }
 
