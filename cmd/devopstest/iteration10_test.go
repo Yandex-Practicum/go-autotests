@@ -87,6 +87,12 @@ func (suite *Iteration10Suite) serverUp(ctx context.Context, envs, args []string
 	err = p.WaitPort(ctx, "tcp", port)
 	if err != nil {
 		suite.T().Errorf("Не удалось дождаться пока порт %s станет доступен для запроса: %s", port, err)
+		if out := p.Stderr(ctx); len(out) > 0 {
+			suite.T().Logf("Получен STDERR лог сервера:\n\n%s\n\n", string(out))
+		}
+		if out := p.Stdout(ctx); len(out) > 0 {
+			suite.T().Logf("Получен STDOUT лог сервера:\n\n%s\n\n", string(out))
+		}
 		return
 	}
 	suite.serverProcess = p
@@ -119,13 +125,11 @@ func (suite *Iteration10Suite) serverShutdown() {
 	ctx, cancel := context.WithTimeout(context.Background(), 500*time.Millisecond)
 	defer cancel()
 
-	out := suite.serverProcess.Stderr(ctx)
-	if len(out) > 0 {
-		suite.T().Logf("Получен STDERR лог процесса:\n\n%s", string(out))
+	if out := suite.serverProcess.Stderr(ctx); len(out) > 0 {
+		suite.T().Logf("Получен STDERR лог сервера:\n\n%s\n\n", string(out))
 	}
-	out = suite.serverProcess.Stdout(ctx)
-	if len(out) > 0 {
-		suite.T().Logf("Получен STDOUT лог процесса:\n\n%s", string(out))
+	if out := suite.serverProcess.Stdout(ctx); len(out) > 0 {
+		suite.T().Logf("Получен STDOUT лог сервера:\n\n%s\n\n", string(out))
 	}
 }
 
