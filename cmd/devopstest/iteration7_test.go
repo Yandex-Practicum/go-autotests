@@ -91,6 +91,12 @@ func (suite *Iteration7Suite) serverUp(ctx context.Context, envs, args []string,
 	err = p.WaitPort(ctx, "tcp", port)
 	if err != nil {
 		suite.T().Errorf("Не удалось дождаться пока порт %s станет доступен для запроса: %s", port, err)
+		if out := p.Stderr(ctx); len(out) > 0 {
+			suite.T().Logf("Получен STDERR лог сервера:\n\n%s\n\n", string(out))
+		}
+		if out := p.Stdout(ctx); len(out) > 0 {
+			suite.T().Logf("Получен STDOUT лог сервера:\n\n%s\n\n", string(out))
+		}
 		return
 	}
 	suite.serverProcess = p
@@ -111,6 +117,12 @@ func (suite *Iteration7Suite) agentUp(ctx context.Context, envs, args []string, 
 	err = p.ListenPort(ctx, "tcp", port)
 	if err != nil {
 		suite.T().Errorf("Не удалось дождаться пока на порт %s начнут поступать данные: %s", port, err)
+		if out := p.Stderr(ctx); len(out) > 0 {
+			suite.T().Logf("Получен STDERR лог агента:\n\n%s\n\n", string(out))
+		}
+		if out := p.Stdout(ctx); len(out) > 0 {
+			suite.T().Logf("Получен STDOUT лог агента:\n\n%s\n\n", string(out))
+		}
 		return
 	}
 	suite.agentProcess = p
