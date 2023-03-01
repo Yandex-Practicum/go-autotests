@@ -24,6 +24,10 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-go-
 
+      - name: Vet
+        run: |
+          go vet ./...
+
       - name: Compile all
         run: |
           make all

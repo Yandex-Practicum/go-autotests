@@ -1,15 +1,15 @@
-name: Test
+name: Release
 
 on:
-  pull_request:
+  push:
     branches:
-      - main
+      - 'refactor'
 
 jobs:
 
-  test:
+  release:
     runs-on: ubuntu-latest
-    container: golang:1.19
+    container: golang:1.20
     permissions:
       contents: write
     steps:
@@ -28,6 +28,15 @@ jobs:
         run: |
           go vet ./...
 
-      - name: Build
+      - name: Compile all
         run: |
           make all
+
+      - name: Release artifacts
+        uses: ncipollo/release-action@v1
+        with:
+          allowUpdates: true
+          makeLatest: false
+          prerelease: true
+          updateOnlyUnreleased: true
+          artifacts: "bin/*"
