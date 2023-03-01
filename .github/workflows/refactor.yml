@@ -1,4 +1,4 @@
-name: Release
+name: Refactor release
 
 on:
   push:
@@ -38,5 +38,6 @@ jobs:
           allowUpdates: true
           makeLatest: false
           prerelease: true
+          tag: refactor
           updateOnlyUnreleased: true
           artifacts: "bin/*"
