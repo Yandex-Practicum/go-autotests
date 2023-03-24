@@ -9,7 +9,7 @@ jobs:
 
   release:
     runs-on: ubuntu-latest
-    container: golang:1.19
+    container: golang:1.20
     permissions:
       contents: write
     steps:
