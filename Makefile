@@ -1,6 +1,6 @@
 SHELL=/bin/bash
 
-AUTOTESTS = gophermarttest metricstest devopstest shortenertest
+AUTOTESTS = gophermarttest metricstest devopstest shortenertest shortenertestbeta
 UTILS = random statictest shortenerstress
 
 all: prep autotests utils perm
