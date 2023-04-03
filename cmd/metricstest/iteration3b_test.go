@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"strconv"
+	"strings"
 	"syscall"
 	"time"
 
@@ -108,7 +109,7 @@ func (suite *Iteration3BSuite) TestGauge() {
 		id := strconv.Itoa(rand.Intn(256))
 		req := httpc.R()
 		for i := 0; i < count; i++ {
-			v := fmt.Sprintf("%.3f", rand.Float64()*1000000)
+			v := strings.TrimRight(fmt.Sprintf("%.3f", rand.Float64()*1000000), "0")
 			resp, err := req.Post("update/gauge/testSetGet" + id + "/" + v)
 			noRespErr := suite.Assert().NoError(err, "Ошибка при попытке сделать запрос с обновлением gauge")
 
