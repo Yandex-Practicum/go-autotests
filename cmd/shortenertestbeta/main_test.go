@@ -33,3 +33,8 @@ func TestIteration4(t *testing.T) {
 	// Запускает тест-сьют для четвертой итерации
 	suite.Run(t, new(Iteration4Suite))
 }
+
+func TestIteration5(t *testing.T) {
+	// Запускает тест-сьют для пятой итерации
+	suite.Run(t, new(Iteration5Suite))
+}
