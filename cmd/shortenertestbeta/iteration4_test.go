@@ -38,6 +38,7 @@ func (suite *Iteration4Suite) SetupSuite() {
 
 		// передаем флаги в процесс сервера
 		args := []string{
+			"-a=" + suite.serverAddress,
 			"-b=" + suite.serverBaseURL,
 		}
 
