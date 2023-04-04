@@ -6,7 +6,7 @@ import (
 	"github.com/stretchr/testify/suite"
 )
 
-// Iteration3Suite является сьютом с тестами и состоянием для инкремента
+// Iteration9Suite является сьютом с тестами и состоянием для инкремента
 type Iteration3Suite struct {
 	suite.Suite
 

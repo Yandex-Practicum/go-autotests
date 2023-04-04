@@ -15,35 +15,32 @@ import (
 	"github.com/Yandex-Practicum/go-autotests/internal/fork"
 )
 
-// Iteration7Suite является сьютом с тестами и состоянием для инкремента
-type Iteration4Suite struct {
+// Iteration9Suite является сьютом с тестами и состоянием для инкремента
+type Iteration9Suite struct {
 	suite.Suite
 
 	serverAddress    string
-	serverBaseURL    string
 	serverProcess    *fork.BackgroundProcess
 	knownPgLibraries []string
 }
 
 // SetupSuite подготавливает необходимые зависимости
-func (suite *Iteration4Suite) SetupSuite() {
+func (suite *Iteration9Suite) SetupSuite() {
 	// проверяем наличие необходимых флагов
 	suite.Require().NotEmpty(flagTargetBinaryPath, "-binary-path non-empty flag required")
-	suite.Require().NotEmpty(flagServerPort, "-server-port non-empty flag required")
+	suite.Require().NotEmpty(flagFileStoragePath, "-file-storage-path non-empty flag required")
+	suite.Require().NotEmpty(flagTargetSourcePath, "-source-path non-empty flag required")
+
+	suite.serverAddress = "http://localhost:8080"
 
 	// запускаем процесс тестируемого сервера
 	{
-		suite.serverAddress = "localhost:" + flagServerPort
-		suite.serverBaseURL = "http://" + suite.serverAddress
-
-		// передаем флаги в процесс сервера
-		args := []string{
-			"-a=" + suite.serverAddress,
-			"-b=" + suite.serverBaseURL,
-		}
+		envs := append(os.Environ(), []string{
+			"FILE_STORAGE_PATH=" + flagFileStoragePath,
+		}...)
 
 		p := fork.NewBackgroundProcess(context.Background(), flagTargetBinaryPath,
-			fork.WithArgs(args...),
+			fork.WithEnv(envs...),
 		)
 		suite.serverProcess = p
 
@@ -52,52 +49,45 @@ func (suite *Iteration4Suite) SetupSuite() {
 
 		err := p.Start(ctx)
 		if err != nil {
-			suite.T().Errorf(
-				"Невозможно запустить процесс командой %s: %s. Флаги командной строки: %+v",
-				p, err, args,
-			)
+			suite.T().Errorf("Невозможно запустить процесс командой %s: %s. Переменные окружения: %+v", p, err, envs)
 			return
 		}
 
-		err = p.WaitPort(ctx, "tcp", flagServerPort)
+		port := "8080"
+		err = p.WaitPort(ctx, "tcp", port)
 		if err != nil {
-			suite.T().Errorf("Не удалось дождаться пока порт %s станет доступен для запроса: %s", flagServerPort, err)
+			suite.T().Errorf("Не удалось дождаться пока порт %s станет доступен для запроса: %s", port, err)
 			return
 		}
 	}
 }
 
 // TearDownSuite высвобождает имеющиеся зависимости
-func (suite *Iteration4Suite) TearDownSuite() {
+func (suite *Iteration9Suite) TearDownSuite() {
 	suite.stopServer()
 }
 
-// TestFlags проверяет, что аргументы командой строки поддерживаются сервером
-func (suite *Iteration4Suite) TestFlags() {
-	var originalURL, shortenURL string
+// TestPersistentFile пробует:
+// - вызвать хендлеры по аналогии с Iteration1Suite.TestHandlers
+// - проверить заполнен ли файл данными
+func (suite *Iteration9Suite) TestPersistentFile() {
+	originalURL := generateTestURL(suite.T())
+	var shortenURL string
 
 	errRedirectBlocked := errors.New("HTTP redirect blocked")
 	redirPolicy := resty.RedirectPolicyFunc(func(_ *http.Request, _ []*http.Request) error {
 		return errRedirectBlocked
 	})
 
-	restyClient := resty.New()
-	transport := restyClient.GetClient().Transport.(*http.Transport)
-
-	resolveIP := "127.0.0.1:" + flagServerPort
-	transport.DialContext = mockResolver("tcp", suite.serverAddress, resolveIP)
-
-	httpc := restyClient.
-		SetTransport(transport).
-		SetBaseURL(suite.serverBaseURL).
+	httpc := resty.New().
+		SetHostURL(suite.serverAddress).
 		SetRedirectPolicy(redirPolicy)
 
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	// сокращаем URL
 	suite.Run("shorten", func() {
-		originalURL = generateTestURL(suite.T())
-
-		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-		defer cancel()
-
 		req := httpc.R().
 			SetContext(ctx).
 			SetBody(originalURL)
@@ -121,16 +111,15 @@ func (suite *Iteration4Suite) TestFlags() {
 		}
 	})
 
+	// пробуем получить оригинальный URL обратно
 	suite.Run("expand", func() {
-		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-		defer cancel()
-
 		req := resty.New().
 			SetRedirectPolicy(redirPolicy).
 			R()
 		resp, err := req.
 			SetContext(ctx).
 			Get(shortenURL)
+
 		noRespErr := true
 		if !errors.Is(err, errRedirectBlocked) {
 			noRespErr = suite.Assert().NoErrorf(err, "Ошибка при попытке сделать запрос для получения исходного URL")
@@ -148,10 +137,28 @@ func (suite *Iteration4Suite) TestFlags() {
 			suite.T().Logf("Оригинальный запрос:\n\n%s", dump)
 		}
 	})
+
+	// проверяем файл на наличие данных
+	suite.Run("check_file", func() {
+		// пропускаем тест если уже подключена СУБД
+		err := usesKnownPackage(suite.T(), flagTargetSourcePath, suite.knownPgLibraries)
+		if err == nil {
+			suite.T().Skip("найдено использование СУБД")
+			return
+		}
+
+		// останавливаем сервер на случай, если код сбрасывает данные на диск не сразу
+		suite.stopServer()
+
+		suite.Assert().FileExistsf(flagFileStoragePath, "Не удалось найти файл с сохраненными URL")
+		b, err := os.ReadFile(flagFileStoragePath)
+		suite.Require().NoErrorf(err, "Ошибка при чтении файла с сохраненными URL")
+		suite.Assert().NotEmptyf(b, "Файл с сохраненными URL не должен быть пуст")
+	})
 }
 
-// TearDownSuite высвобождает имеющиеся зависимости
-func (suite *Iteration4Suite) stopServer() {
+// stopServer останавливает процесс сервера
+func (suite *Iteration9Suite) stopServer() {
 	exitCode, err := suite.serverProcess.Stop(syscall.SIGINT, syscall.SIGKILL)
 	if err != nil {
 		if errors.Is(err, os.ErrProcessDone) {
