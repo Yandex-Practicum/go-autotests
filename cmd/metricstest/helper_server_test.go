@@ -66,6 +66,7 @@ func (s *TestServerT) storeCounter(c *gin.Context) {
 	s.m.Lock()
 	defer s.m.Unlock()
 	s.counters[name] = append(s.counters[name], val)
+	s.e.Logf("Получено значение counter %q: %v", name, val)
 }
 
 func (s *TestServerT) storeGauge(c *gin.Context) {
@@ -82,6 +83,7 @@ func (s *TestServerT) storeGauge(c *gin.Context) {
 	s.m.Lock()
 	defer s.m.Unlock()
 	s.gauges[name] = append(s.gauges[name], val)
+	s.e.Logf("Получено значение gauge %q: %f", name, val)
 }
 
 func (s *TestServerT) unexpectedCall(c *gin.Context) {
@@ -97,12 +99,45 @@ func (s *TestServerT) unexpectedCall(c *gin.Context) {
 	s.e.Errorf("Тело запроса:\n%s", content)
 }
 
-func (s *TestServerT) checkReceiveValues(gauges []string, needCount int) {
+func (s *TestServerT) CheckReceiveValues(gauges []string, counters []string, min, max int) {
 	s.m.Lock()
 	defer s.m.Unlock()
 
 	for _, name := range gauges {
 		values := s.gauges[name]
-		s.e.Len(values, needCount, "Количество значений, полученных по метрике расходится с ожидаемым")
+		lenValues := len(values)
+		s.e.True(min <= lenValues && lenValues <= max, "Ожидается количество gauge значений от %v до %v, сейас получено: %v", min, max, lenValues)
 	}
+
+	for _, name := range counters {
+		values := s.counters[name]
+		lenValues := len(values)
+		s.e.True(min <= lenValues && lenValues <= max, "Ожидается количество counter значений от %v до %v, сейас получено: %v", min, max, lenValues)
+	}
+}
+
+func (s *TestServerT) GetLastCounter(name string) int64 {
+	s.m.Lock()
+	defer s.m.Unlock()
+
+	val := s.counters[name]
+	if len(val) > 0 {
+		return val[len(val)-1]
+	}
+
+	s.e.Errorf("Запрошено значение отсутствующего счётчика counter: %q", name)
+	return 0
+}
+
+func (s *TestServerT) GetLastGauge(name string) float64 {
+	s.m.Lock()
+	defer s.m.Unlock()
+
+	val := s.gauges[name]
+	if len(val) > 0 {
+		return val[len(val)-1]
+	}
+
+	s.e.Errorf("Запрошено значение отсутствующего счётчика counter: %q", name)
+	return 0
 }

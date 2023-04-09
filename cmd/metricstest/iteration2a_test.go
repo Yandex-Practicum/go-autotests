@@ -21,16 +21,27 @@ func TestIteration2A(t *testing.T) {
 		"Alloc", "BuckHashSys", "Frees", "GCCPUFraction", "GCSys", "HeapAlloc", "HeapIdle", "HeapInuse", "HeapObjects", "HeapReleased", "HeapSys", "LastGC", "Lookups", "MCacheInuse", "MCacheSys", "MSpanInuse", "MSpanSys", "Mallocs", "NextGC",
 		"NumForcedGC", "NumGC", "OtherSys", "PauseTotalNs", "StackInuse", "StackSys", "Sys", "TotalAlloc", "RandomValue",
 	}
+	counters := []string{
+		"PollCount",
+	}
 
 	StartDefaultAgent(e)
 
-	firstIterationTimeout := agentDefaultPollInterval + agentDefaultReportInterval
-	firstIterationTimeout += firstIterationTimeout / 10
+	firstIterationTimeout := agentDefaultReportInterval + agentDefaultReportInterval/2
 
 	e.Logf("Жду %v", firstIterationTimeout)
 	time.Sleep(firstIterationTimeout)
 
-	serverMock.checkReceiveValues(gauges, 1)
+	serverMock.CheckReceiveValues(gauges, counters, 1, 2)
+	firstRandom := serverMock.GetLastGauge("RandomValue")
+	e.InDelta(int(agentDefaultReportInterval/agentDefaultPollInterval), serverMock.GetLastCounter("PollCount"), 1)
+
+	e.Logf("Жду ещё %v", agentDefaultReportInterval)
+	time.Sleep(agentDefaultReportInterval)
+
+	serverMock.CheckReceiveValues(gauges, counters, 2, 3)
+	e.InDelta(agentDefaultReportInterval/agentDefaultPollInterval*2, serverMock.GetLastCounter("PollCount"), 1)
+	e.NotEqual(firstRandom, serverMock.GetLastGauge("RandomValue"))
 }
 
 func StartDefaultAgent(e *Env) {

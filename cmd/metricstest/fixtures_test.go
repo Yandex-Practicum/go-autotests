@@ -137,26 +137,8 @@ func StartProcessWhichListenPort(e *Env, host string, port int, name string, com
 	cacheKey := append([]string{host, strconv.Itoa(port), name, command}, args...)
 	return fixenv.Cache[*fork.BackgroundProcess](e, cacheKey, nil, func() (*fork.BackgroundProcess, error) {
 		process := StartProcess(e, name, command, args...)
-		ctx, cancel := context.WithTimeout(e.Ctx, startProcessTimeout)
-		defer cancel()
-
 		address := fmt.Sprintf("%v:%v", host, port)
-		dialer := net.Dialer{}
-		e.Logf("Пробую подключиться на %q...", address)
-
-		for {
-			time.Sleep(checkPortInterval)
-			conn, err := dialer.DialContext(ctx, "tcp", address)
-			if err == nil {
-				e.Logf("Закрываю успешное подключение")
-				err = conn.Close()
-				return process, err
-			}
-			if ctx.Err() != nil {
-				e.Fatalf("Ошибка подлючения: %+v", err)
-				return nil, err
-			}
-		}
+		return process, waitOpenPort(e, address)
 	})
 }
 
@@ -164,7 +146,13 @@ func ServerMock(e *Env, port int) *TestServerT {
 	return fixenv.CacheWithCleanup(e, port, nil, func() (*TestServerT, fixenv.FixtureCleanupFunc, error) {
 		endpoint := "localhost:" + strconv.Itoa(port)
 		res := NewTestServerT(e, endpoint)
-		return res, res.Stop, nil
+
+		e.Logf("Запускаю мок сервер: %q", endpoint)
+		go res.Start()
+
+		err := waitOpenPort(e, endpoint)
+
+		return res, res.Stop, err
 	})
 }
 
@@ -193,4 +181,26 @@ func (l restyLogger) Warnf(format string, v ...interface{}) {
 
 func (l restyLogger) Debugf(format string, v ...interface{}) {
 	l.e.Logf("resty: "+format, v...)
+}
+
+func waitOpenPort(e *Env, address string) error {
+	ctx, cancel := context.WithTimeout(e.Ctx, startProcessTimeout)
+	defer cancel()
+
+	dialer := net.Dialer{}
+	e.Logf("Пробую подключиться на %q...", address)
+
+	for {
+		time.Sleep(checkPortInterval)
+		conn, err := dialer.DialContext(ctx, "tcp", address)
+		if err == nil {
+			e.Logf("Закрываю успешное подключение")
+			err = conn.Close()
+			return err
+		}
+		if ctx.Err() != nil {
+			e.Fatalf("Ошибка подлючения: %+v", err)
+			return err
+		}
+	}
 }
