@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"os"
 	"syscall"
+	"testing"
 	"time"
 
 	"github.com/go-resty/resty/v2"
@@ -13,6 +14,26 @@ import (
 
 	"github.com/Yandex-Practicum/go-autotests/internal/fork"
 )
+
+func TestIteration1(t *testing.T) {
+	t.Run("Server", func(t *testing.T) {
+		t.Run("TestCounterHandlers", func(t *testing.T) {
+			t.Run("update", func(t *testing.T) {
+				e := New(t)
+				c := Client1(e)
+				req := c.R()
+				resp, err := req.Post("update/gauge/testGauge/100")
+				e.NoError(err, "Ошибка при выполнении запроса")
+
+			})
+		})
+	})
+}
+
+func Client1(e *Env) *resty.Client {
+	StartProcessWhichListenPort(e, ServerHost(e), ServerPort(e), "metric server", ServerFilePath(e))
+	return RestyClient(e, ServerAddress(e))
+}
 
 type Iteration1Suite struct {
 	suite.Suite

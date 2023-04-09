@@ -3,18 +3,19 @@ package main
 //go:generate go test -c -o=../../bin/metricstest
 
 import (
+	"flag"
 	"os"
 	"testing"
 
+	"github.com/rekby/fixenv"
 	"github.com/stretchr/testify/suite"
 )
 
 func TestMain(m *testing.M) {
-	os.Exit(m.Run())
-}
+	flag.Parse()
 
-func TestIteration1(t *testing.T) {
-	suite.Run(t, new(Iteration1Suite))
+	fixenv.CreateMainTestEnv(nil)
+	os.Exit(m.Run())
 }
 
 func TestIteration2A(t *testing.T) {
