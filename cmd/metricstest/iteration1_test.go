@@ -1,266 +1,112 @@
 package main
 
 import (
-	"context"
-	"errors"
 	"net/http"
-	"os"
-	"syscall"
 	"testing"
-	"time"
 
 	"github.com/go-resty/resty/v2"
-	"github.com/stretchr/testify/suite"
-
-	"github.com/Yandex-Practicum/go-autotests/internal/fork"
 )
 
 func TestIteration1(t *testing.T) {
-	t.Run("Server", func(t *testing.T) {
-		t.Run("TestCounterHandlers", func(t *testing.T) {
-			t.Run("update", func(t *testing.T) {
-				e := New(t)
-				c := Client1(e)
-				req := c.R()
-				resp, err := req.Post("update/gauge/testGauge/100")
-				e.NoError(err, "Ошибка при выполнении запроса")
+	t.Run("TestCounterHandlers", func(t *testing.T) {
+		t.Run("ok", func(t *testing.T) {
+			e := New(t)
+			c := DefaultServer(e)
+			req := c.R()
+			resp, err := req.Post("update/counter/testGauge/100")
+			e.Require.NoError(err, "Ошибка при выполнении запроса")
+			e.Equal(http.StatusOK, resp.StatusCode(), "При добавлении нового значения сервер должен возвращать код 200 (http.StatusOK)")
 
-			})
+			req = c.R()
+			resp, err = req.Post("update/counter/testGauge/101")
+			e.Require.NoError(err, "Ошибка при выполнении запроса")
+			e.Equal(http.StatusOK, resp.StatusCode(), "При обновлении значения сервер должен возвращать код 200 (http.StatusOK)")
+		})
+
+		t.Run("without-id", func(t *testing.T) {
+			e := New(t)
+			c := DefaultServer(e)
+			req := c.R()
+
+			resp, err := req.Post("update/counter/testGauge/")
+			e.Require.NoError(err, "Ошибка при выполнении запроса")
+			e.Contains([]int{http.StatusBadRequest, http.StatusNotFound}, resp.StatusCode(),
+				"При попытке обновления значения без ID - сервер должен вернуть ошибку 400 или 404 (http.StatusBadRequest, http.StatusNotFound).")
+		})
+
+		t.Run("bad value", func(t *testing.T) {
+			e := New(t)
+			c := DefaultServer(e)
+			req := c.R()
+
+			resp, err := req.Post("update/gauge/testGauge/bad-value")
+			e.Require.NoError(err, "Ошибка при выполнении запроса")
+			e.Equal(http.StatusBadRequest, resp.StatusCode(), "При получении неправильного значения сервер должен вернуть ошибку 400 (http.StatusBadRequest)")
+		})
+
+	})
+
+	t.Run("TestGaugeHandlers", func(t *testing.T) {
+		t.Run("ok", func(t *testing.T) {
+			e := New(t)
+			c := DefaultServer(e)
+			req := c.R()
+			resp, err := req.Post("update/gauge/testGauge/100")
+			e.Require.NoError(err, "Ошибка при выполнении запроса")
+			e.Equal(http.StatusOK, resp.StatusCode(), "При добавлении нового значения сервер должен возвращать код http.StatusOK (200)")
+
+			req = c.R()
+			resp, err = req.Post("update/gauge/testGauge/101")
+			e.Require.NoError(err, "Ошибка при выполнении запроса")
+			e.Equal(http.StatusOK, resp.StatusCode(), "При обновлении значения сервер должен возвращать код http.StatusOK (200)")
+		})
+
+		t.Run("without-id", func(t *testing.T) {
+			e := New(t)
+			c := DefaultServer(e)
+			req := c.R()
+
+			resp, err := req.Post("update/gauge/testGauge/")
+			e.Require.NoError(err, "Ошибка при выполнении запроса")
+			e.Contains([]int{http.StatusBadRequest, http.StatusNotFound}, resp.StatusCode(),
+				"При попытке обновления значения без ID - сервер должен вернуть ошибку http.StatusBadRequest или http.StatusNotFound  (400, 404).")
+		})
+
+		t.Run("bad value", func(t *testing.T) {
+			e := New(t)
+			c := DefaultServer(e)
+			req := c.R()
+
+			resp, err := req.Post("update/gauge/testGauge/bad-value")
+			e.Require.NoError(err, "Ошибка при выполнении запроса")
+			e.Equal(http.StatusBadRequest, resp.StatusCode(), "При получении неправильного значения сервер должен вернуть ошибку http.StatusBadRequest (400)")
 		})
 	})
+
+	t.Run("unexpected path", func(t *testing.T) {
+		e := New(t)
+		c := DefaultServer(e)
+		req := c.R()
+
+		for _, path := range []string{"unknown-path", "unknown-path/gauge/testGauge/100"} {
+			resp, err := req.Post(path)
+			e.Require.NoError(err, "Ошибка при выполнении запроса")
+			e.Equal(http.StatusNotFound, resp.StatusCode(), "При получении запроса к неизвестному пути сервер должен возвращать ошибку http.StatusNotFound (404)")
+		}
+	})
+
+	t.Run("unknown-metric-type", func(t *testing.T) {
+		e := New(t)
+		c := DefaultServer(e)
+		req := c.R()
+		resp, err := req.Post("update/unknown/testGauge/100")
+		e.Require.NoError(err, "Ошибка при выполнении запроса")
+		e.Contains([]int{http.StatusBadRequest, http.StatusNotFound}, resp.StatusCode(),
+			"При попытке обновления метрики неизвестного типа сервер должен вернуть ошибку http.StatusBadRequest или http.StatusNotFound (400, 404)")
+	})
 }
 
-func Client1(e *Env) *resty.Client {
-	StartProcessWhichListenPort(e, ServerHost(e), ServerPort(e), "metric server", ServerFilePath(e))
+func DefaultServer(e *Env) *resty.Client {
+	StartProcessWhichListenPort(e, serverDefaultHost, serverDefaultPort, "metric server", ServerFilePath(e))
 	return RestyClient(e, ServerAddress(e))
-}
-
-type Iteration1Suite struct {
-	suite.Suite
-
-	serverAddress string
-	serverProcess *fork.BackgroundProcess
-}
-
-func (suite *Iteration1Suite) SetupSuite() {
-	// check required flags
-	suite.Require().NotEmpty(flagServerBinaryPath, "-binary-path non-empty flag required")
-
-	suite.serverAddress = "http://localhost:8080"
-
-	envs := append(os.Environ(), []string{
-		"RESTORE=false",
-	}...)
-	p := fork.NewBackgroundProcess(context.Background(), flagServerBinaryPath,
-		fork.WithEnv(envs...),
-	)
-
-	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
-	defer cancel()
-
-	err := p.Start(ctx)
-	if err != nil {
-		suite.T().Errorf("Невозможно запустить процесс командой %s: %s. Переменные окружения: %+v", p, err, envs)
-		return
-	}
-
-	port := "8080"
-	err = p.WaitPort(ctx, "tcp", port)
-	if err != nil {
-		suite.T().Errorf("Не удалось дождаться пока порт %s станет доступен для запроса: %s", port, err)
-		return
-	}
-
-	suite.serverProcess = p
-}
-
-func (suite *Iteration1Suite) TearDownSuite() {
-	if suite.serverProcess == nil {
-		return
-	}
-
-	exitCode, err := suite.serverProcess.Stop(syscall.SIGINT, syscall.SIGKILL)
-	if err != nil {
-		if errors.Is(err, os.ErrProcessDone) {
-			return
-		}
-		suite.T().Logf("Не удалось остановить процесс с помощью сигнала ОС: %s", err)
-		return
-	}
-
-	if exitCode > 0 {
-		suite.T().Logf("Процесс завершился с не нулевым статусом %d", exitCode)
-	}
-
-	// try to read stdout/stderr
-	ctx, cancel := context.WithTimeout(context.Background(), 500*time.Millisecond)
-	defer cancel()
-
-	out := suite.serverProcess.Stderr(ctx)
-	if len(out) > 0 {
-		suite.T().Logf("Получен STDERR лог процесса:\n\n%s", string(out))
-	}
-	out = suite.serverProcess.Stdout(ctx)
-	if len(out) > 0 {
-		suite.T().Logf("Получен STDOUT лог процесса:\n\n%s", string(out))
-	}
-}
-
-// TestHandlers проверяет
-// сервер успешно стартует и открывет tcp порт 8080 на 127.0.0.1
-// обработку POST запросов вида: ?id=<ID>&value=<VALUE>&type=<gauge|counter>
-// а так же негативкейсы, запросы в которых отсутствуют id, value и задан не корректный type
-func (suite *Iteration1Suite) TestGaugeHandlers() {
-	// create HTTP client without redirects support
-	errRedirectBlocked := errors.New("HTTP redirect blocked")
-	redirPolicy := resty.RedirectPolicyFunc(func(_ *http.Request, _ []*http.Request) error {
-		return errRedirectBlocked
-	})
-
-	httpc := resty.New().
-		SetHostURL(suite.serverAddress).
-		SetRedirectPolicy(redirPolicy)
-
-	suite.Run("update", func() {
-		req := httpc.R()
-		resp, err := req.Post("update/gauge/testGauge/100")
-
-		noRespErr := suite.Assert().NoError(err, "Ошибка при попытке сделать запрос с обновлением gauge")
-
-		validStatus := suite.Assert().Equalf(http.StatusOK, resp.StatusCode(),
-			"Несоответствие статус кода ответа ожидаемому в хендлере '%s %s'", req.Method, req.URL)
-
-		if !noRespErr || !validStatus {
-			dump := dumpRequest(req.RawRequest, true)
-			suite.T().Logf("Оригинальный запрос:\n\n%s", dump)
-		}
-	})
-
-	suite.Run("without id", func() {
-		req := httpc.R()
-		resp, err := req.Post("update/gauge/")
-
-		noRespErr := suite.Assert().NoError(err, "Ошибка при попытке сделать запрос с обновлением gauge")
-
-		validStatus := suite.Assert().Equalf(http.StatusNotFound, resp.StatusCode(),
-			"Несоответствие статус кода ответа ожидаемому в хендлере '%s %s'", req.Method, req.URL)
-
-		if !noRespErr || !validStatus {
-			dump := dumpRequest(req.RawRequest, true)
-			suite.T().Logf("Оригинальный запрос:\n\n%s", dump)
-		}
-	})
-
-	suite.Run("invalid value", func() {
-		req := httpc.R()
-		resp, err := req.Post("update/gauge/testGauge/none")
-
-		noRespErr := suite.Assert().NoError(err, "Ошибка при попытке сделать запрос с обновлением gauge")
-
-		validStatus := suite.Assert().Equalf(http.StatusBadRequest, resp.StatusCode(),
-			"Несоответствие статус кода ответа ожидаемому в хендлере '%s %s'", req.Method, req.URL)
-
-		if !noRespErr || !validStatus {
-			dump := dumpRequest(req.RawRequest, true)
-			suite.T().Logf("Оригинальный запрос:\n\n%s", dump)
-		}
-	})
-}
-
-func (suite *Iteration1Suite) TestCounterHandlers() {
-	// create HTTP client without redirects support
-	errRedirectBlocked := errors.New("HTTP redirect blocked")
-	redirPolicy := resty.RedirectPolicyFunc(func(_ *http.Request, _ []*http.Request) error {
-		return errRedirectBlocked
-	})
-
-	httpc := resty.New().
-		SetHostURL(suite.serverAddress).
-		SetRedirectPolicy(redirPolicy)
-
-	suite.Run("update", func() {
-		req := httpc.R()
-		resp, err := req.Post("update/counter/testCounter/100")
-
-		noRespErr := suite.Assert().NoError(err, "Ошибка при попытке сделать запрос с обновлением counter")
-
-		validStatus := suite.Assert().Equalf(http.StatusOK, resp.StatusCode(),
-			"Несоответствие статус кода ответа ожидаемому в хендлере '%s %s'", req.Method, req.URL)
-
-		if !noRespErr || !validStatus {
-			dump := dumpRequest(req.RawRequest, true)
-			suite.T().Logf("Оригинальный запрос:\n\n%s", dump)
-		}
-	})
-
-	suite.Run("without id", func() {
-		req := httpc.R()
-		resp, err := req.Post("update/counter/")
-
-		noRespErr := suite.Assert().NoError(err, "Ошибка при попытке сделать запрос с обновлением counter")
-
-		validStatus := suite.Assert().Equalf(http.StatusNotFound, resp.StatusCode(),
-			"Несоответствие статус кода ответа ожидаемому в хендлере '%s %s'", req.Method, req.URL)
-
-		if !noRespErr || !validStatus {
-			dump := dumpRequest(req.RawRequest, true)
-			suite.T().Logf("Оригинальный запрос:\n\n%s", dump)
-		}
-	})
-
-	suite.Run("invalid value", func() {
-		req := httpc.R()
-		resp, err := req.Post("update/counter/testCounter/none")
-
-		noRespErr := suite.Assert().NoError(err, "Ошибка при попытке сделать запрос с обновлением counter")
-
-		validStatus := suite.Assert().Equalf(http.StatusBadRequest, resp.StatusCode(),
-			"Несоответствие статус кода ответа ожидаемому в хендлере '%s %s'", req.Method, req.URL)
-
-		if !noRespErr || !validStatus {
-			dump := dumpRequest(req.RawRequest, true)
-			suite.T().Logf("Оригинальный запрос:\n\n%s", dump)
-		}
-	})
-}
-
-func (suite *Iteration1Suite) TestUnknownHandlers() {
-	errRedirectBlocked := errors.New("HTTP redirect blocked")
-	redirPolicy := resty.RedirectPolicyFunc(func(_ *http.Request, _ []*http.Request) error {
-		return errRedirectBlocked
-	})
-
-	httpc := resty.New().
-		SetHostURL(suite.serverAddress).
-		SetRedirectPolicy(redirPolicy)
-
-	suite.Run("update invalid type", func() {
-		req := httpc.R()
-		resp, err := req.Post("update/unknown/testCounter/100")
-
-		noRespErr := suite.Assert().NoError(err, "Ошибка при попытке сделать запрос с не корректным типом метрики")
-
-		validStatus := suite.Assert().Equalf(http.StatusNotImplemented, resp.StatusCode(),
-			"Несоответствие статус кода ответа ожидаемому в хендлере '%s %s'", req.Method, req.URL)
-
-		if !noRespErr || !validStatus {
-			dump := dumpRequest(req.RawRequest, true)
-			suite.T().Logf("Оригинальный запрос:\n\n%s", dump)
-		}
-	})
-
-	suite.Run("update invalid method", func() {
-		req := httpc.R()
-		resp, err := req.Post("updater/counter/testCounter/100")
-
-		noRespErr := suite.Assert().NoError(err, "Ошибка при попытке сделать запрос с не корректным типом метрики")
-
-		validStatus := suite.Assert().Equalf(http.StatusNotFound, resp.StatusCode(),
-			"Несоответствие статус кода ответа ожидаемому в хендлере '%s %s'", req.Method, req.URL)
-
-		if !noRespErr || !validStatus {
-			dump := dumpRequest(req.RawRequest, true)
-			suite.T().Logf("Оригинальный запрос:\n\n%s", dump)
-		}
-	})
 }
