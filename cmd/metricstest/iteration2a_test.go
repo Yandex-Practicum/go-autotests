@@ -5,12 +5,37 @@ import (
 	"errors"
 	"os"
 	"syscall"
+	"testing"
 	"time"
 
 	"github.com/stretchr/testify/suite"
 
 	"github.com/Yandex-Practicum/go-autotests/internal/fork"
 )
+
+func TestIteration2A(t *testing.T) {
+	e := New(t)
+	serverMock := ServerMock(e, serverDefaultPort)
+
+	gauges := []string{
+		"Alloc", "BuckHashSys", "Frees", "GCCPUFraction", "GCSys", "HeapAlloc", "HeapIdle", "HeapInuse", "HeapObjects", "HeapReleased", "HeapSys", "LastGC", "Lookups", "MCacheInuse", "MCacheSys", "MSpanInuse", "MSpanSys", "Mallocs", "NextGC",
+		"NumForcedGC", "NumGC", "OtherSys", "PauseTotalNs", "StackInuse", "StackSys", "Sys", "TotalAlloc", "RandomValue",
+	}
+
+	StartDefaultAgent(e)
+
+	firstIterationTimeout := agentDefaultPollInterval + agentDefaultReportInterval
+	firstIterationTimeout += firstIterationTimeout / 10
+
+	e.Logf("Жду %v", firstIterationTimeout)
+	time.Sleep(firstIterationTimeout)
+
+	serverMock.checkReceiveValues(gauges, 1)
+}
+
+func StartDefaultAgent(e *Env) {
+	StartProcess(e, "agent", AgentPath(e))
+}
 
 type Iteration2ASuite struct {
 	suite.Suite

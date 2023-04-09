@@ -7,6 +7,7 @@ import (
 	"os"
 	"testing"
 
+	"github.com/gin-gonic/gin"
 	"github.com/rekby/fixenv"
 	"github.com/stretchr/testify/suite"
 )
@@ -14,12 +15,10 @@ import (
 func TestMain(m *testing.M) {
 	flag.Parse()
 
+	gin.SetMode(gin.ReleaseMode)
+
 	fixenv.CreateMainTestEnv(nil)
 	os.Exit(m.Run())
-}
-
-func TestIteration2A(t *testing.T) {
-	suite.Run(t, new(Iteration2ASuite))
 }
 
 func TestIteration2B(t *testing.T) {

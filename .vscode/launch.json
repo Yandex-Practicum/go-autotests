@@ -14,7 +14,9 @@
                 // "-test.v",
                 "-test.run=^TestIteration1$",
                 "--binary-path=/Users/rekby/projects/rekby/mymetrics/cmd/server/server",
-                "--server-port=8080"
+                "--server-port=8080",
+                "--source-path=/Users/rekby/projects/rekby/mymetrics",
+                "--agent-binary-path=/Users/rekby/projects/rekby/mymetrics/cmd/agent/agent"
             ]
         }
     ]

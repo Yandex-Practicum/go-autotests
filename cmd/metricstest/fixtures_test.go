@@ -46,6 +46,11 @@ func New(t testing.TB) *Env {
 	return &res
 }
 
+func (e *Env) Errorf(format string, args ...any) {
+	e.t.Helper()
+	e.t.Errorf(format, args...)
+}
+
 func (e *Env) Fatalf(format string, args ...any) {
 	e.t.Helper()
 	e.T().Fatalf(format, args...)
@@ -152,6 +157,14 @@ func StartProcessWhichListenPort(e *Env, host string, port int, name string, com
 				return nil, err
 			}
 		}
+	})
+}
+
+func ServerMock(e *Env, port int) *TestServerT {
+	return fixenv.CacheWithCleanup(e, port, nil, func() (*TestServerT, fixenv.FixtureCleanupFunc, error) {
+		endpoint := "localhost:" + strconv.Itoa(port)
+		res := NewTestServerT(e, endpoint)
+		return res, res.Stop, nil
 	})
 }
 

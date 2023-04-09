@@ -3,11 +3,14 @@ package main
 import (
 	"flag"
 	"strconv"
+	"time"
 )
 
 const (
-	serverDefaultHost = "localhost"
-	serverDefaultPort = 8080
+	serverDefaultHost          = "localhost"
+	serverDefaultPort          = 8080
+	agentDefaultReportInterval = 10 * time.Second
+	agentDefaultPollInterval   = 2 * time.Second
 )
 
 var (
@@ -24,7 +27,7 @@ var (
 
 func init() {
 	flag.StringVar(&flagAgentBinaryPath, "agent-binary-path", "", "path to target agent binary")
-	flag.StringVar(&flagServerBinaryPath, "binary-path", "cmd/server/server", "path to target server binary")
+	flag.StringVar(&flagServerBinaryPath, "binary-path", "", "path to target server binary")
 	flag.StringVar(&flagTargetSourcePath, "source-path", "", "path to target server source")
 	flag.StringVar(&flagServerHost, "server-host", serverDefaultHost, "host of target address")
 	flag.StringVar(&flagServerPort, "server-port", strconv.Itoa(serverDefaultPort), "port of target address")
