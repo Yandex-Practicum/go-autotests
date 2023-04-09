@@ -9,10 +9,86 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+	"testing"
 	"time"
 
 	"github.com/stretchr/testify/suite"
 )
+
+func TestIteration2B(t *testing.T) {
+	commonEnv := New(t)
+	table := []struct {
+		name, path string
+	}{
+		{
+			"agent",
+			AgentSourcePath(commonEnv),
+		},
+		{
+			"server",
+			ServerSourcePath(commonEnv),
+		},
+	}
+
+	for _, test := range table {
+		t.Run(test.name, func(t *testing.T) {
+			t.Run("TestFilesPresence", func(t *testing.T) {
+				e := New(t)
+
+				sourcePath := test.path
+
+				hasTestFile := false
+				err := filepath.WalkDir(sourcePath, func(path string, d fs.DirEntry, err error) error {
+					if err != nil {
+						return err
+					}
+
+					if d.IsDir() {
+						// skip vendor directory
+						if d.Name() == "vendor" || d.Name() == ".git" {
+							return filepath.SkipDir
+						}
+						// dive into regular directory
+						return nil
+					}
+
+					if strings.HasSuffix(d.Name(), "_test.go") {
+						hasTestFile = true
+						return filepath.SkipAll
+					}
+
+					return nil
+				})
+
+				e.NoErrorf(err, "Неожиданная ошибка при поиске тестовых файлов по пути %s: %s", sourcePath, err)
+
+				if !hasTestFile {
+					e.Errorf("Не найден ни один тестовый файл по пути %s", sourcePath)
+				}
+			})
+
+			t.Run("TestAgentCoverage", func(t *testing.T) {
+				e := New(t)
+				sourcePath := test.path
+
+				coverRegex := regexp.MustCompile(`coverage: (\d+.\d)% of statements`)
+
+				ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+				defer cancel()
+
+				cmd := exec.CommandContext(ctx, "go", "test", "-cover", sourcePath)
+				cmd.Env = os.Environ() // pass parent envs
+				cmd.Dir = sourcePath
+				out, err := cmd.CombinedOutput()
+				e.NoError(err, "Невозможно получить результат выполнения команды: %s. Вывод:\n\n %s", cmd, out)
+
+				matched := coverRegex.Match(out)
+				e.True(matched, "Отсутствует информация о покрытии кода тестами, команда: %s", cmd)
+				e.Logf("Вывод команды:\n\n%s", string(out))
+			})
+		})
+	}
+}
 
 type Iteration2BSuite struct {
 	suite.Suite
@@ -66,20 +142,4 @@ func (suite *Iteration2BSuite) TestFilesPresence() {
 
 // TestServerCoverage attempts to obtain and parse coverage report using standard Go tooling
 func (suite *Iteration2BSuite) TestServerCoverage() {
-	sourcePath := strings.TrimRight(flagTargetSourcePath, "/") + "/..."
-
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
-	defer cancel()
-
-	cmd := exec.CommandContext(ctx, "go", "test", "-cover", sourcePath)
-	cmd.Env = os.Environ() // pass parent envs
-	out, err := cmd.CombinedOutput()
-	suite.Assert().NoError(err, "Невозможно получить результат выполнения команды: %s. Вывод:\n\n %s", cmd, out)
-
-	matched := suite.coverRegex.Match(out)
-	found := suite.Assert().True(matched, "Отсутствует информация о покрытии кода тестами, команда: %s", cmd)
-
-	if !found {
-		suite.T().Logf("Вывод команды:\n\n%s", string(out))
-	}
 }

@@ -1,245 +1,117 @@
 package main
 
 import (
-	"context"
-	"errors"
+	"fmt"
 	"net/http"
-	"os"
-	"syscall"
-	"time"
-
-	"github.com/go-resty/resty/v2"
-	"github.com/stretchr/testify/suite"
-
-	"github.com/Yandex-Practicum/go-autotests/internal/fork"
+	"testing"
 )
 
-type Iteration1Suite struct {
-	suite.Suite
-
-	serverAddress string
-	serverProcess *fork.BackgroundProcess
+func TestIteration1(t *testing.T) {
+	testServerIncrement1(t, StartDefaultServer)
 }
 
-func (suite *Iteration1Suite) SetupSuite() {
-	// check required flags
-	suite.Require().NotEmpty(flagServerBinaryPath, "-binary-path non-empty flag required")
-
-	suite.serverAddress = "http://localhost:8080"
-
-	envs := append(os.Environ(), []string{
-		"RESTORE=false",
-	}...)
-	p := fork.NewBackgroundProcess(context.Background(), flagServerBinaryPath,
-		fork.WithEnv(envs...),
-	)
-
-	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
-	defer cancel()
-
-	err := p.Start(ctx)
-	if err != nil {
-		suite.T().Errorf("Невозможно запустить процесс командой %s: %s. Переменные окружения: %+v", p, err, envs)
-		return
-	}
-
-	port := "8080"
-	err = p.WaitPort(ctx, "tcp", port)
-	if err != nil {
-		suite.T().Errorf("Не удалось дождаться пока порт %s станет доступен для запроса: %s", port, err)
-		return
-	}
-
-	suite.serverProcess = p
+func StartDefaultServer(e *Env) string {
+	StartProcessWhichListenPort(e, serverDefaultHost, serverDefaultPort, "metric server", ServerFilePath(e))
+	return fmt.Sprintf("http://%v:%v", serverDefaultHost, serverDefaultPort)
 }
 
-func (suite *Iteration1Suite) TearDownSuite() {
-	if suite.serverProcess == nil {
-		return
-	}
+// testServerIncrement1 тестирует функционал первого инкремента с кастомной функцией старта сервера.
+// нужна, чтобы продолжать тестировать этот функционал в следующих инкрементах с переменой условий - другие порты, другие хранилища
+func testServerIncrement1(t *testing.T, startServer func(e *Env) string) {
+	t.Run("TestCounterHandlers", func(t *testing.T) {
+		t.Run("ok", func(t *testing.T) {
+			e := New(t)
+			c := RestyClient(e, startServer(e))
+			req := c.R()
+			resp, err := req.Post("update/counter/testGauge/100")
+			e.Require.NoError(err, "Ошибка при выполнении запроса")
+			e.Equal(http.StatusOK, resp.StatusCode(), "При добавлении нового значения сервер должен возвращать код 200 (http.StatusOK)")
 
-	exitCode, err := suite.serverProcess.Stop(syscall.SIGINT, syscall.SIGKILL)
-	if err != nil {
-		if errors.Is(err, os.ErrProcessDone) {
-			return
-		}
-		suite.T().Logf("Не удалось остановить процесс с помощью сигнала ОС: %s", err)
-		return
-	}
+			req = c.R()
+			resp, err = req.Post("update/counter/testGauge/101")
+			e.Require.NoError(err, "Ошибка при выполнении запроса")
+			e.Equal(http.StatusOK, resp.StatusCode(), "При обновлении значения сервер должен возвращать код 200 (http.StatusOK)")
+		})
 
-	if exitCode > 0 {
-		suite.T().Logf("Процесс завершился с не нулевым статусом %d", exitCode)
-	}
+		t.Run("without-id", func(t *testing.T) {
+			e := New(t)
+			c := RestyClient(e, startServer(e))
+			req := c.R()
 
-	// try to read stdout/stderr
-	ctx, cancel := context.WithTimeout(context.Background(), 500*time.Millisecond)
-	defer cancel()
+			resp, err := req.Post("update/counter/testGauge/")
+			e.Require.NoError(err, "Ошибка при выполнении запроса")
+			e.Contains([]int{http.StatusBadRequest, http.StatusNotFound}, resp.StatusCode(),
+				"При попытке обновления значения без ID - сервер должен вернуть ошибку 400 или 404 (http.StatusBadRequest, http.StatusNotFound).")
+		})
 
-	out := suite.serverProcess.Stderr(ctx)
-	if len(out) > 0 {
-		suite.T().Logf("Получен STDERR лог процесса:\n\n%s", string(out))
-	}
-	out = suite.serverProcess.Stdout(ctx)
-	if len(out) > 0 {
-		suite.T().Logf("Получен STDOUT лог процесса:\n\n%s", string(out))
-	}
-}
+		t.Run("bad value", func(t *testing.T) {
+			e := New(t)
+			c := RestyClient(e, startServer(e))
+			req := c.R()
 
-// TestHandlers проверяет
-// сервер успешно стартует и открывет tcp порт 8080 на 127.0.0.1
-// обработку POST запросов вида: ?id=<ID>&value=<VALUE>&type=<gauge|counter>
-// а так же негативкейсы, запросы в которых отсутствуют id, value и задан не корректный type
-func (suite *Iteration1Suite) TestGaugeHandlers() {
-	// create HTTP client without redirects support
-	errRedirectBlocked := errors.New("HTTP redirect blocked")
-	redirPolicy := resty.RedirectPolicyFunc(func(_ *http.Request, _ []*http.Request) error {
-		return errRedirectBlocked
+			resp, err := req.Post("update/gauge/testGauge/bad-value")
+			e.Require.NoError(err, "Ошибка при выполнении запроса")
+			e.Equal(http.StatusBadRequest, resp.StatusCode(), "При получении неправильного значения сервер должен вернуть ошибку 400 (http.StatusBadRequest)")
+		})
+
 	})
 
-	httpc := resty.New().
-		SetHostURL(suite.serverAddress).
-		SetRedirectPolicy(redirPolicy)
+	t.Run("TestGaugeHandlers", func(t *testing.T) {
+		t.Run("ok", func(t *testing.T) {
+			e := New(t)
+			c := RestyClient(e, startServer(e))
+			req := c.R()
+			resp, err := req.Post("update/gauge/testGauge/100")
+			e.Require.NoError(err, "Ошибка при выполнении запроса")
+			e.Equal(http.StatusOK, resp.StatusCode(), "При добавлении нового значения сервер должен возвращать код http.StatusOK (200)")
 
-	suite.Run("update", func() {
-		req := httpc.R()
-		resp, err := req.Post("update/gauge/testGauge/100")
+			req = c.R()
+			resp, err = req.Post("update/gauge/testGauge/101")
+			e.Require.NoError(err, "Ошибка при выполнении запроса")
+			e.Equal(http.StatusOK, resp.StatusCode(), "При обновлении значения сервер должен возвращать код http.StatusOK (200)")
+		})
 
-		noRespErr := suite.Assert().NoError(err, "Ошибка при попытке сделать запрос с обновлением gauge")
+		t.Run("without-id", func(t *testing.T) {
+			e := New(t)
+			c := RestyClient(e, startServer(e))
+			req := c.R()
 
-		validStatus := suite.Assert().Equalf(http.StatusOK, resp.StatusCode(),
-			"Несоответствие статус кода ответа ожидаемому в хендлере '%s %s'", req.Method, req.URL)
+			resp, err := req.Post("update/gauge/testGauge/")
+			e.Require.NoError(err, "Ошибка при выполнении запроса")
+			e.Contains([]int{http.StatusBadRequest, http.StatusNotFound}, resp.StatusCode(),
+				"При попытке обновления значения без ID - сервер должен вернуть ошибку http.StatusBadRequest или http.StatusNotFound  (400, 404).")
+		})
 
-		if !noRespErr || !validStatus {
-			dump := dumpRequest(req.RawRequest, true)
-			suite.T().Logf("Оригинальный запрос:\n\n%s", dump)
-		}
+		t.Run("bad value", func(t *testing.T) {
+			e := New(t)
+			c := RestyClient(e, startServer(e))
+			req := c.R()
+
+			resp, err := req.Post("update/gauge/testGauge/bad-value")
+			e.Require.NoError(err, "Ошибка при выполнении запроса")
+			e.Equal(http.StatusBadRequest, resp.StatusCode(), "При получении неправильного значения сервер должен вернуть ошибку http.StatusBadRequest (400)")
+		})
 	})
 
-	suite.Run("without id", func() {
-		req := httpc.R()
-		resp, err := req.Post("update/gauge/")
+	t.Run("unexpected path", func(t *testing.T) {
+		e := New(t)
+		c := RestyClient(e, startServer(e))
+		req := c.R()
 
-		noRespErr := suite.Assert().NoError(err, "Ошибка при попытке сделать запрос с обновлением gauge")
-
-		validStatus := suite.Assert().Equalf(http.StatusNotFound, resp.StatusCode(),
-			"Несоответствие статус кода ответа ожидаемому в хендлере '%s %s'", req.Method, req.URL)
-
-		if !noRespErr || !validStatus {
-			dump := dumpRequest(req.RawRequest, true)
-			suite.T().Logf("Оригинальный запрос:\n\n%s", dump)
-		}
-	})
-
-	suite.Run("invalid value", func() {
-		req := httpc.R()
-		resp, err := req.Post("update/gauge/testGauge/none")
-
-		noRespErr := suite.Assert().NoError(err, "Ошибка при попытке сделать запрос с обновлением gauge")
-
-		validStatus := suite.Assert().Equalf(http.StatusBadRequest, resp.StatusCode(),
-			"Несоответствие статус кода ответа ожидаемому в хендлере '%s %s'", req.Method, req.URL)
-
-		if !noRespErr || !validStatus {
-			dump := dumpRequest(req.RawRequest, true)
-			suite.T().Logf("Оригинальный запрос:\n\n%s", dump)
-		}
-	})
-}
-
-func (suite *Iteration1Suite) TestCounterHandlers() {
-	// create HTTP client without redirects support
-	errRedirectBlocked := errors.New("HTTP redirect blocked")
-	redirPolicy := resty.RedirectPolicyFunc(func(_ *http.Request, _ []*http.Request) error {
-		return errRedirectBlocked
-	})
-
-	httpc := resty.New().
-		SetHostURL(suite.serverAddress).
-		SetRedirectPolicy(redirPolicy)
-
-	suite.Run("update", func() {
-		req := httpc.R()
-		resp, err := req.Post("update/counter/testCounter/100")
-
-		noRespErr := suite.Assert().NoError(err, "Ошибка при попытке сделать запрос с обновлением counter")
-
-		validStatus := suite.Assert().Equalf(http.StatusOK, resp.StatusCode(),
-			"Несоответствие статус кода ответа ожидаемому в хендлере '%s %s'", req.Method, req.URL)
-
-		if !noRespErr || !validStatus {
-			dump := dumpRequest(req.RawRequest, true)
-			suite.T().Logf("Оригинальный запрос:\n\n%s", dump)
+		for _, path := range []string{"unknown-path", "unknown-path/gauge/testGauge/100"} {
+			resp, err := req.Post(path)
+			e.Require.NoError(err, "Ошибка при выполнении запроса")
+			e.Equal(http.StatusNotFound, resp.StatusCode(), "При получении запроса к неизвестному пути сервер должен возвращать ошибку http.StatusNotFound (404)")
 		}
 	})
 
-	suite.Run("without id", func() {
-		req := httpc.R()
-		resp, err := req.Post("update/counter/")
-
-		noRespErr := suite.Assert().NoError(err, "Ошибка при попытке сделать запрос с обновлением counter")
-
-		validStatus := suite.Assert().Equalf(http.StatusNotFound, resp.StatusCode(),
-			"Несоответствие статус кода ответа ожидаемому в хендлере '%s %s'", req.Method, req.URL)
-
-		if !noRespErr || !validStatus {
-			dump := dumpRequest(req.RawRequest, true)
-			suite.T().Logf("Оригинальный запрос:\n\n%s", dump)
-		}
-	})
-
-	suite.Run("invalid value", func() {
-		req := httpc.R()
-		resp, err := req.Post("update/counter/testCounter/none")
-
-		noRespErr := suite.Assert().NoError(err, "Ошибка при попытке сделать запрос с обновлением counter")
-
-		validStatus := suite.Assert().Equalf(http.StatusBadRequest, resp.StatusCode(),
-			"Несоответствие статус кода ответа ожидаемому в хендлере '%s %s'", req.Method, req.URL)
-
-		if !noRespErr || !validStatus {
-			dump := dumpRequest(req.RawRequest, true)
-			suite.T().Logf("Оригинальный запрос:\n\n%s", dump)
-		}
-	})
-}
-
-func (suite *Iteration1Suite) TestUnknownHandlers() {
-	errRedirectBlocked := errors.New("HTTP redirect blocked")
-	redirPolicy := resty.RedirectPolicyFunc(func(_ *http.Request, _ []*http.Request) error {
-		return errRedirectBlocked
-	})
-
-	httpc := resty.New().
-		SetHostURL(suite.serverAddress).
-		SetRedirectPolicy(redirPolicy)
-
-	suite.Run("update invalid type", func() {
-		req := httpc.R()
-		resp, err := req.Post("update/unknown/testCounter/100")
-
-		noRespErr := suite.Assert().NoError(err, "Ошибка при попытке сделать запрос с не корректным типом метрики")
-
-		validStatus := suite.Assert().Equalf(http.StatusNotImplemented, resp.StatusCode(),
-			"Несоответствие статус кода ответа ожидаемому в хендлере '%s %s'", req.Method, req.URL)
-
-		if !noRespErr || !validStatus {
-			dump := dumpRequest(req.RawRequest, true)
-			suite.T().Logf("Оригинальный запрос:\n\n%s", dump)
-		}
-	})
-
-	suite.Run("update invalid method", func() {
-		req := httpc.R()
-		resp, err := req.Post("updater/counter/testCounter/100")
-
-		noRespErr := suite.Assert().NoError(err, "Ошибка при попытке сделать запрос с не корректным типом метрики")
-
-		validStatus := suite.Assert().Equalf(http.StatusNotFound, resp.StatusCode(),
-			"Несоответствие статус кода ответа ожидаемому в хендлере '%s %s'", req.Method, req.URL)
-
-		if !noRespErr || !validStatus {
-			dump := dumpRequest(req.RawRequest, true)
-			suite.T().Logf("Оригинальный запрос:\n\n%s", dump)
-		}
+	t.Run("unknown-metric-type", func(t *testing.T) {
+		e := New(t)
+		c := RestyClient(e, startServer(e))
+		req := c.R()
+		resp, err := req.Post("update/unknown/testGauge/100")
+		e.Require.NoError(err, "Ошибка при выполнении запроса")
+		e.Contains([]int{http.StatusBadRequest, http.StatusNotFound}, resp.StatusCode(),
+			"При попытке обновления метрики неизвестного типа сервер должен вернуть ошибку http.StatusBadRequest или http.StatusNotFound (400, 404)")
 	})
 }

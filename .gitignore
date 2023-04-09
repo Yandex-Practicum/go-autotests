@@ -19,6 +19,7 @@ vendor/
 
 # Ignore IDE
 .idea/
+.vscode/
 
 # Ignore artifacts
 cmd/shortenertest/shortenertest

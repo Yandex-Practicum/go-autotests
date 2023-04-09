@@ -3,38 +3,22 @@ package main
 //go:generate go test -c -o=../../bin/metricstest
 
 import (
+	"flag"
 	"os"
 	"testing"
 
+	"github.com/gin-gonic/gin"
+	"github.com/rekby/fixenv"
 	"github.com/stretchr/testify/suite"
 )
 
 func TestMain(m *testing.M) {
+	flag.Parse()
+
+	gin.SetMode(gin.ReleaseMode)
+
+	fixenv.CreateMainTestEnv(nil)
 	os.Exit(m.Run())
-}
-
-func TestIteration1(t *testing.T) {
-	suite.Run(t, new(Iteration1Suite))
-}
-
-func TestIteration2A(t *testing.T) {
-	suite.Run(t, new(Iteration2ASuite))
-}
-
-func TestIteration2B(t *testing.T) {
-	suite.Run(t, new(Iteration2BSuite))
-}
-
-func TestIteration3A(t *testing.T) {
-	suite.Run(t, new(Iteration3ASuite))
-}
-
-func TestIteration3B(t *testing.T) {
-	suite.Run(t, new(Iteration3BSuite))
-}
-
-func TestIteration4(t *testing.T) {
-	suite.Run(t, new(Iteration4Suite))
 }
 
 func TestIteration5(t *testing.T) {
