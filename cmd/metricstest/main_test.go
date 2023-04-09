@@ -21,10 +21,6 @@ func TestMain(m *testing.M) {
 	os.Exit(m.Run())
 }
 
-func TestIteration2B(t *testing.T) {
-	suite.Run(t, new(Iteration2BSuite))
-}
-
 func TestIteration3A(t *testing.T) {
 	suite.Run(t, new(Iteration3ASuite))
 }

@@ -79,7 +79,7 @@ func ExistPath(e *Env, filePath string) string {
 	})
 }
 
-func AgentPath(e *Env) string {
+func AgentFilePath(e *Env) string {
 	return ExistPath(e, flagAgentBinaryPath)
 }
 
@@ -98,6 +98,49 @@ func ServerHost(e *Env) string {
 func ServerPort(e *Env) int {
 	return fixenv.Cache(e, nil, nil, func() (int, error) {
 		return strconv.Atoi(flagServerPort)
+	})
+}
+
+func AgentSourcePath(e *Env) string {
+	return filepath.Join(TargetSourcePath(e), "cmd/agent")
+}
+
+func ServerSourcePath(e *Env) string {
+	return filepath.Join(TargetSourcePath(e), "cmd/server")
+}
+
+func TargetSourcePath(e *Env) string {
+	return fixenv.Cache(e, nil, &fixenv.FixtureOptions{Scope: fixenv.ScopePackage}, func() (string, error) {
+		// project/cmd/server/server
+		startPath := flagServerBinaryPath
+		if startPath == "" {
+			startPath = flagAgentBinaryPath
+		}
+
+		absPath, err := filepath.Abs(startPath)
+		e.NoError(err, "Не могу построить полный путь к начальному файлу %q")
+
+		// project/cmd/server
+		absPath = filepath.Dir(absPath)
+
+		// project/cmd
+		absPath = filepath.Dir(absPath)
+
+		// project
+		absPath = filepath.Dir(absPath)
+
+		e.Logf("Проверяю что %q (%q) - это папка", absPath, flagTargetSourcePath)
+		stat, err := os.Stat(absPath)
+		if err != nil {
+			e.Fatalf("Не могу получить информацию о папке", err)
+			return "", err
+		}
+
+		if stat.IsDir() {
+			return absPath, nil
+		}
+
+		return "", fmt.Errorf("%q - не папка", absPath)
 	})
 }
 

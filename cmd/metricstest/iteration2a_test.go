@@ -45,7 +45,7 @@ func TestIteration2A(t *testing.T) {
 }
 
 func StartDefaultAgent(e *Env) {
-	StartProcess(e, "agent", AgentPath(e))
+	StartProcess(e, "agent", AgentFilePath(e))
 }
 
 type Iteration2ASuite struct {
