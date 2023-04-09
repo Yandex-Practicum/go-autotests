@@ -1,103 +1,121 @@
 package main
 
 import (
-	"errors"
-
-	"github.com/stretchr/testify/suite"
+	"net/http"
+	"strconv"
+	"testing"
 )
 
-type Iteration3ASuite struct {
-	suite.Suite
+func TestIteration3A(t *testing.T) {
+	t.Run("TestCounter", func(t *testing.T) {
+		t.Run("ok", func(t *testing.T) {
+			e := New(t)
+			c := DefaultServer(e)
 
-	knownFrameworks []string
-}
+			resp, err := c.R().Post("update/counter/test1/1")
+			e.NoError(err, "Ошибка при выполнении запроса к серверу")
+			e.Equal(http.StatusOK, resp.StatusCode(), "При добавлении нового значения сервер должен вернуть код 200 (http.StatusOK)")
 
-func (suite *Iteration3ASuite) SetupSuite() {
-	// check required flags
-	suite.Require().NotEmpty(flagTargetSourcePath, "-source-path non-empty flag required")
+			resp, err = c.R().Get("value/counter/test1")
+			e.NoError(err, "Ошибка при выполнении запроса к серверу")
+			e.Equalf(http.StatusOK, resp.StatusCode(), "При получении известного значения метрики сервер должен вернуть код 200 (http.StatusOK)")
 
-	suite.knownFrameworks = []string{
-		"aahframework.org",
-		"confetti-framework.com",
-		"github.com/abahmed/gearbox",
-		"github.com/aerogo/aero",
-		"github.com/aisk/vox",
-		"github.com/ant0ine/go-json-rest",
-		"github.com/aofei/air",
-		"github.com/appist/appy",
-		"github.com/astaxie/beego",
-		"github.com/beatlabs/patron",
-		"github.com/bnkamalesh/webgo",
-		"github.com/buaazp/fasthttprouter",
-		"github.com/claygod/Bxog",
-		"github.com/claygod/microservice",
-		"github.com/dimfeld/httptreemux",
-		"github.com/dinever/golf",
-		"github.com/fulldump/golax",
-		"github.com/gernest/alien",
-		"github.com/gernest/utron",
-		"github.com/gin-gonic/gin",
-		"github.com/go-chi/chi",
-		"github.com/go-goyave/goyave",
-		"github.com/go-macaron/macaron",
-		"github.com/go-ozzo/ozzo-routing",
-		"github.com/go-playground/lars",
-		"github.com/go-playground/pure",
-		"github.com/go-zoo/bone",
-		"github.com/goa-go/goa",
-		"github.com/goadesign/goa",
-		"github.com/goanywhere/rex",
-		"github.com/gocraft/web",
-		"github.com/gofiber/fiber",
-		"github.com/goji/goji",
-		"github.com/gookit/rux",
-		"github.com/gorilla/mux",
-		"github.com/goroute/route",
-		"github.com/gotuna/gotuna",
-		"github.com/gowww/router",
-		"github.com/GuilhermeCaruso/bellt",
-		"github.com/hidevopsio/hiboot",
-		"github.com/husobee/vestigo",
-		"github.com/i-love-flamingo/flamingo",
-		"github.com/i-love-flamingo/flamingo-commerce",
-		"github.com/ivpusic/neo",
-		"github.com/julienschmidt/httprouter",
-		"github.com/labstack/echo",
-		"github.com/lunny/tango",
-		"github.com/mustafaakin/gongular",
-		"github.com/nbari/violetear",
-		"github.com/nsheremet/banjo",
-		"github.com/NYTimes/gizmo",
-		"github.com/paulbellamy/mango",
-		"github.com/rainycape/gondola",
-		"github.com/razonyang/fastrouter",
-		"github.com/rcrowley/go-tigertonic",
-		"github.com/resoursea/api",
-		"github.com/revel/revel",
-		"github.com/rs/xmux",
-		"github.com/twharmon/goweb",
-		"github.com/uadmin/uadmin",
-		"github.com/ungerik/go-rest",
-		"github.com/vardius/gorouter",
-		"github.com/VividCortex/siesta",
-		"github.com/xujiajun/gorouter",
-		"github.com/xxjwxc/ginrpc",
-		"github.com/yarf-framework/yarf",
-		"github.com/zpatrick/fireball",
-		"gobuffalo.io",
-		"rest-layer.io",
-	}
-}
+			val, err := strconv.Atoi(string(resp.Body()))
+			e.NoErrorf(err, "Ошибка при попытке распарсить значение %q", resp.Body())
+			e.Equal(1, val, "Сервер вернул не то значение, которое было отправлено")
 
-// TestFrameworkUsage attempts to recursively find usage of known HTTP frameworks in given sources
-func (suite *Iteration3ASuite) TestHTTPFrameworkUsage() {
-	err := usesKnownPackage(suite.T(), flagTargetSourcePath, suite.knownFrameworks)
-	if errors.Is(err, errUsageFound) {
-		return
-	}
-	if err == nil || errors.Is(err, errUsageNotFound) {
-		suite.T().Errorf("Не найдено использование хотя бы одного известного HTTP фреймворка по пути %q", flagTargetSourcePath)
-		return
-	}
-	suite.T().Errorf("Неожиданная ошибка при поиске использования фреймворка по пути %q, %v", flagTargetSourcePath, err)
+			resp, err = c.R().Post("update/counter/test1/2")
+			e.NoError(err, "Ошибка при выполнении запроса к серверу")
+			e.Equal(http.StatusOK, resp.StatusCode(), "При добавлении нового значения сервер должен вернуть код 200 (http.StatusOK)")
+
+			resp, err = c.R().Get("value/counter/test1")
+			e.NoError(err, "Ошибка при выполнении запроса к серверу")
+			val, err = strconv.Atoi(string(resp.Body()))
+			e.NoErrorf(err, "Ошибка при попытке распарсить обновлённое значение %q", resp.Body())
+			e.Equal(3, val, "Сервер должен был вернуть сумму отправленных значений: 1+2")
+
+			// добавляем второе значение
+			resp, err = c.R().Post("update/counter/test2/4")
+			e.NoError(err, "Ошибка при выполнении запроса к серверу")
+			e.Equal(http.StatusOK, resp.StatusCode(), "При добавлении нового значения сервер должен вернуть код 200 (http.StatusOK)")
+
+			resp, err = c.R().Get("value/counter/test2")
+			e.NoError(err, "Ошибка при выполнении запроса к серверу")
+			e.Equalf(http.StatusOK, resp.StatusCode(), "При получении известного значения метрики сервер должен вернуть код 200 (http.StatusOK)")
+
+			val, err = strconv.Atoi(string(resp.Body()))
+			e.NoErrorf(err, "Ошибка при попытке распарсить значение %q", resp.Body())
+			e.Equal(4, val, "Сервер вернул не то значение, которое было отправлено для второй метрики")
+
+			resp, err = c.R().Get("value/counter/test1")
+			e.NoError(err, "Ошибка при выполнении запроса к серверу")
+			val, err = strconv.Atoi(string(resp.Body()))
+			e.NoErrorf(err, "Ошибка при попытке распарсить обновлённое значение %q", resp.Body())
+			e.Equal(3, val, "Сервер неправильно вернул значение первого счётчика")
+		})
+
+		t.Run("unknown-value", func(t *testing.T) {
+			e := New(t)
+			c := DefaultServer(e)
+			resp, err := c.R().Get("value/counter/unknown")
+			e.NoError(err, "Ошибка при выполнении запроса к серверу")
+			e.Equal(http.StatusNotFound, resp.StatusCode(), "При запросе неизвестного значения должен возвращаться код 404 (http.StatusNotFound)")
+		})
+	})
+
+	t.Run("TestGauge", func(t *testing.T) {
+		t.Run("ok", func(t *testing.T) {
+			e := New(t)
+			c := DefaultServer(e)
+
+			resp, err := c.R().Post("update/gauge/test1/1.5")
+			e.NoError(err, "Ошибка при выполнении запроса к серверу")
+			e.Equal(http.StatusOK, resp.StatusCode(), "При добавлении нового значения сервер должен вернуть код 200 (http.StatusOK)")
+
+			resp, err = c.R().Get("value/gauge/test1")
+			e.NoError(err, "Ошибка при выполнении запроса к серверу")
+			e.Equalf(http.StatusOK, resp.StatusCode(), "При получении известного значения метрики сервер должен вернуть код 200 (http.StatusOK)")
+
+			val, err := strconv.ParseFloat(string(resp.Body()), 64)
+			e.NoErrorf(err, "Ошибка при попытке распарсить значение %q", resp.Body())
+			e.InEpsilon(1.5, val, 0.1, "Сервер вернул не то значение, которое было отправлено")
+
+			resp, err = c.R().Post("update/gauge/test1/2")
+			e.NoError(err, "Ошибка при выполнении запроса к серверу")
+			e.Equal(http.StatusOK, resp.StatusCode(), "При добавлении нового значения сервер должен вернуть код 200 (http.StatusOK)")
+
+			resp, err = c.R().Get("value/gauge/test1")
+			e.NoError(err, "Ошибка при выполнении запроса к серверу")
+			val, err = strconv.ParseFloat(string(resp.Body()), 64)
+			e.NoErrorf(err, "Ошибка при попытке распарсить обновлённое значение %q", resp.Body())
+			e.InEpsilon(2, val, 0.1, "Сервер вернул не то значение, которое было отправлено при обновлении существующего значения")
+
+			// добавляем второе значение
+			resp, err = c.R().Post("update/gauge/test2/4")
+			e.NoError(err, "Ошибка при выполнении запроса к серверу")
+			e.Equal(http.StatusOK, resp.StatusCode(), "При добавлении нового значения сервер должен вернуть код 200 (http.StatusOK)")
+
+			resp, err = c.R().Get("value/gauge/test2")
+			e.NoError(err, "Ошибка при выполнении запроса к серверу")
+			e.Equalf(http.StatusOK, resp.StatusCode(), "При получении известного значения метрики сервер должен вернуть код 200 (http.StatusOK)")
+
+			val, err = strconv.ParseFloat(string(resp.Body()), 64)
+			e.NoErrorf(err, "Ошибка при попытке распарсить значение %q", resp.Body())
+			e.InEpsilon(4, val, 0.1, "Сервер вернул не то значение, которое было отправлено для второй метрики")
+
+			resp, err = c.R().Get("value/gauge/test1")
+			e.NoError(err, "Ошибка при выполнении запроса к серверу")
+			val, err = strconv.ParseFloat(string(resp.Body()), 64)
+			e.NoErrorf(err, "Ошибка при попытке распарсить обновлённое значение %q", resp.Body())
+			e.InEpsilon(2, val, 0.1, "Сервер неправильно вернул значение первого счётчика")
+		})
+
+		t.Run("unknown-value", func(t *testing.T) {
+			e := New(t)
+			c := DefaultServer(e)
+			resp, err := c.R().Get("value/gauge/unknown")
+			e.NoError(err, "Ошибка при выполнении запроса к серверу")
+			e.Equal(http.StatusNotFound, resp.StatusCode(), "При запросе неизвестного значения должен возвращаться код 404 (http.StatusNotFound)")
+		})
+	})
 }

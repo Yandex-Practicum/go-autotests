@@ -102,11 +102,21 @@ func ServerPort(e *Env) int {
 }
 
 func AgentSourcePath(e *Env) string {
-	return filepath.Join(TargetSourcePath(e), "cmd/agent")
+	return fixenv.Cache(e, nil, &fixenv.FixtureOptions{Scope: fixenv.ScopePackage}, func() (string, error) {
+		res := filepath.Join(TargetSourcePath(e), "cmd/agent")
+		e.Logf("Путь к исходникам агента: %q", res)
+		e.DirExists(res)
+		return res, nil
+	})
 }
 
 func ServerSourcePath(e *Env) string {
-	return filepath.Join(TargetSourcePath(e), "cmd/server")
+	return fixenv.Cache(e, nil, &fixenv.FixtureOptions{Scope: fixenv.ScopePackage}, func() (string, error) {
+		res := filepath.Join(TargetSourcePath(e), "cmd/server")
+		e.Logf("Путь к исходникам сервера: %q", res)
+		e.DirExists(res)
+		return res, nil
+	})
 }
 
 func TargetSourcePath(e *Env) string {
@@ -191,7 +201,7 @@ func ServerMock(e *Env, port int) *TestServerT {
 		res := NewTestServerT(e, endpoint)
 
 		e.Logf("Запускаю мок сервер: %q", endpoint)
-		go res.Start()
+		go func() { _ = res.Start() }()
 
 		err := waitOpenPort(e, endpoint)
 

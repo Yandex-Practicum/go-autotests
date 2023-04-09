@@ -1,228 +1,93 @@
 package main
 
 import (
-	"context"
 	"errors"
-	"fmt"
-	"math/rand"
-	"net/http"
-	"os"
-	"strconv"
-	"strings"
-	"syscall"
-	"time"
-
-	"github.com/go-resty/resty/v2"
-	"github.com/stretchr/testify/suite"
-
-	"github.com/Yandex-Practicum/go-autotests/internal/fork"
+	"testing"
 )
 
-type Iteration3BSuite struct {
-	suite.Suite
+func TestIteration3B(t *testing.T) {
+	knownFrameworks := []string{
+		"aahframework.org",
+		"confetti-framework.com",
+		"github.com/abahmed/gearbox",
+		"github.com/aerogo/aero",
+		"github.com/aisk/vox",
+		"github.com/ant0ine/go-json-rest",
+		"github.com/aofei/air",
+		"github.com/appist/appy",
+		"github.com/astaxie/beego",
+		"github.com/beatlabs/patron",
+		"github.com/bnkamalesh/webgo",
+		"github.com/buaazp/fasthttprouter",
+		"github.com/claygod/Bxog",
+		"github.com/claygod/microservice",
+		"github.com/dimfeld/httptreemux",
+		"github.com/dinever/golf",
+		"github.com/fulldump/golax",
+		"github.com/gernest/alien",
+		"github.com/gernest/utron",
+		"github.com/gin-gonic/gin",
+		"github.com/go-chi/chi",
+		"github.com/go-goyave/goyave",
+		"github.com/go-macaron/macaron",
+		"github.com/go-ozzo/ozzo-routing",
+		"github.com/go-playground/lars",
+		"github.com/go-playground/pure",
+		"github.com/go-zoo/bone",
+		"github.com/goa-go/goa",
+		"github.com/goadesign/goa",
+		"github.com/goanywhere/rex",
+		"github.com/gocraft/web",
+		"github.com/gofiber/fiber",
+		"github.com/goji/goji",
+		"github.com/gookit/rux",
+		"github.com/gorilla/mux",
+		"github.com/goroute/route",
+		"github.com/gotuna/gotuna",
+		"github.com/gowww/router",
+		"github.com/GuilhermeCaruso/bellt",
+		"github.com/hidevopsio/hiboot",
+		"github.com/husobee/vestigo",
+		"github.com/i-love-flamingo/flamingo",
+		"github.com/i-love-flamingo/flamingo-commerce",
+		"github.com/ivpusic/neo",
+		"github.com/julienschmidt/httprouter",
+		"github.com/labstack/echo",
+		"github.com/lunny/tango",
+		"github.com/mustafaakin/gongular",
+		"github.com/nbari/violetear",
+		"github.com/nsheremet/banjo",
+		"github.com/NYTimes/gizmo",
+		"github.com/paulbellamy/mango",
+		"github.com/rainycape/gondola",
+		"github.com/razonyang/fastrouter",
+		"github.com/rcrowley/go-tigertonic",
+		"github.com/resoursea/api",
+		"github.com/revel/revel",
+		"github.com/rs/xmux",
+		"github.com/twharmon/goweb",
+		"github.com/uadmin/uadmin",
+		"github.com/ungerik/go-rest",
+		"github.com/vardius/gorouter",
+		"github.com/VividCortex/siesta",
+		"github.com/xujiajun/gorouter",
+		"github.com/xxjwxc/ginrpc",
+		"github.com/yarf-framework/yarf",
+		"github.com/zpatrick/fireball",
+		"gobuffalo.io",
+		"rest-layer.io",
+	}
 
-	serverAddress string
-	serverProcess *fork.BackgroundProcess
-}
+	e := New(t)
+	serverSourcePath := ServerSourcePath(e)
+	err := usesKnownPackage(t, serverSourcePath, knownFrameworks)
 
-func (suite *Iteration3BSuite) SetupSuite() {
-	// check required flags
-	suite.Require().NotEmpty(flagServerBinaryPath, "-binary-path non-empty flag required")
-
-	suite.serverAddress = "http://localhost:8080"
-
-	envs := append(os.Environ(), []string{
-		"RESTORE=false",
-	}...)
-	p := fork.NewBackgroundProcess(context.Background(), flagServerBinaryPath,
-		fork.WithEnv(envs...),
-	)
-
-	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
-	defer cancel()
-
-	err := p.Start(ctx)
-	if err != nil {
-		suite.T().Errorf("Невозможно запустить процесс командой %s: %s. Переменные окружения: %+v", p, err, envs)
+	if errors.Is(err, errUsageFound) {
 		return
 	}
-
-	port := "8080"
-	err = p.WaitPort(ctx, "tcp", port)
-	if err != nil {
-		suite.T().Errorf("Не удалось дождаться пока порт %s станет доступен для запроса: %s", port, err)
+	if err == nil || errors.Is(err, errUsageNotFound) {
+		e.Errorf("Не найдено использование хотя бы одного известного HTTP фреймворка по пути %q", serverSourcePath)
 		return
 	}
-
-	suite.serverProcess = p
-}
-
-func (suite *Iteration3BSuite) TearDownSuite() {
-	if suite.serverProcess == nil {
-		return
-	}
-
-	exitCode, err := suite.serverProcess.Stop(syscall.SIGINT, syscall.SIGKILL)
-	if err != nil {
-		if errors.Is(err, os.ErrProcessDone) {
-			return
-		}
-		suite.T().Logf("Не удалось остановить процесс с помощью сигнала ОС: %s", err)
-		return
-	}
-
-	if exitCode > 0 {
-		suite.T().Logf("Процесс завершился с не нулевым статусом %d", exitCode)
-	}
-
-	// try to read stdout/stderr
-	ctx, cancel := context.WithTimeout(context.Background(), 500*time.Millisecond)
-	defer cancel()
-
-	out := suite.serverProcess.Stderr(ctx)
-	if len(out) > 0 {
-		suite.T().Logf("Получен STDERR лог процесса:\n\n%s", string(out))
-	}
-	out = suite.serverProcess.Stdout(ctx)
-	if len(out) > 0 {
-		suite.T().Logf("Получен STDOUT лог процесса:\n\n%s", string(out))
-	}
-}
-
-func (suite *Iteration3BSuite) TestGauge() {
-	// create HTTP client without redirects support
-	errRedirectBlocked := errors.New("HTTP redirect blocked")
-	redirPolicy := resty.RedirectPolicyFunc(func(_ *http.Request, _ []*http.Request) error {
-		return errRedirectBlocked
-	})
-
-	httpc := resty.NewWithClient(&http.Client{
-		Transport: &http.Transport{
-			DisableCompression: true,
-		},
-	}).
-		SetHostURL(suite.serverAddress).
-		SetRedirectPolicy(redirPolicy)
-
-	count := 3
-	suite.Run("update sequence", func() {
-		id := strconv.Itoa(rand.Intn(256))
-		req := httpc.R()
-		for i := 0; i < count; i++ {
-			v := strings.TrimRight(fmt.Sprintf("%.3f", rand.Float64()*1000000), "0")
-			resp, err := req.Post("update/gauge/testSetGet" + id + "/" + v)
-			noRespErr := suite.Assert().NoError(err, "Ошибка при попытке сделать запрос с обновлением gauge")
-
-			validStatus := suite.Assert().Equalf(http.StatusOK, resp.StatusCode(),
-				"Несоответствие статус кода ответа ожидаемому в хендлере '%s %s'", req.Method, req.URL)
-
-			if !noRespErr || !validStatus {
-				dump := dumpRequest(req.RawRequest, true)
-				suite.T().Logf("Оригинальный запрос:\n\n%s", dump)
-			}
-
-			resp, err = req.Get("value/gauge/testSetGet" + id)
-			noRespErr = suite.Assert().NoError(err, "Ошибка при попытке сделать запрос для получения значения gauge")
-			validStatus = suite.Assert().Equalf(http.StatusOK, resp.StatusCode(),
-				"Несоответствие статус кода ответа ожидаемому в хендлере '%s %s'", req.Method, req.URL)
-
-			equality := suite.Assert().Equalf(v, resp.String(),
-				"Несоответствие отправленного значения gauge (%s) полученному от сервера (%s), '%s %s'", v, resp.String(), req.Method, req.URL)
-
-			if !noRespErr || !validStatus || !equality {
-				dump := dumpRequest(req.RawRequest, true)
-				suite.T().Logf("Оригинальный запрос:\n\n%s", dump)
-			}
-		}
-	})
-
-	suite.Run("get unknown", func() {
-		id := strconv.Itoa(rand.Intn(256))
-		req := httpc.R()
-		resp, err := req.Get("value/gauge/testUnknown" + id)
-		noRespErr := suite.Assert().NoError(err, "Ошибка при попытке сделать запрос для получения значения gauge")
-		validStatus := suite.Assert().Equalf(http.StatusNotFound, resp.StatusCode(),
-			"Несоответствие статус кода ответа ожидаемому в хендлере '%s %s'", req.Method, req.URL)
-
-		if !noRespErr || !validStatus {
-			dump := dumpRequest(req.RawRequest, true)
-			suite.T().Logf("Оригинальный запрос:\n\n%s", dump)
-		}
-	})
-}
-
-func (suite *Iteration3BSuite) TestCounter() {
-	// create HTTP client without redirects support
-	errRedirectBlocked := errors.New("HTTP redirect blocked")
-	redirPolicy := resty.RedirectPolicyFunc(func(_ *http.Request, _ []*http.Request) error {
-		return errRedirectBlocked
-	})
-
-	httpc := resty.NewWithClient(&http.Client{
-		Transport: &http.Transport{
-			DisableCompression: true,
-		},
-	}).
-		SetHostURL(suite.serverAddress).
-		SetRedirectPolicy(redirPolicy)
-
-	count := 3
-
-	suite.Run("update sequence", func() {
-		req := httpc.R()
-		id := strconv.Itoa(rand.Intn(256))
-		resp, err := req.Get("value/counter/testSetGet" + id)
-		noRespErr := suite.Assert().NoError(err, "Ошибка при попытке сделать запрос для получения значения counter")
-
-		if !noRespErr {
-			dump := dumpRequest(req.RawRequest, true)
-			suite.T().Logf("Оригинальный запрос:\n\n%s", dump)
-			return
-		}
-
-		a, _ := strconv.ParseInt(resp.String(), 0, 64)
-
-		for i := 0; i < count; i++ {
-			v := rand.Intn(1024)
-			a += int64(v)
-			resp, err = req.Post("update/counter/testSetGet" + id + "/" + strconv.Itoa(v))
-
-			noRespErr := suite.Assert().NoError(err, "Ошибка при попытке сделать запрос для обновления значения counter")
-			validStatus := suite.Assert().Equalf(http.StatusOK, resp.StatusCode(),
-				"Несоответствие статус кода ответа ожидаемому в хендлере '%s %s'", req.Method, req.URL)
-
-			if !noRespErr || !validStatus {
-				dump := dumpRequest(req.RawRequest, true)
-				suite.T().Logf("Оригинальный запрос:\n\n%s", dump)
-				continue
-			}
-
-			resp, err := req.Get("value/counter/testSetGet" + id)
-			noRespErr = suite.Assert().NoError(err, "Ошибка при попытке сделать запрос для получения значения counter")
-			validStatus = suite.Assert().Equalf(http.StatusOK, resp.StatusCode(),
-				"Несоответствие статус кода ответа ожидаемому в хендлере '%s %s'", req.Method, req.URL)
-
-			equality := suite.Assert().Equalf(fmt.Sprintf("%d", a), resp.String(),
-				"Несоответствие отправленного значения counter (%d) полученному от сервера (%s), '%s %s'", a, resp.String(), req.Method, req.URL)
-
-			if !noRespErr || !validStatus || !equality {
-				dump := dumpRequest(req.RawRequest, true)
-				suite.T().Logf("Оригинальный запрос:\n\n%s", dump)
-			}
-		}
-	})
-
-	suite.Run("get unknown", func() {
-		id := strconv.Itoa(rand.Intn(256))
-		req := httpc.R()
-		resp, err := req.Get("value/counter/testUnknown" + id)
-		noRespErr := suite.Assert().NoError(err, "Ошибка при попытке сделать запрос для получения значения counter")
-		validStatus := suite.Assert().Equalf(http.StatusNotFound, resp.StatusCode(),
-			"Несоответствие статус кода ответа ожидаемому в хендлере '%s %s'", req.Method, req.URL)
-
-		if !noRespErr || !validStatus {
-			dump := dumpRequest(req.RawRequest, true)
-			suite.T().Logf("Оригинальный запрос:\n\n%s", dump)
-		}
-	})
+	e.Errorf("Неожиданная ошибка при поиске использования фреймворка по пути %q, %v", serverSourcePath, err)
 }
