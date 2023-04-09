@@ -20,11 +20,11 @@ type Iteration2ASuite struct {
 }
 
 func (suite *Iteration2ASuite) SetupSuite() {
-	// check required flags
 	suite.Require().NotEmpty(flagAgentBinaryPath, "-agent-binary-path non-empty flag required")
 
 	suite.agentAddress = "http://localhost:8080"
 
+	// Для обеспечения обратной совместимости с будущими заданиями
 	envs := append(os.Environ(), []string{
 		"RESTORE=false",
 	}...)
@@ -83,8 +83,8 @@ func (suite *Iteration2ASuite) TearDownSuite() {
 	}
 }
 
-// TestAgent проверяет
-// агент успешно стартует и передает какие-то данные по tcp, на 127.0.0.1:8080
+// TestAgent проверяет:
+// - агент успешно стартует и передает какие-нибудь данные по tcp, на localhost:8080
 func (suite *Iteration2ASuite) TestAgent() {
 	suite.Run("receive data from agent", func() {
 	})

@@ -37,7 +37,6 @@ type Metrics struct {
 }
 
 func (suite *Iteration7Suite) SetupSuite() {
-	// check required flags
 	suite.Require().NotEmpty(flagTargetSourcePath, "-source-path non-empty flag required")
 	suite.Require().NotEmpty(flagServerBinaryPath, "-binary-path non-empty flag required")
 	suite.Require().NotEmpty(flagAgentBinaryPath, "-agent-binary-path non-empty flag required")
@@ -52,9 +51,9 @@ func (suite *Iteration7Suite) SetupSuite() {
 
 	suite.serverAddress = "http://localhost:8080"
 
+	// Для обеспечения обратной совместимости с будущими заданиями
 	envs := append(os.Environ(), []string{
 		"RESTORE=false",
-		// "KEY=hohoho",
 	}...)
 	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 	defer cancel()
@@ -100,7 +99,6 @@ func (suite *Iteration7Suite) agentUp(ctx context.Context, envs []string, port s
 	suite.agentProcess = p
 }
 
-// TearDownSuite teardowns suite dependencies
 func (suite *Iteration7Suite) TearDownSuite() {
 	suite.agentShutdown()
 	suite.serverShutdown()
@@ -124,7 +122,6 @@ func (suite *Iteration7Suite) serverShutdown() {
 		suite.T().Logf("Процесс завершился с не нулевым статусом %d", exitCode)
 	}
 
-	// try to read stdout/stderr
 	ctx, cancel := context.WithTimeout(context.Background(), 500*time.Millisecond)
 	defer cancel()
 
@@ -156,7 +153,6 @@ func (suite *Iteration7Suite) agentShutdown() {
 		suite.T().Logf("Процесс завершился с не нулевым статусом %d", exitCode)
 	}
 
-	// try to read stdout/stderr
 	ctx, cancel := context.WithTimeout(context.Background(), 500*time.Millisecond)
 	defer cancel()
 
@@ -170,27 +166,21 @@ func (suite *Iteration7Suite) agentShutdown() {
 	}
 }
 
-func (suite *Iteration7Suite) TestEncoderLibraryUsage() {
+// TestEncoderUsage пробует рекурсивно найти хотя бы одно использование известных библиотек в директории с исходным кодом проекта
+func (suite *Iteration7Suite) TestEncoderUsage() {
 	err := usesKnownPackage(suite.T(), flagTargetSourcePath, suite.knownEncodingLibs)
-	if errors.Is(err, errUsageFound) {
+	if err == nil {
 		return
 	}
-	if err == nil || errors.Is(err, errUsageNotFound) {
-		suite.T().Errorf("Не найдено использование известных библиотек кодирования JSON %q", flagTargetSourcePath)
+	if errors.Is(err, errUsageNotFound) {
+		suite.T().Errorf("Не найдено использование известных библиотек кодирования JSON %s", flagTargetSourcePath)
 		return
 	}
-	suite.T().Errorf("Неожиданная ошибка при поиске использования фреймворка по пути %q, %v", flagTargetSourcePath, err)
+	suite.T().Errorf("Неожиданная ошибка при поиске использования библиотек кодирования JSON по пути %s: %s", flagTargetSourcePath, err)
 }
 
 func (suite *Iteration7Suite) TestCounterHandlers() {
-	// create HTTP client without redirects support
-	errRedirectBlocked := errors.New("HTTP redirect blocked")
-	redirPolicy := resty.RedirectPolicyFunc(func(_ *http.Request, _ []*http.Request) error {
-		return errRedirectBlocked
-	})
-	httpc := resty.New().
-		SetHostURL(suite.serverAddress).
-		SetRedirectPolicy(redirPolicy)
+	httpc := resty.New().SetHostURL(suite.serverAddress)
 
 	id := "GetSet" + strconv.Itoa(suite.rnd.Intn(256))
 
@@ -199,7 +189,7 @@ func (suite *Iteration7Suite) TestCounterHandlers() {
 		req := httpc.R().
 			SetHeader("Content-Type", "application/json")
 
-		// Вдруг на сервере уже есть значение, на всякий случай запросим.
+		// Запросим предыдущее значение с сервера, на случай если оно там уже есть.
 		var result Metrics
 		resp, err := req.
 			SetBody(&Metrics{
@@ -209,7 +199,8 @@ func (suite *Iteration7Suite) TestCounterHandlers() {
 			SetResult(&result).
 			Post("value/")
 
-		dumpErr := suite.Assert().NoError(err, "Ошибка при попытке сделать запрос с получением значения counter")
+		dumpErr := suite.Assert().NoError(err,
+			"Ошибка при попытке сделать запрос с получением значения counter")
 		var value0 int64
 		switch resp.StatusCode() {
 		case http.StatusOK:
@@ -234,7 +225,8 @@ func (suite *Iteration7Suite) TestCounterHandlers() {
 				Delta: &value1,
 			}).
 			Post("update/")
-		dumpErr = dumpErr && suite.Assert().NoError(err, "Ошибка при попытке сделать запрос с обновлением counter")
+		dumpErr = dumpErr && suite.Assert().NoError(err,
+			"Ошибка при попытке сделать запрос с обновлением counter")
 		dumpErr = dumpErr && suite.Assert().Equalf(http.StatusOK, resp.StatusCode(),
 			"Несоответствие статус кода ответа ожидаемому в хендлере %q: %q ", req.Method, req.URL)
 
@@ -245,7 +237,8 @@ func (suite *Iteration7Suite) TestCounterHandlers() {
 				Delta: &value2,
 			}).
 			Post("update/")
-		dumpErr = dumpErr && suite.Assert().NoError(err, "Ошибка при попытке сделать запрос с обновлением counter")
+		dumpErr = dumpErr && suite.Assert().NoError(err,
+			"Ошибка при попытке сделать запрос с обновлением counter")
 		dumpErr = dumpErr && suite.Assert().Equalf(http.StatusOK, resp.StatusCode(),
 			"Несоответствие статус кода ответа ожидаемому в хендлере %q: %q ", req.Method, req.URL)
 
@@ -257,7 +250,8 @@ func (suite *Iteration7Suite) TestCounterHandlers() {
 			SetResult(&result).
 			Post("value/")
 
-		dumpErr = dumpErr && suite.Assert().NoError(err, "Ошибка при попытке сделать запрос с получением значения counter")
+		dumpErr = dumpErr && suite.Assert().NoError(err,
+			"Ошибка при попытке сделать запрос с получением значения counter")
 		dumpErr = dumpErr && suite.Assert().Equalf(http.StatusOK, resp.StatusCode(),
 			"Несоответствие статус кода ответа ожидаемому в хендлере %q: %q ", req.Method, req.URL)
 		dumpErr = dumpErr && suite.Assert().Containsf(resp.Header().Get("Content-Type"), "application/json",
@@ -277,13 +271,7 @@ func (suite *Iteration7Suite) TestCounterHandlers() {
 }
 
 func (suite *Iteration7Suite) TestGaugeHandlers() {
-	errRedirectBlocked := errors.New("HTTP redirect blocked")
-	redirPolicy := resty.RedirectPolicyFunc(func(_ *http.Request, _ []*http.Request) error {
-		return errRedirectBlocked
-	})
-	httpc := resty.New().
-		SetHostURL(suite.serverAddress).
-		SetRedirectPolicy(redirPolicy)
+	httpc := resty.New().SetHostURL(suite.serverAddress)
 
 	id := "GetSet" + strconv.Itoa(suite.rnd.Intn(256))
 
@@ -299,7 +287,8 @@ func (suite *Iteration7Suite) TestGaugeHandlers() {
 				Value: &value,
 			}).
 			Post("update/")
-		dumpErr := suite.Assert().NoError(err, "Ошибка при попытке сделать запрос с обновлением gauge")
+		dumpErr := suite.Assert().NoError(err,
+			"Ошибка при попытке сделать запрос с обновлением gauge")
 		dumpErr = dumpErr && suite.Assert().Equalf(http.StatusOK, resp.StatusCode(),
 			"Несоответствие статус кода ответа ожидаемому в хендлере %q: %q ", req.Method, req.URL)
 
@@ -312,7 +301,8 @@ func (suite *Iteration7Suite) TestGaugeHandlers() {
 			SetResult(&result).
 			Post("value/")
 
-		dumpErr = dumpErr && suite.Assert().NoError(err, "Ошибка при попытке сделать запрос с получением значения gauge")
+		dumpErr = dumpErr && suite.Assert().NoError(err,
+			"Ошибка при попытке сделать запрос с получением значения gauge")
 		dumpErr = dumpErr && suite.Assert().Equalf(http.StatusOK, resp.StatusCode(),
 			"Несоответствие статус кода ответа ожидаемому в хендлере %q: %q ", req.Method, req.URL)
 		dumpErr = dumpErr && suite.Assert().Containsf(resp.Header().Get("Content-Type"), "application/json",
@@ -387,7 +377,6 @@ func (suite *Iteration7Suite) TestCollectAgentMetrics() {
 
 cont:
 	for ok := 0; ok != len(tests); {
-		// suite.T().Log("tick", len(tests)-ok)
 		select {
 		case <-timer.C:
 			break cont
@@ -412,7 +401,8 @@ cont:
 				SetResult(&result).
 				Post("/value/")
 
-			dumpErr := suite.Assert().NoErrorf(err, "Ошибка при попытке сделать запрос с получением значения %s", tt.name)
+			dumpErr := suite.Assert().NoErrorf(err,
+				"Ошибка при попытке сделать запрос с получением значения %s", tt.name)
 
 			if resp.StatusCode() == http.StatusNotFound {
 				continue
@@ -465,7 +455,8 @@ cont:
 	}
 	for _, tt := range tests {
 		suite.Run(tt.method+"/"+tt.name, func() {
-			suite.Assert().Truef(tt.ok, "Отсутствует изменение метрики: %s, тип: %s", tt.name, tt.method)
+			suite.Assert().Truef(tt.ok,
+				"Отсутствует изменение метрики: %s, тип: %s", tt.name, tt.method)
 		})
 	}
 }

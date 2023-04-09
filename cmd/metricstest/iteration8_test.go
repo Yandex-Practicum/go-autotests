@@ -24,61 +24,41 @@ type Iteration8Suite struct {
 	serverAddress string
 	serverPort    string
 	serverProcess *fork.BackgroundProcess
-	serverArgs    []string
 	agentProcess  *fork.BackgroundProcess
-	agentArgs     []string
-	// knownPgLibraries []string
 
 	rnd  *rand.Rand
 	envs []string
 }
 
 func (suite *Iteration8Suite) SetupSuite() {
-	// check required flags
 	suite.Require().NotEmpty(flagTargetSourcePath, "-source-path non-empty flag required")
 	suite.Require().NotEmpty(flagServerBinaryPath, "-binary-path non-empty flag required")
 	suite.Require().NotEmpty(flagAgentBinaryPath, "-agent-binary-path non-empty flag required")
 	suite.Require().NotEmpty(flagServerPort, "-server-port non-empty flag required")
-	suite.Require().NotEmpty(flagFileStoragePath, "-file-storage-path non-empty flag required")
-	suite.Require().NotEmpty(flagDatabaseDSN, "-database-dsn non-empty flag required")
 
 	suite.rnd = rand.New(rand.NewSource(int64(time.Now().Nanosecond())))
 	suite.serverAddress = "http://localhost:" + flagServerPort
 	suite.serverPort = flagServerPort
 
+	// Для обеспечения обратной совместимости с будущими заданиями
 	suite.envs = append(os.Environ(), []string{
 		"RESTORE=true",
-		"DATABASE_DSN=" + flagDatabaseDSN,
 	}...)
-
-	suite.agentArgs = []string{
-		"-a=localhost:" + flagServerPort,
-		"-r=2s",
-		"-p=1s",
-	}
-	suite.serverArgs = []string{
-		"-a=localhost:" + flagServerPort,
-		// "-s=5s",
-		"-r=false",
-		"-i=5m",
-		"-f=" + flagFileStoragePath,
-	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 	defer cancel()
-	suite.agentUp(ctx, suite.envs, suite.agentArgs, flagServerPort)
-	suite.serverUp(ctx, suite.envs, suite.serverArgs, flagServerPort)
+	suite.agentUp(ctx, suite.envs, flagServerPort)
+	suite.serverUp(ctx, suite.envs, flagServerPort)
 }
 
-func (suite *Iteration8Suite) serverUp(ctx context.Context, envs, args []string, port string) {
+func (suite *Iteration8Suite) serverUp(ctx context.Context, envs []string, port string) {
 	p := fork.NewBackgroundProcess(context.Background(), flagServerBinaryPath,
 		fork.WithEnv(envs...),
-		fork.WithArgs(args...),
 	)
 
 	err := p.Start(ctx)
 	if err != nil {
-		suite.T().Errorf("Невозможно запустить процесс командой %q: %s. Переменные окружения: %+v, флаги командной строки: %+v", p, err, envs, args)
+		suite.T().Errorf("Невозможно запустить процесс командой %q: %s. Переменные окружения: %+v", p, err, envs)
 		return
 	}
 
@@ -90,15 +70,14 @@ func (suite *Iteration8Suite) serverUp(ctx context.Context, envs, args []string,
 	suite.serverProcess = p
 }
 
-func (suite *Iteration8Suite) agentUp(ctx context.Context, envs, args []string, port string) {
+func (suite *Iteration8Suite) agentUp(ctx context.Context, envs []string, port string) {
 	p := fork.NewBackgroundProcess(context.Background(), flagAgentBinaryPath,
 		fork.WithEnv(envs...),
-		fork.WithArgs(args...),
 	)
 
 	err := p.Start(ctx)
 	if err != nil {
-		suite.T().Errorf("Невозможно запустить процесс командой %q: %s. Переменные окружения: %+v, флаги командной строки: %+v", p, err, envs, args)
+		suite.T().Errorf("Невозможно запустить процесс командой %q: %s. Переменные окружения: %+v", p, err, envs)
 		return
 	}
 
@@ -110,7 +89,6 @@ func (suite *Iteration8Suite) agentUp(ctx context.Context, envs, args []string, 
 	suite.agentProcess = p
 }
 
-// TearDownSuite teardowns suite dependencies
 func (suite *Iteration8Suite) TearDownSuite() {
 	suite.agentShutdown()
 	suite.serverShutdown()
@@ -134,7 +112,6 @@ func (suite *Iteration8Suite) serverShutdown() {
 		suite.T().Logf("Процесс завершился с не нулевым статусом %d", exitCode)
 	}
 
-	// try to read stdout/stderr
 	ctx, cancel := context.WithTimeout(context.Background(), 500*time.Millisecond)
 	defer cancel()
 
@@ -166,7 +143,6 @@ func (suite *Iteration8Suite) agentShutdown() {
 		suite.T().Logf("Процесс завершился с не нулевым статусом %d", exitCode)
 	}
 
-	// try to read stdout/stderr
 	ctx, cancel := context.WithTimeout(context.Background(), 500*time.Millisecond)
 	defer cancel()
 
@@ -181,14 +157,7 @@ func (suite *Iteration8Suite) agentShutdown() {
 }
 
 func (suite *Iteration8Suite) TestCounterGzipHandlers() {
-	// create HTTP client without redirects support
-	errRedirectBlocked := errors.New("HTTP redirect blocked")
-	redirPolicy := resty.RedirectPolicyFunc(func(_ *http.Request, _ []*http.Request) error {
-		return errRedirectBlocked
-	})
-	httpc := resty.New().
-		SetHostURL(suite.serverAddress).
-		SetRedirectPolicy(redirPolicy)
+	httpc := resty.New().SetHostURL(suite.serverAddress)
 
 	id := "GetSetZip" + strconv.Itoa(suite.rnd.Intn(256))
 
@@ -207,7 +176,8 @@ func (suite *Iteration8Suite) TestCounterGzipHandlers() {
 			SetResult(&result).
 			Post("value/")
 
-		dumpErr := suite.Assert().NoError(err, "Ошибка при попытке сделать запрос с получением значения counter")
+		dumpErr := suite.Assert().NoError(err,
+			"Ошибка при попытке сделать запрос с получением значения counter")
 		var value0 int64
 		switch resp.StatusCode() {
 		case http.StatusOK:
@@ -233,7 +203,8 @@ func (suite *Iteration8Suite) TestCounterGzipHandlers() {
 			}).
 			Post("update/")
 
-		dumpErr = dumpErr && suite.Assert().NoError(err, "Ошибка при попытке сделать запрос с обновлением counter")
+		dumpErr = dumpErr && suite.Assert().NoError(err,
+			"Ошибка при попытке сделать запрос с обновлением counter")
 		dumpErr = dumpErr && suite.Assert().Equalf(http.StatusOK, resp.StatusCode(),
 			"Несоответствие статус кода ответа ожидаемому в хендлере %q: %q ", req.Method, req.URL)
 
@@ -245,7 +216,8 @@ func (suite *Iteration8Suite) TestCounterGzipHandlers() {
 			}).
 			Post("update/")
 
-		dumpErr = dumpErr && suite.Assert().NoError(err, "Ошибка при попытке сделать запрос с обновлением counter")
+		dumpErr = dumpErr && suite.Assert().NoError(err,
+			"Ошибка при попытке сделать запрос с обновлением counter")
 		dumpErr = dumpErr && suite.Assert().Equalf(http.StatusOK, resp.StatusCode(),
 			"Несоответствие статус кода ответа ожидаемому в хендлере %q: %q ", req.Method, req.URL)
 
@@ -258,7 +230,8 @@ func (suite *Iteration8Suite) TestCounterGzipHandlers() {
 			SetDoNotParseResponse(true).
 			Post("value/")
 
-		dumpErr = dumpErr && suite.Assert().NoError(err, "Ошибка при попытке сделать запрос с получением значения counter")
+		dumpErr = dumpErr && suite.Assert().NoError(err,
+			"Ошибка при попытке сделать запрос с получением значения counter")
 		dumpErr = dumpErr && suite.Assert().Equalf(http.StatusOK, resp.StatusCode(),
 			"Несоответствие статус кода ответа ожидаемому в хендлере %q: %q ", req.Method, req.URL)
 		dumpErr = dumpErr && suite.Assert().Containsf(resp.Header().Get("Content-Type"), "application/json",
@@ -281,13 +254,7 @@ func (suite *Iteration8Suite) TestCounterGzipHandlers() {
 }
 
 func (suite *Iteration8Suite) TestGaugeGzipHandlers() {
-	errRedirectBlocked := errors.New("HTTP redirect blocked")
-	redirPolicy := resty.RedirectPolicyFunc(func(_ *http.Request, _ []*http.Request) error {
-		return errRedirectBlocked
-	})
-	httpc := resty.New().
-		SetHostURL(suite.serverAddress).
-		SetRedirectPolicy(redirPolicy)
+	httpc := resty.New().SetHostURL(suite.serverAddress)
 
 	id := "GetSetZip" + strconv.Itoa(suite.rnd.Intn(256))
 
@@ -304,7 +271,8 @@ func (suite *Iteration8Suite) TestGaugeGzipHandlers() {
 				Value: &value,
 			}).
 			Post("update/")
-		dumpErr := suite.Assert().NoError(err, "Ошибка при попытке сделать запрос с обновлением gauge")
+		dumpErr := suite.Assert().NoError(err,
+			"Ошибка при попытке сделать запрос с обновлением gauge")
 		dumpErr = dumpErr && suite.Assert().Equalf(http.StatusOK, resp.StatusCode(),
 			"Несоответствие статус кода ответа ожидаемому в хендлере %q: %q ", req.Method, req.URL)
 
@@ -317,7 +285,8 @@ func (suite *Iteration8Suite) TestGaugeGzipHandlers() {
 			SetDoNotParseResponse(true).
 			Post("value/")
 
-		dumpErr = dumpErr && suite.Assert().NoError(err, "Ошибка при попытке сделать запрос с получением значения gauge")
+		dumpErr = dumpErr && suite.Assert().NoError(err,
+			"Ошибка при попытке сделать запрос с получением значения gauge")
 		dumpErr = dumpErr && suite.Assert().Equalf(http.StatusOK, resp.StatusCode(),
 			"Несоответствие статус кода ответа ожидаемому в хендлере %q: %q ", req.Method, req.URL)
 		dumpErr = dumpErr && suite.Assert().Containsf(resp.Header().Get("Content-Type"), "application/json",
@@ -340,13 +309,7 @@ func (suite *Iteration8Suite) TestGaugeGzipHandlers() {
 }
 
 func (suite *Iteration8Suite) TestGetGzipHandlers() {
-	errRedirectBlocked := errors.New("HTTP redirect blocked")
-	redirPolicy := resty.RedirectPolicyFunc(func(_ *http.Request, _ []*http.Request) error {
-		return errRedirectBlocked
-	})
-	httpc := resty.New().
-		SetHostURL(suite.serverAddress).
-		SetRedirectPolicy(redirPolicy)
+	httpc := resty.New().SetHostURL(suite.serverAddress)
 
 	suite.Run("get info page", func() {
 		req := httpc.R().
@@ -357,7 +320,8 @@ func (suite *Iteration8Suite) TestGetGzipHandlers() {
 			SetDoNotParseResponse(true).
 			Get("/")
 
-		dumpErr := suite.Assert().NoError(err, "Ошибка при попытке сделать запрос с получением значения информационной страницы")
+		dumpErr := suite.Assert().NoError(err,
+			"Ошибка при попытке сделать запрос с получением значения информационной страницы")
 		dumpErr = dumpErr && suite.Assert().Equalf(http.StatusOK, resp.StatusCode(),
 			"Несоответствие статус кода ответа ожидаемому в хендлере %q: %q ", req.Method, req.URL)
 		dumpErr = dumpErr && suite.Assert().Containsf(resp.Header().Get("Content-Type"), "text/html",

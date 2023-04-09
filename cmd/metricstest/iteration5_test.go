@@ -3,8 +3,12 @@ package main
 import (
 	"context"
 	"errors"
+	"fmt"
+	"math/rand"
 	"net/http"
 	"os"
+	"strconv"
+	"strings"
 	"syscall"
 	"time"
 
@@ -23,7 +27,6 @@ type Iteration5Suite struct {
 }
 
 func (suite *Iteration5Suite) SetupSuite() {
-	// check required flags
 	suite.Require().NotEmpty(flagTargetSourcePath, "-source-path non-empty flag required")
 	suite.Require().NotEmpty(flagServerBinaryPath, "-binary-path non-empty flag required")
 	suite.Require().NotEmpty(flagAgentBinaryPath, "-agent-binary-path non-empty flag required")
@@ -32,12 +35,12 @@ func (suite *Iteration5Suite) SetupSuite() {
 	suite.serverAddress = "http://localhost:" + flagServerPort
 
 	envs := append(os.Environ(), []string{
-		"ADDRESS=" + "localhost:" + flagServerPort,
-		"REPORT_INTERVAL=" + "10s",
-		"POLL_INTERVAL=" + "2s",
-		"RESTORE=false",
+		"ADDRESS=localhost:" + flagServerPort,
+		"REPORT_INTERVAL=10",
+		"POLL_INTERVAL=2",
 
-		"SHUTDOWN_TIMEOUT=" + "5s",
+		"RESTORE=false",
+		"SHUTDOWN_TIMEOUT=5",
 	}...)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
@@ -107,7 +110,6 @@ func (suite *Iteration5Suite) serverShutdown() {
 		suite.T().Logf("Процесс завершился с не нулевым статусом %d", exitCode)
 	}
 
-	// try to read stdout/stderr
 	ctx, cancel := context.WithTimeout(context.Background(), 500*time.Millisecond)
 	defer cancel()
 
@@ -139,7 +141,6 @@ func (suite *Iteration5Suite) agentShutdown() {
 		suite.T().Logf("Процесс завершился с не нулевым статусом %d", exitCode)
 	}
 
-	// try to read stdout/stderr
 	ctx, cancel := context.WithTimeout(context.Background(), 500*time.Millisecond)
 	defer cancel()
 
@@ -153,139 +154,127 @@ func (suite *Iteration5Suite) agentShutdown() {
 	}
 }
 
-func (suite *Iteration5Suite) TestEnvCollectAgentMetrics() {
-	errRedirectBlocked := errors.New("HTTP redirect blocked")
-	redirPolicy := resty.RedirectPolicyFunc(func(_ *http.Request, _ []*http.Request) error {
-		return errRedirectBlocked
-	})
-	httpc := resty.New().
-		SetHostURL(suite.serverAddress).
-		SetRedirectPolicy(redirPolicy)
+func (suite *Iteration5Suite) TestGauge() {
+	httpc := resty.NewWithClient(&http.Client{
+		Transport: &http.Transport{
+			DisableCompression: true,
+		},
+	}).SetHostURL(suite.serverAddress)
 
-	tests := []struct {
-		name   string
-		method string
-		value  float64
-		delta  int64
-		update int
-		ok     bool
-		static bool
-	}{
-		{method: "counter", name: "PollCount"},
-		{method: "gauge", name: "RandomValue"},
-		// {method: "gauge", name: "Alloc"},
-		// {method: "gauge", name: "BuckHashSys", static: true},
-		// {method: "gauge", name: "Frees"},
-		// {method: "gauge", name: "GCCPUFraction", static: true},
-		// {method: "gauge", name: "GCSys", static: true},
-		// {method: "gauge", name: "HeapAlloc"},
-		// {method: "gauge", name: "HeapIdle"},
-		// {method: "gauge", name: "HeapInuse"},
-		// {method: "gauge", name: "HeapObjects"},
-		// {method: "gauge", name: "HeapReleased", static: true},
-		// {method: "gauge", name: "HeapSys", static: true},
-		// {method: "gauge", name: "LastGC", static: true},
-		// {method: "gauge", name: "Lookups", static: true},
-		// {method: "gauge", name: "MCacheInuse", static: true},
-		// {method: "gauge", name: "MCacheSys", static: true},
-		// {method: "gauge", name: "MSpanInuse", static: true},
-		// {method: "gauge", name: "MSpanSys", static: true},
-		// {method: "gauge", name: "Mallocs"},
-		// {method: "gauge", name: "NextGC", static: true},
-		// {method: "gauge", name: "NumForcedGC", static: true},
-		// {method: "gauge", name: "NumGC", static: true},
-		// {method: "gauge", name: "OtherSys", static: true},
-		// {method: "gauge", name: "PauseTotalNs", static: true},
-		// {method: "gauge", name: "StackInuse", static: true},
-		// {method: "gauge", name: "StackSys", static: true},
-		// {method: "gauge", name: "Sys", static: true},
-		{method: "gauge", name: "TotalAlloc"},
-	}
+	count := 3
+	suite.Run("update sequence", func() {
+		id := strconv.Itoa(rand.Intn(256))
+		req := httpc.R()
+		for i := 0; i < count; i++ {
+			v := strings.TrimRight(fmt.Sprintf("%.3f", rand.Float64()*1000000), "0")
+			resp, err := req.Post("update/gauge/testSetGet" + id + "/" + v)
+			noRespErr := suite.Assert().NoError(err,
+				"Ошибка при попытке сделать запрос с обновлением gauge")
 
-	req := httpc.R().
-		SetHeader("Content-Type", "application/json")
+			validStatus := suite.Assert().Equalf(http.StatusOK, resp.StatusCode(),
+				"Несоответствие статус кода ответа ожидаемому в хендлере '%s %s'", req.Method, req.URL)
 
-	timer := time.NewTimer(time.Minute)
-
-cont:
-	for ok := 0; ok != len(tests); {
-		// suite.T().Log("tick", len(tests)-ok)
-		select {
-		case <-timer.C:
-			break cont
-		default:
-		}
-		for i, tt := range tests {
-			if tt.ok {
-				continue
-			}
-			var (
-				resp *resty.Response
-				err  error
-			)
-			time.Sleep(100 * time.Millisecond)
-
-			var result Metrics
-			resp, err = req.
-				SetBody(&Metrics{
-					ID:    tt.name,
-					MType: tt.method,
-				}).
-				SetResult(&result).
-				Post("/value/")
-
-			dumpErr := suite.Assert().NoErrorf(err, "Ошибка при попытке сделать запрос с получением значения %s", tt.name)
-
-			if resp.StatusCode() == http.StatusNotFound {
-				continue
-			}
-
-			dumpErr = dumpErr && suite.Assert().Containsf(resp.Header().Get("Content-Type"), "application/json",
-				"Заголовок ответа Content-Type содержит несоответствующее значение")
-			dumpErr = dumpErr && suite.Assert().True(result.MType != "gauge" || result.Value != nil,
-				"Получен не однозначный результат (возвращаемое значение value=nil не соответствет типу gauge) '%q %s'", req.Method, req.URL)
-			dumpErr = dumpErr && suite.Assert().True(result.MType != "counter" || result.Delta != nil,
-				"Получен не однозначный результат (возвращаемое значение delta=nil не соответствет типу counter) '%q %s'", req.Method, req.URL)
-			dumpErr = dumpErr && suite.Assert().False(result.Delta == nil && result.Value == nil,
-				"Получен результат без данных (Dalta == nil && Value == nil) '%q %s'", req.Method, req.URL)
-			dumpErr = dumpErr && suite.Assert().False(result.Delta != nil && result.Value != nil,
-				"Получен не однозначный результат (Dalta != nil && Value != nil) '%q %s'", req.Method, req.URL)
-			dumpErr = dumpErr && suite.Assert().Equalf(http.StatusOK, resp.StatusCode(),
-				"Несоответствие статус кода ответа ожидаемому в хендлере %q: %q ", req.Method, req.URL)
-			dumpErr = dumpErr && suite.Assert().True(result.MType == "gauge" || result.MType == "counter",
-				"Получен ответ с неизвестным значением типа: %q, '%q %s'", result.MType, req.Method, req.URL)
-
-			if !dumpErr {
+			if !noRespErr || !validStatus {
 				dump := dumpRequest(req.RawRequest, true)
 				suite.T().Logf("Оригинальный запрос:\n\n%s", dump)
-				dump = dumpResponse(resp.RawResponse, true)
-				suite.T().Logf("Оригинальный ответ:\n\n%s", dump)
-				return
 			}
 
-			switch tt.method {
-			case "gauge":
-				if (tt.update != 0 && *result.Value != tt.value) || tt.static {
-					tests[i].ok = true
-					ok++
-					suite.T().Logf("get %s: %q, value: %f", tt.method, tt.name, *result.Value)
-				}
-				tests[i].value = *result.Value
-			case "counter":
-				if (tt.update != 0 && *result.Delta != tt.delta) || tt.static {
-					tests[i].ok = true
-					ok++
-					suite.T().Logf("get %s: %q, value: %d", tt.method, tt.name, *result.Delta)
-				}
-				tests[i].delta = *result.Delta
-			}
+			resp, err = req.Get("value/gauge/testSetGet" + id)
+			noRespErr = suite.Assert().NoError(err,
+				"Ошибка при попытке сделать запрос для получения значения gauge")
+			validStatus = suite.Assert().Equalf(http.StatusOK, resp.StatusCode(),
+				"Несоответствие статус кода ответа ожидаемому в хендлере '%s %s'", req.Method, req.URL)
+			equality := suite.Assert().Equalf(v, resp.String(),
+				"Несоответствие отправленного значения gauge (%s) полученному от сервера (%s), '%s %s'", v, resp.String(), req.Method, req.URL)
 
-			tests[i].update++
+			if !noRespErr || !validStatus || !equality {
+				dump := dumpRequest(req.RawRequest, true)
+				suite.T().Logf("Оригинальный запрос:\n\n%s", dump)
+			}
 		}
-	}
-	for _, tt := range tests {
-		suite.Run(tt.method+"/"+tt.name, func() {
-			suite.Assert().Truef(tt.ok, "Отсутствует изменение метрики: %s, тип: %s", tt.name, tt.method)
-		})
-	}
+	})
+
+	suite.Run("get unknown", func() {
+		id := strconv.Itoa(rand.Intn(256))
+		req := httpc.R()
+		resp, err := req.Get("value/gauge/testUnknown" + id)
+		noRespErr := suite.Assert().NoError(err,
+			"Ошибка при попытке сделать запрос для получения значения gauge")
+		validStatus := suite.Assert().Equalf(http.StatusNotFound, resp.StatusCode(),
+			"Несоответствие статус кода ответа ожидаемому в хендлере '%s %s'", req.Method, req.URL)
+
+		if !noRespErr || !validStatus {
+			dump := dumpRequest(req.RawRequest, true)
+			suite.T().Logf("Оригинальный запрос:\n\n%s", dump)
+		}
+	})
+}
+
+func (suite *Iteration5Suite) TestCounter() {
+	httpc := resty.NewWithClient(&http.Client{
+		Transport: &http.Transport{
+			DisableCompression: true,
+		},
+	}).SetHostURL(suite.serverAddress)
+
+	count := 3
+	suite.Run("update sequence", func() {
+		req := httpc.R()
+		id := strconv.Itoa(rand.Intn(256))
+		resp, err := req.Get("value/counter/testSetGet" + id)
+		noRespErr := suite.Assert().NoError(err,
+			"Ошибка при попытке сделать запрос для получения значения counter")
+
+		if !noRespErr {
+			dump := dumpRequest(req.RawRequest, true)
+			suite.T().Logf("Оригинальный запрос:\n\n%s", dump)
+			return
+		}
+
+		a, _ := strconv.ParseInt(resp.String(), 0, 64)
+
+		for i := 0; i < count; i++ {
+			v := rand.Intn(1024)
+			a += int64(v)
+			resp, err = req.Post("update/counter/testSetGet" + id + "/" + strconv.Itoa(v))
+
+			noRespErr := suite.Assert().NoError(err,
+				"Ошибка при попытке сделать запрос для обновления значения counter")
+			validStatus := suite.Assert().Equalf(http.StatusOK, resp.StatusCode(),
+				"Несоответствие статус кода ответа ожидаемому в хендлере '%s %s'", req.Method, req.URL)
+
+			if !noRespErr || !validStatus {
+				dump := dumpRequest(req.RawRequest, true)
+				suite.T().Logf("Оригинальный запрос:\n\n%s", dump)
+				continue
+			}
+
+			resp, err := req.Get("value/counter/testSetGet" + id)
+			noRespErr = suite.Assert().NoError(err,
+				"Ошибка при попытке сделать запрос для получения значения counter")
+			validStatus = suite.Assert().Equalf(http.StatusOK, resp.StatusCode(),
+				"Несоответствие статус кода ответа ожидаемому в хендлере '%s %s'", req.Method, req.URL)
+			equality := suite.Assert().Equalf(fmt.Sprintf("%d", a), resp.String(),
+				"Несоответствие отправленного значения counter (%d) полученному от сервера (%s), '%s %s'", a, resp.String(), req.Method, req.URL)
+
+			if !noRespErr || !validStatus || !equality {
+				dump := dumpRequest(req.RawRequest, true)
+				suite.T().Logf("Оригинальный запрос:\n\n%s", dump)
+			}
+		}
+	})
+
+	suite.Run("get unknown", func() {
+		id := strconv.Itoa(rand.Intn(256))
+		req := httpc.R()
+		resp, err := req.Get("value/counter/testUnknown" + id)
+		noRespErr := suite.Assert().NoError(err, "Ошибка при попытке сделать запрос для получения значения counter")
+		validStatus := suite.Assert().Equalf(http.StatusNotFound, resp.StatusCode(),
+			"Несоответствие статус кода ответа ожидаемому в хендлере '%s %s'", req.Method, req.URL)
+
+		if !noRespErr || !validStatus {
+			dump := dumpRequest(req.RawRequest, true)
+			suite.T().Logf("Оригинальный запрос:\n\n%s", dump)
+		}
+	})
 }
