@@ -8,6 +8,7 @@ import (
 	"os"
 	"strconv"
 	"syscall"
+	"testing"
 	"time"
 
 	"github.com/go-resty/resty/v2"
@@ -15,6 +16,18 @@ import (
 
 	"github.com/Yandex-Practicum/go-autotests/internal/fork"
 )
+
+func TestIteration4(t *testing.T) {
+	t.Run("server", func(t *testing.T) {
+		e := New(t)
+		StartProcessWhichListenPort(e, ServerHost(e), ServerPort(e), "server", ServerFilePath(e),
+			"-a="+ServerAddress(e),
+		)
+
+		client := ConnectToServer(e)
+
+	})
+}
 
 type Iteration4Suite struct {
 	suite.Suite

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"net/http"
 	"testing"
 
@@ -11,7 +12,7 @@ func TestIteration1(t *testing.T) {
 	t.Run("TestCounterHandlers", func(t *testing.T) {
 		t.Run("ok", func(t *testing.T) {
 			e := New(t)
-			c := DefaultServer(e)
+			c := ClientForDefaultServer(e)
 			req := c.R()
 			resp, err := req.Post("update/counter/testGauge/100")
 			e.Require.NoError(err, "Ошибка при выполнении запроса")
@@ -25,7 +26,7 @@ func TestIteration1(t *testing.T) {
 
 		t.Run("without-id", func(t *testing.T) {
 			e := New(t)
-			c := DefaultServer(e)
+			c := ClientForDefaultServer(e)
 			req := c.R()
 
 			resp, err := req.Post("update/counter/testGauge/")
@@ -36,7 +37,7 @@ func TestIteration1(t *testing.T) {
 
 		t.Run("bad value", func(t *testing.T) {
 			e := New(t)
-			c := DefaultServer(e)
+			c := ClientForDefaultServer(e)
 			req := c.R()
 
 			resp, err := req.Post("update/gauge/testGauge/bad-value")
@@ -49,7 +50,7 @@ func TestIteration1(t *testing.T) {
 	t.Run("TestGaugeHandlers", func(t *testing.T) {
 		t.Run("ok", func(t *testing.T) {
 			e := New(t)
-			c := DefaultServer(e)
+			c := ClientForDefaultServer(e)
 			req := c.R()
 			resp, err := req.Post("update/gauge/testGauge/100")
 			e.Require.NoError(err, "Ошибка при выполнении запроса")
@@ -63,7 +64,7 @@ func TestIteration1(t *testing.T) {
 
 		t.Run("without-id", func(t *testing.T) {
 			e := New(t)
-			c := DefaultServer(e)
+			c := ClientForDefaultServer(e)
 			req := c.R()
 
 			resp, err := req.Post("update/gauge/testGauge/")
@@ -74,7 +75,7 @@ func TestIteration1(t *testing.T) {
 
 		t.Run("bad value", func(t *testing.T) {
 			e := New(t)
-			c := DefaultServer(e)
+			c := ClientForDefaultServer(e)
 			req := c.R()
 
 			resp, err := req.Post("update/gauge/testGauge/bad-value")
@@ -85,7 +86,7 @@ func TestIteration1(t *testing.T) {
 
 	t.Run("unexpected path", func(t *testing.T) {
 		e := New(t)
-		c := DefaultServer(e)
+		c := ClientForDefaultServer(e)
 		req := c.R()
 
 		for _, path := range []string{"unknown-path", "unknown-path/gauge/testGauge/100"} {
@@ -97,7 +98,7 @@ func TestIteration1(t *testing.T) {
 
 	t.Run("unknown-metric-type", func(t *testing.T) {
 		e := New(t)
-		c := DefaultServer(e)
+		c := ClientForDefaultServer(e)
 		req := c.R()
 		resp, err := req.Post("update/unknown/testGauge/100")
 		e.Require.NoError(err, "Ошибка при выполнении запроса")
@@ -106,7 +107,8 @@ func TestIteration1(t *testing.T) {
 	})
 }
 
-func DefaultServer(e *Env) *resty.Client {
+func ClientForDefaultServer(e *Env) *resty.Client {
 	StartProcessWhichListenPort(e, serverDefaultHost, serverDefaultPort, "metric server", ServerFilePath(e))
-	return RestyClient(e, ServerAddress(e))
+	address := fmt.Sprintf("http://%v:%v", serverDefaultHost, serverDefaultPort)
+	return RestyClient(e, address)
 }

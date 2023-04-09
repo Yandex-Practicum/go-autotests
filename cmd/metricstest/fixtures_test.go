@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/Yandex-Practicum/go-autotests/internal/fork"
+	"github.com/Yandex-Practicum/go-autotests/internal/random"
 	"github.com/go-resty/resty/v2"
 	"github.com/rekby/fixenv"
 	"github.com/stretchr/testify/assert"
@@ -97,17 +98,28 @@ func ServerFilePath(e *Env) string {
 	return ExistPath(e, flagServerBinaryPath)
 }
 
+func ConnectToServer(e *Env) *resty.Client {
+	return RestyClient(e, "http://"+ServerAddress(e))
+}
+
 func ServerAddress(e *Env) string {
-	return fmt.Sprintf("http://%v:%v", ServerHost(e), ServerPort(e))
+	return fixenv.Cache(e, "", nil, func() (string, error) {
+		res := fmt.Sprintf(ServerHost(e), ServerPort(e))
+		e.Logf("Адрес сервера: %q", res)
+		return res, nil
+	})
 }
 
 func ServerHost(e *Env) string {
-	return flagServerHost
+	return "localhost"
 }
 
 func ServerPort(e *Env) int {
-	return fixenv.Cache(e, nil, nil, func() (int, error) {
-		return strconv.Atoi(flagServerPort)
+	return fixenv.Cache(e, "", nil, func() (int, error) {
+		port, err := random.UnusedPort()
+		e.t.Fatal(err, "Ошибка при определении свободного порта для старта сервера")
+		e.Logf("Для сервера выбран порт: %v", port)
+		return port, err
 	})
 }
 
@@ -198,7 +210,7 @@ func StartProcess(e *Env, name string, command string, args ...string) *fork.Bac
 
 func StartProcessWhichListenPort(e *Env, host string, port int, name string, command string, args ...string) *fork.BackgroundProcess {
 	cacheKey := append([]string{host, strconv.Itoa(port), name, command}, args...)
-	return fixenv.Cache[*fork.BackgroundProcess](e, cacheKey, nil, func() (*fork.BackgroundProcess, error) {
+	return fixenv.Cache(e, cacheKey, nil, func() (*fork.BackgroundProcess, error) {
 		process := StartProcess(e, name, command, args...)
 		address := fmt.Sprintf("%v:%v", host, port)
 		return process, waitOpenPort(e, address)
@@ -219,12 +231,13 @@ func ServerMock(e *Env, port int) *TestServerT {
 	})
 }
 
-func RestyClient(e *Env, host string) *resty.Client {
-	return fixenv.Cache(e, host, nil, func() (*resty.Client, error) {
+func RestyClient(e *Env, baseUrl string) *resty.Client {
+	return fixenv.Cache(e, baseUrl, nil, func() (*resty.Client, error) {
+		e.Logf("Создаётся клиент для %q", baseUrl)
 		return resty.
 			New().
 			SetDebug(true).
-			SetBaseURL(host).
+			SetBaseURL(baseUrl).
 			SetRedirectPolicy(resty.NoRedirectPolicy()).
 			SetLogger(restyLogger{e}), nil
 	})

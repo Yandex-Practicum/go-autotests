@@ -10,7 +10,7 @@ func TestIteration3A(t *testing.T) {
 	t.Run("TestCounter", func(t *testing.T) {
 		t.Run("ok", func(t *testing.T) {
 			e := New(t)
-			c := DefaultServer(e)
+			c := ClientForDefaultServer(e)
 
 			resp, err := c.R().Post("update/counter/test1/1")
 			e.NoError(err, "Ошибка при выполнении запроса к серверу")
@@ -56,7 +56,7 @@ func TestIteration3A(t *testing.T) {
 
 		t.Run("unknown-value", func(t *testing.T) {
 			e := New(t)
-			c := DefaultServer(e)
+			c := ClientForDefaultServer(e)
 			resp, err := c.R().Get("value/counter/unknown")
 			e.NoError(err, "Ошибка при выполнении запроса к серверу")
 			e.Equal(http.StatusNotFound, resp.StatusCode(), "При запросе неизвестного значения должен возвращаться код 404 (http.StatusNotFound)")
@@ -66,7 +66,7 @@ func TestIteration3A(t *testing.T) {
 	t.Run("TestGauge", func(t *testing.T) {
 		t.Run("ok", func(t *testing.T) {
 			e := New(t)
-			c := DefaultServer(e)
+			c := ClientForDefaultServer(e)
 
 			resp, err := c.R().Post("update/gauge/test1/1.5")
 			e.NoError(err, "Ошибка при выполнении запроса к серверу")
@@ -112,7 +112,7 @@ func TestIteration3A(t *testing.T) {
 
 		t.Run("unknown-value", func(t *testing.T) {
 			e := New(t)
-			c := DefaultServer(e)
+			c := ClientForDefaultServer(e)
 			resp, err := c.R().Get("value/gauge/unknown")
 			e.NoError(err, "Ошибка при выполнении запроса к серверу")
 			e.Equal(http.StatusNotFound, resp.StatusCode(), "При запросе неизвестного значения должен возвращаться код 404 (http.StatusNotFound)")
