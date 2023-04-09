@@ -30,10 +30,10 @@ type Env struct {
 	Ctx     context.Context
 	Require require.Assertions
 
-	t testing.TB
+	t *testing.T
 }
 
-func New(t testing.TB) *Env {
+func New(t *testing.T) *Env {
 	ctx, ctxCancel := context.WithCancel(context.Background())
 	t.Cleanup(ctxCancel)
 
@@ -60,6 +60,10 @@ func (e *Env) Fatalf(format string, args ...any) {
 func (e *Env) Logf(format string, args ...any) {
 	e.t.Helper()
 	e.t.Logf(format, args...)
+}
+
+func (e *Env) Test() *testing.T {
+	return e.t
 }
 
 ///
@@ -94,6 +98,32 @@ func AgentFilePath(e *Env) string {
 	return ExistPath(e, flagAgentBinaryPath)
 }
 
+func AgentPollInterval(e *Env, setInterval ...time.Duration) time.Duration {
+	return fixenv.Cache(e, "", &fixenv.FixtureOptions{Scope: fixenv.ScopeTestAndSubtests}, func() (time.Duration, error) {
+		switch len(setInterval) {
+		case 0:
+			return time.Second, nil
+		case 1:
+			return setInterval[0], nil
+		default:
+			return 0, fmt.Errorf("В опциональном параметре можно передать максимум одно значение")
+		}
+	})
+}
+
+func AgentReportInterval(e *Env, setInterval ...time.Duration) time.Duration {
+	return fixenv.Cache(e, "", &fixenv.FixtureOptions{Scope: fixenv.ScopeTestAndSubtests}, func() (time.Duration, error) {
+		switch len(setInterval) {
+		case 0:
+			return 2 * time.Second, nil
+		case 1:
+			return setInterval[0], nil
+		default:
+			return 0, fmt.Errorf("В опциональном параметре можно передать максимум одно значение")
+		}
+	})
+}
+
 func ServerFilePath(e *Env) string {
 	return ExistPath(e, flagServerBinaryPath)
 }
@@ -104,7 +134,7 @@ func ConnectToServer(e *Env) *resty.Client {
 
 func ServerAddress(e *Env) string {
 	return fixenv.Cache(e, "", nil, func() (string, error) {
-		res := fmt.Sprintf(ServerHost(e), ServerPort(e))
+		res := fmt.Sprintf("%v:%v", ServerHost(e), ServerPort(e))
 		e.Logf("Адрес сервера: %q", res)
 		return res, nil
 	})
@@ -114,10 +144,23 @@ func ServerHost(e *Env) string {
 	return "localhost"
 }
 
-func ServerPort(e *Env) int {
-	return fixenv.Cache(e, "", nil, func() (int, error) {
-		port, err := random.UnusedPort()
-		e.t.Fatal(err, "Ошибка при определении свободного порта для старта сервера")
+func ServerPort(e *Env, setPort ...int) int {
+	return fixenv.Cache(e, "", &fixenv.FixtureOptions{Scope: fixenv.ScopeTestAndSubtests}, func() (int, error) {
+		port := 0
+		var err error
+		switch len(setPort) {
+		case 0:
+			e.Logf("Автоматический выбор серверного порта")
+			port, err = random.UnusedPort()
+			if err != nil {
+				return 0, err
+			}
+		case 1:
+			port = setPort[0]
+			e.Logf("Серверный порт задан вручную")
+		default:
+			return 0, fmt.Errorf("В опциональном параметре можно передать максимум одно значение")
+		}
 		e.Logf("Для сервера выбран порт: %v", port)
 		return port, err
 	})

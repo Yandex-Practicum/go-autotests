@@ -4,15 +4,24 @@ import (
 	"fmt"
 	"net/http"
 	"testing"
-
-	"github.com/go-resty/resty/v2"
 )
 
 func TestIteration1(t *testing.T) {
+	testServerIncrement1(t, StartDefaultServer)
+}
+
+func StartDefaultServer(e *Env) string {
+	StartProcessWhichListenPort(e, serverDefaultHost, serverDefaultPort, "metric server", ServerFilePath(e))
+	return fmt.Sprintf("http://%v:%v", serverDefaultHost, serverDefaultPort)
+}
+
+// testServerIncrement1 тестирует функционал первого инкремента с кастомной функцией старта сервера.
+// нужна, чтобы продолжать тестировать этот функционал в следующих инкрементах с переменой условий - другие порты, другие хранилища
+func testServerIncrement1(t *testing.T, startServer func(e *Env) string) {
 	t.Run("TestCounterHandlers", func(t *testing.T) {
 		t.Run("ok", func(t *testing.T) {
 			e := New(t)
-			c := ClientForDefaultServer(e)
+			c := RestyClient(e, startServer(e))
 			req := c.R()
 			resp, err := req.Post("update/counter/testGauge/100")
 			e.Require.NoError(err, "Ошибка при выполнении запроса")
@@ -26,7 +35,7 @@ func TestIteration1(t *testing.T) {
 
 		t.Run("without-id", func(t *testing.T) {
 			e := New(t)
-			c := ClientForDefaultServer(e)
+			c := RestyClient(e, startServer(e))
 			req := c.R()
 
 			resp, err := req.Post("update/counter/testGauge/")
@@ -37,7 +46,7 @@ func TestIteration1(t *testing.T) {
 
 		t.Run("bad value", func(t *testing.T) {
 			e := New(t)
-			c := ClientForDefaultServer(e)
+			c := RestyClient(e, startServer(e))
 			req := c.R()
 
 			resp, err := req.Post("update/gauge/testGauge/bad-value")
@@ -50,7 +59,7 @@ func TestIteration1(t *testing.T) {
 	t.Run("TestGaugeHandlers", func(t *testing.T) {
 		t.Run("ok", func(t *testing.T) {
 			e := New(t)
-			c := ClientForDefaultServer(e)
+			c := RestyClient(e, startServer(e))
 			req := c.R()
 			resp, err := req.Post("update/gauge/testGauge/100")
 			e.Require.NoError(err, "Ошибка при выполнении запроса")
@@ -64,7 +73,7 @@ func TestIteration1(t *testing.T) {
 
 		t.Run("without-id", func(t *testing.T) {
 			e := New(t)
-			c := ClientForDefaultServer(e)
+			c := RestyClient(e, startServer(e))
 			req := c.R()
 
 			resp, err := req.Post("update/gauge/testGauge/")
@@ -75,7 +84,7 @@ func TestIteration1(t *testing.T) {
 
 		t.Run("bad value", func(t *testing.T) {
 			e := New(t)
-			c := ClientForDefaultServer(e)
+			c := RestyClient(e, startServer(e))
 			req := c.R()
 
 			resp, err := req.Post("update/gauge/testGauge/bad-value")
@@ -86,7 +95,7 @@ func TestIteration1(t *testing.T) {
 
 	t.Run("unexpected path", func(t *testing.T) {
 		e := New(t)
-		c := ClientForDefaultServer(e)
+		c := RestyClient(e, startServer(e))
 		req := c.R()
 
 		for _, path := range []string{"unknown-path", "unknown-path/gauge/testGauge/100"} {
@@ -98,17 +107,11 @@ func TestIteration1(t *testing.T) {
 
 	t.Run("unknown-metric-type", func(t *testing.T) {
 		e := New(t)
-		c := ClientForDefaultServer(e)
+		c := RestyClient(e, startServer(e))
 		req := c.R()
 		resp, err := req.Post("update/unknown/testGauge/100")
 		e.Require.NoError(err, "Ошибка при выполнении запроса")
 		e.Contains([]int{http.StatusBadRequest, http.StatusNotFound}, resp.StatusCode(),
 			"При попытке обновления метрики неизвестного типа сервер должен вернуть ошибку http.StatusBadRequest или http.StatusNotFound (400, 404)")
 	})
-}
-
-func ClientForDefaultServer(e *Env) *resty.Client {
-	StartProcessWhichListenPort(e, serverDefaultHost, serverDefaultPort, "metric server", ServerFilePath(e))
-	address := fmt.Sprintf("http://%v:%v", serverDefaultHost, serverDefaultPort)
-	return RestyClient(e, address)
 }
