@@ -9,13 +9,16 @@ import (
 type Iteration3ASuite struct {
 	suite.Suite
 
-	knownFrameworks []string
+	knownFrameworks      []string
+	restrictedFrameworks []string
 }
 
+// SetupSuite подготавливает необходимые зависимости
 func (suite *Iteration3ASuite) SetupSuite() {
-	// check required flags
+	// проверяем наличие необходимых флагов
 	suite.Require().NotEmpty(flagTargetSourcePath, "-source-path non-empty flag required")
 
+	// список известных фреймворков
 	suite.knownFrameworks = []string{
 		"aahframework.org",
 		"confetti-framework.com",
@@ -28,7 +31,6 @@ func (suite *Iteration3ASuite) SetupSuite() {
 		"github.com/astaxie/beego",
 		"github.com/beatlabs/patron",
 		"github.com/bnkamalesh/webgo",
-		"github.com/buaazp/fasthttprouter",
 		"github.com/claygod/Bxog",
 		"github.com/claygod/microservice",
 		"github.com/dimfeld/httptreemux",
@@ -87,17 +89,32 @@ func (suite *Iteration3ASuite) SetupSuite() {
 		"gobuffalo.io",
 		"rest-layer.io",
 	}
+
+	// список запрещенных фреймворков
+	suite.restrictedFrameworks = []string{
+		"github.com/valyala/fasthttp",
+		"github.com/fasthttp/router",
+	}
 }
 
-// TestFrameworkUsage attempts to recursively find usage of known HTTP frameworks in given sources
-func (suite *Iteration3ASuite) TestHTTPFrameworkUsage() {
-	err := usesKnownPackage(suite.T(), flagTargetSourcePath, suite.knownFrameworks)
-	if errors.Is(err, errUsageFound) {
+// TestFrameworkUsage пробует рекурсивно найти хотя бы одно использование известных фреймворков в директории с исходным кодом проекта
+func (suite *Iteration3ASuite) TestFrameworkUsage() {
+	// проверяем наличие запрещенных фреймворков
+	err := usesKnownPackage(suite.T(), flagTargetSourcePath, suite.restrictedFrameworks)
+	if err == nil {
+		suite.T().Errorf("Найдено использование одного из не рекомендуемых фреймворков по пути %s: %s",
+			flagTargetSourcePath, suite.restrictedFrameworks)
 		return
 	}
-	if err == nil || errors.Is(err, errUsageNotFound) {
-		suite.T().Errorf("Не найдено использование хотя бы одного известного HTTP фреймворка по пути %q", flagTargetSourcePath)
+
+	// проверяем наличие известных фреймворков
+	err = usesKnownPackage(suite.T(), flagTargetSourcePath, suite.knownFrameworks)
+	if err == nil {
 		return
 	}
-	suite.T().Errorf("Неожиданная ошибка при поиске использования фреймворка по пути %q, %v", flagTargetSourcePath, err)
+	if errors.Is(err, errUsageNotFound) {
+		suite.T().Errorf("Не найдено использование хотя бы одного известного HTTP фреймворка по пути %s", flagTargetSourcePath)
+		return
+	}
+	suite.T().Errorf("Неожиданная ошибка при поиске использования фреймворка по пути %s: %s", flagTargetSourcePath, err)
 }

@@ -22,11 +22,12 @@ type Iteration1Suite struct {
 }
 
 func (suite *Iteration1Suite) SetupSuite() {
-	// check required flags
+	// Проверяем необходимые флаги
 	suite.Require().NotEmpty(flagServerBinaryPath, "-binary-path non-empty flag required")
 
 	suite.serverAddress = "http://localhost:8080"
 
+	// Для обеспечения обратной совместимости с будущими заданиями
 	envs := append(os.Environ(), []string{
 		"RESTORE=false",
 	}...)
@@ -71,7 +72,6 @@ func (suite *Iteration1Suite) TearDownSuite() {
 		suite.T().Logf("Процесс завершился с не нулевым статусом %d", exitCode)
 	}
 
-	// try to read stdout/stderr
 	ctx, cancel := context.WithTimeout(context.Background(), 500*time.Millisecond)
 	defer cancel()
 
@@ -85,26 +85,20 @@ func (suite *Iteration1Suite) TearDownSuite() {
 	}
 }
 
-// TestHandlers проверяет
-// сервер успешно стартует и открывет tcp порт 8080 на 127.0.0.1
-// обработку POST запросов вида: ?id=<ID>&value=<VALUE>&type=<gauge|counter>
-// а так же негативкейсы, запросы в которых отсутствуют id, value и задан не корректный type
-func (suite *Iteration1Suite) TestGaugeHandlers() {
-	// create HTTP client without redirects support
-	errRedirectBlocked := errors.New("HTTP redirect blocked")
-	redirPolicy := resty.RedirectPolicyFunc(func(_ *http.Request, _ []*http.Request) error {
-		return errRedirectBlocked
-	})
+// TestHandlers имеет следующую схему работы для каждого типа метрики (gauge и counter):
+// - формирует корректный запрос на обновление значения и ожидает http.StatusOK
+// - формирует не корректный запрос без id-метрики и ожидает http.StatusNotFound
+// - формирует не корректный запрос с value и ожидает http.StatusBadRequest
 
-	httpc := resty.New().
-		SetHostURL(suite.serverAddress).
-		SetRedirectPolicy(redirPolicy)
+func (suite *Iteration1Suite) TestGaugeHandlers() {
+	httpc := resty.New().SetHostURL(suite.serverAddress)
 
 	suite.Run("update", func() {
 		req := httpc.R()
 		resp, err := req.Post("update/gauge/testGauge/100")
 
-		noRespErr := suite.Assert().NoError(err, "Ошибка при попытке сделать запрос с обновлением gauge")
+		noRespErr := suite.Assert().NoError(err,
+			"Ошибка при попытке сделать запрос с обновлением gauge")
 
 		validStatus := suite.Assert().Equalf(http.StatusOK, resp.StatusCode(),
 			"Несоответствие статус кода ответа ожидаемому в хендлере '%s %s'", req.Method, req.URL)
@@ -119,7 +113,8 @@ func (suite *Iteration1Suite) TestGaugeHandlers() {
 		req := httpc.R()
 		resp, err := req.Post("update/gauge/")
 
-		noRespErr := suite.Assert().NoError(err, "Ошибка при попытке сделать запрос с обновлением gauge")
+		noRespErr := suite.Assert().NoError(err,
+			"Ошибка при попытке сделать запрос с обновлением gauge")
 
 		validStatus := suite.Assert().Equalf(http.StatusNotFound, resp.StatusCode(),
 			"Несоответствие статус кода ответа ожидаемому в хендлере '%s %s'", req.Method, req.URL)
@@ -134,7 +129,8 @@ func (suite *Iteration1Suite) TestGaugeHandlers() {
 		req := httpc.R()
 		resp, err := req.Post("update/gauge/testGauge/none")
 
-		noRespErr := suite.Assert().NoError(err, "Ошибка при попытке сделать запрос с обновлением gauge")
+		noRespErr := suite.Assert().NoError(err,
+			"Ошибка при попытке сделать запрос с обновлением gauge")
 
 		validStatus := suite.Assert().Equalf(http.StatusBadRequest, resp.StatusCode(),
 			"Несоответствие статус кода ответа ожидаемому в хендлере '%s %s'", req.Method, req.URL)
@@ -147,21 +143,14 @@ func (suite *Iteration1Suite) TestGaugeHandlers() {
 }
 
 func (suite *Iteration1Suite) TestCounterHandlers() {
-	// create HTTP client without redirects support
-	errRedirectBlocked := errors.New("HTTP redirect blocked")
-	redirPolicy := resty.RedirectPolicyFunc(func(_ *http.Request, _ []*http.Request) error {
-		return errRedirectBlocked
-	})
-
-	httpc := resty.New().
-		SetHostURL(suite.serverAddress).
-		SetRedirectPolicy(redirPolicy)
+	httpc := resty.New().SetHostURL(suite.serverAddress)
 
 	suite.Run("update", func() {
 		req := httpc.R()
 		resp, err := req.Post("update/counter/testCounter/100")
 
-		noRespErr := suite.Assert().NoError(err, "Ошибка при попытке сделать запрос с обновлением counter")
+		noRespErr := suite.Assert().NoError(err,
+			"Ошибка при попытке сделать запрос с обновлением counter")
 
 		validStatus := suite.Assert().Equalf(http.StatusOK, resp.StatusCode(),
 			"Несоответствие статус кода ответа ожидаемому в хендлере '%s %s'", req.Method, req.URL)
@@ -176,7 +165,8 @@ func (suite *Iteration1Suite) TestCounterHandlers() {
 		req := httpc.R()
 		resp, err := req.Post("update/counter/")
 
-		noRespErr := suite.Assert().NoError(err, "Ошибка при попытке сделать запрос с обновлением counter")
+		noRespErr := suite.Assert().NoError(err,
+			"Ошибка при попытке сделать запрос с обновлением counter")
 
 		validStatus := suite.Assert().Equalf(http.StatusNotFound, resp.StatusCode(),
 			"Несоответствие статус кода ответа ожидаемому в хендлере '%s %s'", req.Method, req.URL)
@@ -191,7 +181,8 @@ func (suite *Iteration1Suite) TestCounterHandlers() {
 		req := httpc.R()
 		resp, err := req.Post("update/counter/testCounter/none")
 
-		noRespErr := suite.Assert().NoError(err, "Ошибка при попытке сделать запрос с обновлением counter")
+		noRespErr := suite.Assert().NoError(err,
+			"Ошибка при попытке сделать запрос с обновлением counter")
 
 		validStatus := suite.Assert().Equalf(http.StatusBadRequest, resp.StatusCode(),
 			"Несоответствие статус кода ответа ожидаемому в хендлере '%s %s'", req.Method, req.URL)
@@ -204,20 +195,14 @@ func (suite *Iteration1Suite) TestCounterHandlers() {
 }
 
 func (suite *Iteration1Suite) TestUnknownHandlers() {
-	errRedirectBlocked := errors.New("HTTP redirect blocked")
-	redirPolicy := resty.RedirectPolicyFunc(func(_ *http.Request, _ []*http.Request) error {
-		return errRedirectBlocked
-	})
-
-	httpc := resty.New().
-		SetHostURL(suite.serverAddress).
-		SetRedirectPolicy(redirPolicy)
+	httpc := resty.New().SetHostURL(suite.serverAddress)
 
 	suite.Run("update invalid type", func() {
 		req := httpc.R()
 		resp, err := req.Post("update/unknown/testCounter/100")
 
-		noRespErr := suite.Assert().NoError(err, "Ошибка при попытке сделать запрос с не корректным типом метрики")
+		noRespErr := suite.Assert().NoError(err,
+			"Ошибка при попытке сделать запрос с не корректным типом метрики")
 
 		validStatus := suite.Assert().Equalf(http.StatusNotImplemented, resp.StatusCode(),
 			"Несоответствие статус кода ответа ожидаемому в хендлере '%s %s'", req.Method, req.URL)
@@ -232,7 +217,8 @@ func (suite *Iteration1Suite) TestUnknownHandlers() {
 		req := httpc.R()
 		resp, err := req.Post("updater/counter/testCounter/100")
 
-		noRespErr := suite.Assert().NoError(err, "Ошибка при попытке сделать запрос с не корректным типом метрики")
+		noRespErr := suite.Assert().NoError(err,
+			"Ошибка при попытке сделать запрос с не корректным типом метрики")
 
 		validStatus := suite.Assert().Equalf(http.StatusNotFound, resp.StatusCode(),
 			"Несоответствие статус кода ответа ожидаемому в хендлере '%s %s'", req.Method, req.URL)

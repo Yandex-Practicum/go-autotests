@@ -26,11 +26,11 @@ type Iteration3BSuite struct {
 }
 
 func (suite *Iteration3BSuite) SetupSuite() {
-	// check required flags
 	suite.Require().NotEmpty(flagServerBinaryPath, "-binary-path non-empty flag required")
 
 	suite.serverAddress = "http://localhost:8080"
 
+	// Для обеспечения обратной совместимости с будущими заданиями
 	envs := append(os.Environ(), []string{
 		"RESTORE=false",
 	}...)
@@ -75,7 +75,6 @@ func (suite *Iteration3BSuite) TearDownSuite() {
 		suite.T().Logf("Процесс завершился с не нулевым статусом %d", exitCode)
 	}
 
-	// try to read stdout/stderr
 	ctx, cancel := context.WithTimeout(context.Background(), 500*time.Millisecond)
 	defer cancel()
 
@@ -90,28 +89,21 @@ func (suite *Iteration3BSuite) TearDownSuite() {
 }
 
 func (suite *Iteration3BSuite) TestGauge() {
-	// create HTTP client without redirects support
-	errRedirectBlocked := errors.New("HTTP redirect blocked")
-	redirPolicy := resty.RedirectPolicyFunc(func(_ *http.Request, _ []*http.Request) error {
-		return errRedirectBlocked
-	})
-
 	httpc := resty.NewWithClient(&http.Client{
 		Transport: &http.Transport{
 			DisableCompression: true,
 		},
-	}).
-		SetHostURL(suite.serverAddress).
-		SetRedirectPolicy(redirPolicy)
+	}).SetHostURL(suite.serverAddress)
 
 	count := 3
 	suite.Run("update sequence", func() {
 		id := strconv.Itoa(rand.Intn(256))
 		req := httpc.R()
 		for i := 0; i < count; i++ {
-			v := strings.TrimRight(fmt.Sprintf("%.3f", rand.Float64()*1000000), "0")
+			v := strings.TrimRight(strings.TrimRight(fmt.Sprintf("%.3f", rand.Float64()*1000000), "0"), ".")
 			resp, err := req.Post("update/gauge/testSetGet" + id + "/" + v)
-			noRespErr := suite.Assert().NoError(err, "Ошибка при попытке сделать запрос с обновлением gauge")
+			noRespErr := suite.Assert().NoError(err,
+				"Ошибка при попытке сделать запрос с обновлением gauge")
 
 			validStatus := suite.Assert().Equalf(http.StatusOK, resp.StatusCode(),
 				"Несоответствие статус кода ответа ожидаемому в хендлере '%s %s'", req.Method, req.URL)
@@ -122,10 +114,10 @@ func (suite *Iteration3BSuite) TestGauge() {
 			}
 
 			resp, err = req.Get("value/gauge/testSetGet" + id)
-			noRespErr = suite.Assert().NoError(err, "Ошибка при попытке сделать запрос для получения значения gauge")
+			noRespErr = suite.Assert().NoError(err,
+				"Ошибка при попытке сделать запрос для получения значения gauge")
 			validStatus = suite.Assert().Equalf(http.StatusOK, resp.StatusCode(),
 				"Несоответствие статус кода ответа ожидаемому в хендлере '%s %s'", req.Method, req.URL)
-
 			equality := suite.Assert().Equalf(v, resp.String(),
 				"Несоответствие отправленного значения gauge (%s) полученному от сервера (%s), '%s %s'", v, resp.String(), req.Method, req.URL)
 
@@ -140,7 +132,8 @@ func (suite *Iteration3BSuite) TestGauge() {
 		id := strconv.Itoa(rand.Intn(256))
 		req := httpc.R()
 		resp, err := req.Get("value/gauge/testUnknown" + id)
-		noRespErr := suite.Assert().NoError(err, "Ошибка при попытке сделать запрос для получения значения gauge")
+		noRespErr := suite.Assert().NoError(err,
+			"Ошибка при попытке сделать запрос для получения значения gauge")
 		validStatus := suite.Assert().Equalf(http.StatusNotFound, resp.StatusCode(),
 			"Несоответствие статус кода ответа ожидаемому в хендлере '%s %s'", req.Method, req.URL)
 
@@ -152,27 +145,19 @@ func (suite *Iteration3BSuite) TestGauge() {
 }
 
 func (suite *Iteration3BSuite) TestCounter() {
-	// create HTTP client without redirects support
-	errRedirectBlocked := errors.New("HTTP redirect blocked")
-	redirPolicy := resty.RedirectPolicyFunc(func(_ *http.Request, _ []*http.Request) error {
-		return errRedirectBlocked
-	})
-
 	httpc := resty.NewWithClient(&http.Client{
 		Transport: &http.Transport{
 			DisableCompression: true,
 		},
-	}).
-		SetHostURL(suite.serverAddress).
-		SetRedirectPolicy(redirPolicy)
+	}).SetHostURL(suite.serverAddress)
 
 	count := 3
-
 	suite.Run("update sequence", func() {
 		req := httpc.R()
 		id := strconv.Itoa(rand.Intn(256))
 		resp, err := req.Get("value/counter/testSetGet" + id)
-		noRespErr := suite.Assert().NoError(err, "Ошибка при попытке сделать запрос для получения значения counter")
+		noRespErr := suite.Assert().NoError(err,
+			"Ошибка при попытке сделать запрос для получения значения counter")
 
 		if !noRespErr {
 			dump := dumpRequest(req.RawRequest, true)
@@ -187,7 +172,8 @@ func (suite *Iteration3BSuite) TestCounter() {
 			a += int64(v)
 			resp, err = req.Post("update/counter/testSetGet" + id + "/" + strconv.Itoa(v))
 
-			noRespErr := suite.Assert().NoError(err, "Ошибка при попытке сделать запрос для обновления значения counter")
+			noRespErr := suite.Assert().NoError(err,
+				"Ошибка при попытке сделать запрос для обновления значения counter")
 			validStatus := suite.Assert().Equalf(http.StatusOK, resp.StatusCode(),
 				"Несоответствие статус кода ответа ожидаемому в хендлере '%s %s'", req.Method, req.URL)
 
@@ -198,10 +184,10 @@ func (suite *Iteration3BSuite) TestCounter() {
 			}
 
 			resp, err := req.Get("value/counter/testSetGet" + id)
-			noRespErr = suite.Assert().NoError(err, "Ошибка при попытке сделать запрос для получения значения counter")
+			noRespErr = suite.Assert().NoError(err,
+				"Ошибка при попытке сделать запрос для получения значения counter")
 			validStatus = suite.Assert().Equalf(http.StatusOK, resp.StatusCode(),
 				"Несоответствие статус кода ответа ожидаемому в хендлере '%s %s'", req.Method, req.URL)
-
 			equality := suite.Assert().Equalf(fmt.Sprintf("%d", a), resp.String(),
 				"Несоответствие отправленного значения counter (%d) полученному от сервера (%s), '%s %s'", a, resp.String(), req.Method, req.URL)
 
