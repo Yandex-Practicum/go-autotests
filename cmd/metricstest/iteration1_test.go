@@ -86,7 +86,7 @@ func (suite *Iteration1Suite) TearDownSuite() {
 }
 
 // TestHandlers имеет следующую схему работы для каждого типа метрики (gauge и counter):
-// - формирует корректный запрос на обновление знаяения и ожидает http.StatusOK
+// - формирует корректный запрос на обновление значения и ожидает http.StatusOK
 // - формирует не корректный запрос без id-метрики и ожидает http.StatusNotFound
 // - формирует не корректный запрос с value и ожидает http.StatusBadRequest
 

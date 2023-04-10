@@ -36,11 +36,11 @@ func (suite *Iteration5Suite) SetupSuite() {
 
 	envs := append(os.Environ(), []string{
 		"ADDRESS=localhost:" + flagServerPort,
-		"REPORT_INTERVAL=10",
-		"POLL_INTERVAL=2",
+		"REPORT_INTERVAL=5",
+		"POLL_INTERVAL=1",
 
+		// Для обеспечения обратной совместимости с будущими заданиями
 		"RESTORE=false",
-		"SHUTDOWN_TIMEOUT=5",
 	}...)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
