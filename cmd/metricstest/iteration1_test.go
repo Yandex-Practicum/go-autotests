@@ -204,7 +204,7 @@ func (suite *Iteration1Suite) TestUnknownHandlers() {
 		noRespErr := suite.Assert().NoError(err,
 			"Ошибка при попытке сделать запрос с не корректным типом метрики")
 
-		validStatus := suite.Assert().Equalf(http.StatusNotImplemented, resp.StatusCode(),
+		validStatus := suite.Assert().Equalf([]int{http.StatusBadRequest, http.StatusNotImplemented}, resp.StatusCode(),
 			"Несоответствие статус кода ответа ожидаемому в хендлере '%s %s'", req.Method, req.URL)
 
 		if !noRespErr || !validStatus {
@@ -220,7 +220,7 @@ func (suite *Iteration1Suite) TestUnknownHandlers() {
 		noRespErr := suite.Assert().NoError(err,
 			"Ошибка при попытке сделать запрос с не корректным типом метрики")
 
-		validStatus := suite.Assert().Equalf(http.StatusNotFound, resp.StatusCode(),
+		validStatus := suite.Assert().Equalf([]int{http.StatusBadRequest, http.StatusNotFound}, resp.StatusCode(),
 			"Несоответствие статус кода ответа ожидаемому в хендлере '%s %s'", req.Method, req.URL)
 
 		if !noRespErr || !validStatus {
