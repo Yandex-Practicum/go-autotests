@@ -80,7 +80,7 @@ func usesKnownPackage(t *testing.T, rootdir string, knownPackages []string) erro
 	return err
 }
 
-// importsKnownPackage зовращает import запись первого найденного импорта из списка knownPackages в файле filepath
+// importsKnownPackage возвращает import запись первого найденного импорта из списка knownPackages в файле filepath
 func importsKnownPackage(t *testing.T, filepath string, knownPackages []string) (*ast.ImportSpec, error) {
 	t.Helper()
 
