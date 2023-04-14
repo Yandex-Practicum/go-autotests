@@ -176,7 +176,7 @@ func (suite *Iteration12Suite) TestBatchAPI() {
 		return errRedirectBlocked
 	})
 	httpc := resty.New().
-		SetHostURL(suite.serverAddress).
+		SetBaseURL(suite.serverAddress).
 		SetRedirectPolicy(redirPolicy)
 
 	idCounter := "CounterBatchZip" + strconv.Itoa(suite.rnd.Intn(256))
@@ -224,23 +224,24 @@ func (suite *Iteration12Suite) TestBatchAPI() {
 	})
 
 	suite.Run("batch update random metrics", func() {
+		var result []Metrics
 		metrics := []Metrics{
-			Metrics{
+			{
 				ID:    idCounter,
 				MType: "counter",
 				Delta: &valueCounter1,
 			},
-			Metrics{
+			{
 				ID:    idGauge,
 				MType: "gauge",
 				Value: &valueGauge1,
 			},
-			Metrics{
+			{
 				ID:    idCounter,
 				MType: "counter",
 				Delta: &valueCounter2,
 			},
-			Metrics{
+			{
 				ID:    idGauge,
 				MType: "gauge",
 				Value: &valueGauge2,
@@ -248,6 +249,7 @@ func (suite *Iteration12Suite) TestBatchAPI() {
 		}
 
 		resp, err := suite.SetHBody(req, metrics).
+			SetResult(&result).
 			Post("updates/")
 
 		dumpErr := suite.Assert().NoError(err, "Ошибка при попытке сделать запрос с обновлением списка метрик")
