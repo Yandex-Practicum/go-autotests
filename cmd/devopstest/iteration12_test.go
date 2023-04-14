@@ -206,6 +206,8 @@ func (suite *Iteration12Suite) TestBatchAPI() {
 				"Несоответствие статус кода ответа ожидаемому в хендлере %q: %q ", req.Method, req.URL)
 			dumpErr = dumpErr && suite.Assert().Containsf(resp.Header().Get("Content-Type"), "application/json",
 				"Заголовок ответа Content-Type содержит несоответствующее значение")
+			dumpErr = dumpErr && suite.Assert().Containsf(resp.Header().Get("Content-Encoding"), "gzip",
+				"Заголовок ответа Content-Encoding содержит несоответствующее значение")
 			dumpErr = dumpErr && suite.NotNil(result.Delta,
 				"Получено не инициализированное значение Delta '%q %s'", req.Method, req.URL)
 			valueCounter0 = *result.Delta
@@ -255,6 +257,10 @@ func (suite *Iteration12Suite) TestBatchAPI() {
 		dumpErr := suite.Assert().NoError(err, "Ошибка при попытке сделать запрос с обновлением списка метрик")
 		dumpErr = dumpErr && suite.Assert().Equalf(http.StatusOK, resp.StatusCode(),
 			"Несоответствие статус кода ответа ожидаемому в хендлере %q: %q ", req.Method, req.URL)
+		dumpErr = dumpErr && suite.Assert().Containsf(resp.Header().Get("Content-Type"), "application/json",
+			"Заголовок ответа Content-Type содержит несоответствующее значение")
+		dumpErr = dumpErr && suite.Assert().Containsf(resp.Header().Get("Content-Encoding"), "gzip",
+			"Заголовок ответа Content-Encoding содержит несоответствующее значение")
 
 		if !dumpErr {
 			dump := dumpRequest(req.RawRequest, true)
