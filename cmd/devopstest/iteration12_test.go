@@ -176,7 +176,7 @@ func (suite *Iteration12Suite) TestBatchAPI() {
 		return errRedirectBlocked
 	})
 	httpc := resty.New().
-		SetHostURL(suite.serverAddress).
+		SetBaseURL(suite.serverAddress).
 		SetRedirectPolicy(redirPolicy)
 
 	idCounter := "CounterBatchZip" + strconv.Itoa(suite.rnd.Intn(256))
@@ -206,6 +206,8 @@ func (suite *Iteration12Suite) TestBatchAPI() {
 				"Несоответствие статус кода ответа ожидаемому в хендлере %q: %q ", req.Method, req.URL)
 			dumpErr = dumpErr && suite.Assert().Containsf(resp.Header().Get("Content-Type"), "application/json",
 				"Заголовок ответа Content-Type содержит несоответствующее значение")
+			dumpErr = dumpErr && suite.Assert().Containsf(resp.Header().Get("Content-Encoding"), "gzip",
+				"Заголовок ответа Content-Encoding содержит несоответствующее значение")
 			dumpErr = dumpErr && suite.NotNil(result.Delta,
 				"Получено не инициализированное значение Delta '%q %s'", req.Method, req.URL)
 			valueCounter0 = *result.Delta
@@ -224,23 +226,24 @@ func (suite *Iteration12Suite) TestBatchAPI() {
 	})
 
 	suite.Run("batch update random metrics", func() {
+		var result []Metrics
 		metrics := []Metrics{
-			Metrics{
+			{
 				ID:    idCounter,
 				MType: "counter",
 				Delta: &valueCounter1,
 			},
-			Metrics{
+			{
 				ID:    idGauge,
 				MType: "gauge",
 				Value: &valueGauge1,
 			},
-			Metrics{
+			{
 				ID:    idCounter,
 				MType: "counter",
 				Delta: &valueCounter2,
 			},
-			Metrics{
+			{
 				ID:    idGauge,
 				MType: "gauge",
 				Value: &valueGauge2,
@@ -248,11 +251,16 @@ func (suite *Iteration12Suite) TestBatchAPI() {
 		}
 
 		resp, err := suite.SetHBody(req, metrics).
+			SetResult(&result).
 			Post("updates/")
 
 		dumpErr := suite.Assert().NoError(err, "Ошибка при попытке сделать запрос с обновлением списка метрик")
 		dumpErr = dumpErr && suite.Assert().Equalf(http.StatusOK, resp.StatusCode(),
 			"Несоответствие статус кода ответа ожидаемому в хендлере %q: %q ", req.Method, req.URL)
+		dumpErr = dumpErr && suite.Assert().Containsf(resp.Header().Get("Content-Type"), "application/json",
+			"Заголовок ответа Content-Type содержит несоответствующее значение")
+		dumpErr = dumpErr && suite.Assert().Containsf(resp.Header().Get("Content-Encoding"), "gzip",
+			"Заголовок ответа Content-Encoding содержит несоответствующее значение")
 
 		if !dumpErr {
 			dump := dumpRequest(req.RawRequest, true)
