@@ -125,7 +125,7 @@ func (suite *Iteration7Suite) TestJSONHandler() {
 
 	// создаем HTTP клиент и подключаем к нему политику редиректов
 	httpc := resty.New().
-		SetHostURL(suite.serverAddress).
+		SetBaseURL(suite.serverAddress).
 		SetRedirectPolicy(redirPolicy)
 
 	// генерируем URL

@@ -100,7 +100,7 @@ func (suite *Iteration8Suite) TestGzipCompress() {
 	})
 
 	httpc := resty.New().
-		SetHostURL(suite.serverAddress).
+		SetBaseURL(suite.serverAddress).
 		SetRedirectPolicy(redirPolicy)
 
 	suite.Run("shorten", func() {

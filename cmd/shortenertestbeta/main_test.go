@@ -55,6 +55,36 @@ func TestIteration8(t *testing.T) {
 }
 
 func TestIteration9(t *testing.T) {
-	// Запускает тест-сьют для восьмой итерации
+	// Запускает тест-сьют для девятой итерации
 	suite.Run(t, new(Iteration9Suite))
+}
+
+func TestIteration10(t *testing.T) {
+	// Запускает тест-сьют для десятой итерации
+	suite.Run(t, new(Iteration10Suite))
+}
+
+func TestIteration11(t *testing.T) {
+	// Запускает тест-сьют для одиннадцатой итерации
+	suite.Run(t, new(Iteration11Suite))
+}
+
+func TestIteration12(t *testing.T) {
+	// Запускает тест-сьют для двенадцатой итерации
+	suite.Run(t, new(Iteration12Suite))
+}
+
+func TestIteration13(t *testing.T) {
+	// Запускает тест-сьют для тринадцатой итерации
+	suite.Run(t, new(Iteration13Suite))
+}
+
+func TestIteration14(t *testing.T) {
+	// Запускает тест-сьют для четырнадцатой итерации
+	suite.Run(t, new(Iteration14Suite))
+}
+
+func TestIteration15(t *testing.T) {
+	// Запускает тест-сьют для пятнадцатой итерации
+	suite.Run(t, new(Iteration15Suite))
 }

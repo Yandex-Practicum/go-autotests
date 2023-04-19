@@ -80,7 +80,7 @@ func (suite *Iteration9Suite) TestPersistentFile() {
 	})
 
 	httpc := resty.New().
-		SetHostURL(suite.serverAddress).
+		SetBaseURL(suite.serverAddress).
 		SetRedirectPolicy(redirPolicy)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
