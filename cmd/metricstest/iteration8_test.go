@@ -22,7 +22,6 @@ type Iteration8Suite struct {
 	suite.Suite
 
 	serverAddress string
-	serverPort    string
 	serverProcess *fork.BackgroundProcess
 	agentProcess  *fork.BackgroundProcess
 
@@ -38,10 +37,10 @@ func (suite *Iteration8Suite) SetupSuite() {
 
 	suite.rnd = rand.New(rand.NewSource(int64(time.Now().Nanosecond())))
 	suite.serverAddress = "http://localhost:" + flagServerPort
-	suite.serverPort = flagServerPort
 
 	// Для обеспечения обратной совместимости с будущими заданиями
 	suite.envs = append(os.Environ(), []string{
+		"ADDRESS=localhost:" + flagServerPort,
 		"RESTORE=true",
 	}...)
 
