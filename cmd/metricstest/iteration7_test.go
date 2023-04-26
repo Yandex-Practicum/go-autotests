@@ -33,7 +33,6 @@ type Metrics struct {
 	MType string   `json:"type"`            // Параметр кодирую строкой, принося производительность в угоду наглядности.
 	Delta *int64   `json:"delta,omitempty"` // counter
 	Value *float64 `json:"value,omitempty"` // gauge
-	Hash  string   `json:"hash,omitempty"`  // counter
 }
 
 func (suite *Iteration7Suite) SetupSuite() {
@@ -322,13 +321,7 @@ func (suite *Iteration7Suite) TestGaugeHandlers() {
 }
 
 func (suite *Iteration7Suite) TestCollectAgentMetrics() {
-	errRedirectBlocked := errors.New("HTTP redirect blocked")
-	redirPolicy := resty.RedirectPolicyFunc(func(_ *http.Request, _ []*http.Request) error {
-		return errRedirectBlocked
-	})
-	httpc := resty.New().
-		SetHostURL(suite.serverAddress).
-		SetRedirectPolicy(redirPolicy)
+	httpc := resty.New().SetHostURL(suite.serverAddress)
 
 	tests := []struct {
 		name   string

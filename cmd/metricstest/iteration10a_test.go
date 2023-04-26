@@ -21,42 +21,30 @@ type Iteration10ASuite struct {
 	serverAddress  string
 	serverPort     string
 	serverProcess  *fork.BackgroundProcess
-	serverArgs     []string
 	knownLibraries []string
 
-	rnd  *rand.Rand
-	envs []string
-	key  []byte
+	rnd *rand.Rand
 }
 
 func (suite *Iteration10ASuite) SetupSuite() {
-	// check required flags
 	suite.Require().NotEmpty(flagTargetSourcePath, "-source-path non-empty flag required")
 	suite.Require().NotEmpty(flagServerBinaryPath, "-binary-path non-empty flag required")
 	suite.Require().NotEmpty(flagAgentBinaryPath, "-agent-binary-path non-empty flag required")
 	suite.Require().NotEmpty(flagServerPort, "-server-port non-empty flag required")
-	suite.Require().NotEmpty(flagSHA256Key, "-key non-empty flag required")
 	suite.Require().NotEmpty(flagDatabaseDSN, "-database-dsn non-empty flag required")
 
 	suite.rnd = rand.New(rand.NewSource(int64(time.Now().Nanosecond())))
 	suite.serverAddress = "http://localhost:" + flagServerPort
 	suite.serverPort = flagServerPort
 
-	suite.key = []byte(flagSHA256Key)
-
-	suite.envs = append(os.Environ(), []string{
+	envs := append(os.Environ(), []string{
+		"ADDRESS=localhost:" + flagServerPort,
 		"RESTORE=true",
-		// "KEY=" + flagSHA256Key,
+		"STORE_INTERVAL=10s",
+		"DATABASE_DSN=" + flagDatabaseDSN,
 	}...)
 
-	suite.serverArgs = []string{
-		"-a=localhost:" + flagServerPort,
-		// "-s=5s",
-		"-r=false",
-		"-i=5m",
-		"-k=" + flagSHA256Key,
-		"-d=" + flagDatabaseDSN,
-	}
+	serverArgs := []string{}
 
 	suite.knownLibraries = []string{
 		"database/sql",
@@ -67,7 +55,7 @@ func (suite *Iteration10ASuite) SetupSuite() {
 
 	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 	defer cancel()
-	suite.serverUp(ctx, suite.envs, suite.serverArgs, flagServerPort)
+	suite.serverUp(ctx, envs, serverArgs, flagServerPort)
 }
 
 func (suite *Iteration10ASuite) serverUp(ctx context.Context, envs, args []string, port string) {
@@ -112,7 +100,6 @@ func (suite *Iteration10ASuite) serverShutdown() {
 		suite.T().Logf("Процесс завершился с не нулевым статусом %d", exitCode)
 	}
 
-	// try to read stdout/stderr
 	ctx, cancel := context.WithTimeout(context.Background(), 500*time.Millisecond)
 	defer cancel()
 
@@ -126,8 +113,8 @@ func (suite *Iteration10ASuite) serverShutdown() {
 	}
 }
 
-// TestLibraryUsage attempts to recursively find usage of database/sql in given sources
-func (suite *Iteration10ASuite) TestDBLibraryUsage() {
+// TestLibraryUsage пробует рекурсивно найти использование database/sql хотя бы в одном файле с исходным кодом проекта
+func (suite *Iteration10ASuite) TestLibraryUsage() {
 	err := usesKnownPackage(suite.T(), flagTargetSourcePath, suite.knownLibraries)
 	if errors.Is(err, errUsageFound) {
 		return
@@ -139,13 +126,15 @@ func (suite *Iteration10ASuite) TestDBLibraryUsage() {
 	suite.T().Errorf("Неожиданная ошибка при поиске использования библиотеки по пути %q, %v", flagTargetSourcePath, err)
 }
 
-// TestPingHandler attempts to call for ping handler and check positive result
+// TestPingHandler пробует вызвать хендлер /ping и получить положительный ответ
 func (suite *Iteration10ASuite) TestPingHandler() {
 	httpc := resty.New().
-		SetHostURL(suite.serverAddress)
+		SetBaseURL(suite.serverAddress)
 
+	// будет пробовать получить ответ раз в секунду
 	ticker := time.NewTicker(time.Second)
 
+	// будем дожидаться результата в течении 10 секунд
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
@@ -155,7 +144,13 @@ func (suite *Iteration10ASuite) TestPingHandler() {
 			suite.T().Error("Не удалось получить код ответа 200 от хендлера 'GET /ping' за отведенное время")
 			return
 		case <-ticker.C:
-			resp, _ := httpc.R().Get("/ping")
+			// ожидаем ответа секунду
+			rctx, rcancel := context.WithTimeout(context.Background(), time.Second)
+			defer rcancel()
+
+			resp, _ := httpc.R().
+				SetContext(rctx).
+				Get("/ping")
 			if resp != nil && resp.StatusCode() == http.StatusOK {
 				return
 			}

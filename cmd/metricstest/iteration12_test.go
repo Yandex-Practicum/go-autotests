@@ -3,11 +3,8 @@ package main
 // Basic imports
 import (
 	"context"
-	"crypto/hmac"
-	"crypto/sha256"
 	"database/sql"
 	"errors"
-	"fmt"
 	"math/rand"
 	"net/http"
 	"os"
@@ -26,60 +23,40 @@ import (
 type Iteration12Suite struct {
 	suite.Suite
 
-	serverAddress  string
-	serverPort     string
-	serverProcess  *fork.BackgroundProcess
-	serverArgs     []string
-	knownLibraries []string
+	serverAddress string
+	serverPort    string
+	serverProcess *fork.BackgroundProcess
 
-	rnd  *rand.Rand
-	envs []string
-	key  []byte
+	rnd *rand.Rand
 
 	dbconn *sql.DB
 }
 
 func (suite *Iteration12Suite) SetupSuite() {
-	// check required flags
 	suite.Require().NotEmpty(flagTargetSourcePath, "-source-path non-empty flag required")
 	suite.Require().NotEmpty(flagServerBinaryPath, "-binary-path non-empty flag required")
 	suite.Require().NotEmpty(flagAgentBinaryPath, "-agent-binary-path non-empty flag required")
 	suite.Require().NotEmpty(flagServerPort, "-server-port non-empty flag required")
 	suite.Require().NotEmpty(flagDatabaseDSN, "-database-dsn non-empty flag required")
-	suite.Require().NotEmpty(flagSHA256Key, "-key non-empty flag required")
 
 	suite.rnd = rand.New(rand.NewSource(int64(time.Now().Nanosecond())))
 	suite.serverAddress = "http://localhost:" + flagServerPort
 	suite.serverPort = flagServerPort
 
-	suite.key = []byte(flagSHA256Key)
-
-	suite.envs = append(os.Environ(), []string{
+	envs := append(os.Environ(), []string{
 		"RESTORE=true",
 		"DATABASE_DSN=" + flagDatabaseDSN,
+		"STORE_INTERVAL=1",
 	}...)
 
-	suite.serverArgs = []string{
-		"-a=localhost:" + flagServerPort,
-		// "-s=5s",
+	serverArgs := []string{
 		"-r=false",
-		"-i=5m",
-		"-k=" + flagSHA256Key,
-		"-d=" + flagDatabaseDSN,
-	}
-
-	suite.knownLibraries = []string{
-		"database/sql",
-		"github.com/jackc/pgx",
-		"github.com/lib/pq",
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 	defer cancel()
 
-	// connect to database
 	{
-		// disable prepared statements
 		driverConfig := stdlib.DriverConfig{
 			ConnConfig: pgx.ConnConfig{
 				PreferSimpleProtocol: true,
@@ -104,7 +81,7 @@ func (suite *Iteration12Suite) SetupSuite() {
 		suite.dbconn = conn
 	}
 
-	suite.serverUp(ctx, suite.envs, suite.serverArgs, flagServerPort)
+	suite.serverUp(ctx, envs, serverArgs, flagServerPort)
 }
 
 func (suite *Iteration12Suite) serverUp(ctx context.Context, envs, args []string, port string) {
@@ -149,7 +126,6 @@ func (suite *Iteration12Suite) serverShutdown() {
 		suite.T().Logf("Процесс завершился с не нулевым статусом %d", exitCode)
 	}
 
-	// try to read stdout/stderr
 	ctx, cancel := context.WithTimeout(context.Background(), 500*time.Millisecond)
 	defer cancel()
 
@@ -164,14 +140,7 @@ func (suite *Iteration12Suite) serverShutdown() {
 }
 
 func (suite *Iteration12Suite) TestBatchAPI() {
-	// create HTTP client without redirects support
-	errRedirectBlocked := errors.New("HTTP redirect blocked")
-	redirPolicy := resty.RedirectPolicyFunc(func(_ *http.Request, _ []*http.Request) error {
-		return errRedirectBlocked
-	})
-	httpc := resty.New().
-		SetHostURL(suite.serverAddress).
-		SetRedirectPolicy(redirPolicy)
+	httpc := resty.New().SetHostURL(suite.serverAddress)
 
 	idCounter := "CounterBatchZip" + strconv.Itoa(suite.rnd.Intn(256))
 	idGauge := "GaugeBatchZip" + strconv.Itoa(suite.rnd.Intn(256))
@@ -193,7 +162,8 @@ func (suite *Iteration12Suite) TestBatchAPI() {
 			SetResult(&result).
 			Post("value/")
 
-		dumpErr := suite.Assert().NoError(err, "Ошибка при попытке сделать запрос с получением значения counter")
+		dumpErr := suite.Assert().NoError(err,
+			"Ошибка при попытке сделать запрос с получением значения counter")
 		switch resp.StatusCode() {
 		case http.StatusOK:
 			dumpErr = dumpErr && suite.Assert().Equalf(http.StatusOK, resp.StatusCode(),
@@ -241,10 +211,11 @@ func (suite *Iteration12Suite) TestBatchAPI() {
 			},
 		}
 
-		resp, err := suite.SetHBody(req, metrics).
+		resp, err := req.SetBody(metrics).
 			Post("updates/")
 
-		dumpErr := suite.Assert().NoError(err, "Ошибка при попытке сделать запрос с обновлением списка метрик")
+		dumpErr := suite.Assert().NoError(err,
+			"Ошибка при попытке сделать запрос с обновлением списка метрик")
 		dumpErr = dumpErr && suite.Assert().Equalf(http.StatusOK, resp.StatusCode(),
 			"Несоответствие статус кода ответа ожидаемому в хендлере %q: %q ", req.Method, req.URL)
 
@@ -266,7 +237,8 @@ func (suite *Iteration12Suite) TestBatchAPI() {
 			SetResult(&result).
 			Post("value/")
 
-		dumpErr := suite.Assert().NoError(err, "Ошибка при попытке сделать запрос с получением значения counter")
+		dumpErr := suite.Assert().NoError(err,
+			"Ошибка при попытке сделать запрос с получением значения counter")
 		dumpErr = dumpErr && suite.Assert().Equalf(http.StatusOK, resp.StatusCode(),
 			"Несоответствие статус кода ответа ожидаемому в хендлере %q: %q ", req.Method, req.URL)
 		dumpErr = dumpErr && suite.Assert().Containsf(resp.Header().Get("Content-Type"), "application/json",
@@ -277,7 +249,6 @@ func (suite *Iteration12Suite) TestBatchAPI() {
 			"Несоответствие отправленного значения counter (r:%d+w:%d+w:%d) полученному от сервера (nil), '%q %s'", valueCounter0, valueCounter1, valueCounter2, req.Method, req.URL)
 		dumpErr = dumpErr && suite.Assert().Equalf(valueCounter0+valueCounter1+valueCounter2, *result.Delta,
 			"Несоответствие отправленного значения counter (r:%d+w:%d+w:%d) полученному от сервера (%d), '%q %s'", valueCounter0, valueCounter1, valueCounter2, *result.Delta, req.Method, req.URL)
-		dumpErr = dumpErr && suite.Equal(suite.Hash(&result), result.Hash, "Хеш-сумма не соответствует расчетной")
 
 		if !dumpErr {
 			dump := dumpRequest(req.RawRequest, true)
@@ -297,7 +268,8 @@ func (suite *Iteration12Suite) TestBatchAPI() {
 			SetResult(&result).
 			Post("value/")
 
-		dumpErr := suite.Assert().NoError(err, "Ошибка при попытке сделать запрос с получением значения gauge")
+		dumpErr := suite.Assert().NoError(err,
+			"Ошибка при попытке сделать запрос с получением значения gauge")
 		dumpErr = dumpErr && suite.Assert().Equalf(http.StatusOK, resp.StatusCode(),
 			"Несоответствие статус кода ответа ожидаемому в хендлере %q: %q ", req.Method, req.URL)
 		dumpErr = dumpErr && suite.Assert().Containsf(resp.Header().Get("Content-Type"), "application/json",
@@ -308,7 +280,6 @@ func (suite *Iteration12Suite) TestBatchAPI() {
 			"Несоответствие отправленного значения gauge (%f) полученному от сервера (nil), '%q %s'", valueGauge2, req.Method, req.URL)
 		dumpErr = dumpErr && suite.Assert().Equalf(valueGauge2, *result.Value,
 			"Несоответствие отправленного значения gauge (%f) полученному от сервера (%f), '%q %s'", valueGauge2, *result.Value, req.Method, req.URL)
-		dumpErr = dumpErr && suite.Equal(suite.Hash(&result), result.Hash, "Хеш-сумма не соответствует расчетной")
 
 		if !dumpErr {
 			dump := dumpRequest(req.RawRequest, true)
@@ -317,25 +288,4 @@ func (suite *Iteration12Suite) TestBatchAPI() {
 			suite.T().Logf("Оригинальный ответ:\n\n%s", dump)
 		}
 	})
-}
-
-func (suite *Iteration12Suite) SetHBody(r *resty.Request, l []Metrics) *resty.Request {
-	for i, m := range l {
-		hash := suite.Hash(&m)
-		l[i].Hash = hash
-	}
-	return r.SetBody(&l)
-}
-
-func (suite *Iteration12Suite) Hash(m *Metrics) string {
-	var data string
-	switch m.MType {
-	case "counter":
-		data = fmt.Sprintf("%s:%s:%d", m.ID, m.MType, *m.Delta)
-	case "gauge":
-		data = fmt.Sprintf("%s:%s:%f", m.ID, m.MType, *m.Value)
-	}
-	h := hmac.New(sha256.New, suite.key)
-	h.Write([]byte(data))
-	return fmt.Sprintf("%x", h.Sum(nil))
 }

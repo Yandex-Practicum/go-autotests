@@ -21,45 +21,36 @@ type Iteration10BSuite struct {
 	serverAddress string
 	serverPort    string
 	serverProcess *fork.BackgroundProcess
-	serverArgs    []string
 
-	rnd  *rand.Rand
-	envs []string
-	key  []byte
+	rnd *rand.Rand
 }
 
 func (suite *Iteration10BSuite) SetupSuite() {
-	// check required flags
 	suite.Require().NotEmpty(flagTargetSourcePath, "-source-path non-empty flag required")
 	suite.Require().NotEmpty(flagServerBinaryPath, "-binary-path non-empty flag required")
 	suite.Require().NotEmpty(flagAgentBinaryPath, "-agent-binary-path non-empty flag required")
 	suite.Require().NotEmpty(flagServerPort, "-server-port non-empty flag required")
-	suite.Require().NotEmpty(flagSHA256Key, "-key non-empty flag required")
 	suite.Require().NotEmpty(flagDatabaseDSN, "-database-dsn non-empty flag required")
 
 	suite.rnd = rand.New(rand.NewSource(int64(time.Now().Nanosecond())))
 	suite.serverAddress = "http://localhost:" + flagServerPort
 	suite.serverPort = flagServerPort
 
-	suite.key = []byte(flagSHA256Key)
-
-	suite.envs = append(os.Environ(), []string{
+	envs := append(os.Environ(), []string{
+		"ADDRESS=localhost:" + flagServerPort,
 		"RESTORE=true",
+		"STORE_INTERVAL=10s",
 		"DATABASE_DSN='postgres://unknown:unknown@postgres:9999/praktikum?easter_egg_msg=you_must_prefer_this_incorrect_settings_to_those_obtained_through_arguments'",
 	}...)
 
-	suite.serverArgs = []string{
-		"-a=localhost:" + flagServerPort,
-		// "-s=5s",
+	serverArgs := []string{
 		"-r=false",
-		"-i=5m",
-		"-k=" + flagSHA256Key,
-		"-d=" + flagDatabaseDSN,
+		"-d" + flagDatabaseDSN,
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 	defer cancel()
-	suite.serverUp(ctx, suite.envs, suite.serverArgs, flagServerPort)
+	suite.serverUp(ctx, envs, serverArgs, flagServerPort)
 }
 
 func (suite *Iteration10BSuite) serverUp(ctx context.Context, envs, args []string, port string) {
@@ -104,7 +95,6 @@ func (suite *Iteration10BSuite) serverShutdown() {
 		suite.T().Logf("Процесс завершился с не нулевым статусом %d", exitCode)
 	}
 
-	// try to read stdout/stderr
 	ctx, cancel := context.WithTimeout(context.Background(), 500*time.Millisecond)
 	defer cancel()
 
@@ -118,13 +108,14 @@ func (suite *Iteration10BSuite) serverShutdown() {
 	}
 }
 
-// TestPingHandler attempts to call for ping handler and check positive result
 func (suite *Iteration10BSuite) TestPingHandlerWithWrongSettings() {
 	httpc := resty.New().
-		SetHostURL(suite.serverAddress)
+		SetBaseURL(suite.serverAddress)
 
+	// будет пробовать получить ответ раз в секунду
 	ticker := time.NewTicker(time.Second)
 
+	// будем дожидаться результата в течении 10 секунд
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
@@ -133,11 +124,17 @@ func (suite *Iteration10BSuite) TestPingHandlerWithWrongSettings() {
 		case <-ctx.Done():
 			return
 		case <-ticker.C:
-			resp, _ := httpc.R().Get("/ping")
+			// ожидаем ответа секунду
+			rctx, rcancel := context.WithTimeout(context.Background(), time.Second)
+			defer rcancel()
+
+			resp, _ := httpc.R().
+				SetContext(rctx).
+				Get("/ping")
 			if resp != nil && resp.StatusCode() == http.StatusOK {
 				suite.T().Error(
-					"Хендлер вернул положительный результат при использовании заведомо неправильных параметров подключения к серверу." +
-						"(проверьте приоритет использования параметров при указании через переменные окружения)")
+					"Хендлер вернул положительный результат при использовании заведомо неправильных параметрах подключения к серверу." +
+						"(проверьте приоритет использования параметров при указании через флаги и переменные окружения)")
 				return
 			}
 		}

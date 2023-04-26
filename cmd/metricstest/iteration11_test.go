@@ -2,8 +2,6 @@ package main
 
 import (
 	"context"
-	"crypto/hmac"
-	"crypto/sha256"
 	"database/sql"
 	"errors"
 	"fmt"
@@ -25,15 +23,11 @@ import (
 type Iteration11Suite struct {
 	suite.Suite
 
-	serverAddress  string
-	serverPort     string
-	serverProcess  *fork.BackgroundProcess
-	serverArgs     []string
-	knownLibraries []string
+	serverAddress string
+	serverPort    string
+	serverProcess *fork.BackgroundProcess
 
-	rnd  *rand.Rand
-	envs []string
-	key  []byte
+	rnd *rand.Rand
 
 	dbconn *sql.DB
 }
@@ -45,40 +39,23 @@ func (suite *Iteration11Suite) SetupSuite() {
 	suite.Require().NotEmpty(flagAgentBinaryPath, "-agent-binary-path non-empty flag required")
 	suite.Require().NotEmpty(flagServerPort, "-server-port non-empty flag required")
 	suite.Require().NotEmpty(flagDatabaseDSN, "-database-dsn non-empty flag required")
-	suite.Require().NotEmpty(flagSHA256Key, "-key non-empty flag required")
 
 	suite.rnd = rand.New(rand.NewSource(int64(time.Now().Nanosecond())))
 	suite.serverAddress = "http://localhost:" + flagServerPort
 	suite.serverPort = flagServerPort
 
-	suite.key = []byte(flagSHA256Key)
-
-	suite.envs = append(os.Environ(), []string{
+	envs := append(os.Environ(), []string{
 		"RESTORE=true",
 		"DATABASE_DSN=" + flagDatabaseDSN,
+		"STORE_INTERVAL=1",
 	}...)
 
-	suite.serverArgs = []string{
-		"-a=localhost:" + flagServerPort,
-		// "-s=5s",
-		"-r=false",
-		"-i=5m",
-		"-k=" + flagSHA256Key,
-		"-d=" + flagDatabaseDSN,
-	}
-
-	suite.knownLibraries = []string{
-		"database/sql",
-		"github.com/jackc/pgx",
-		"github.com/lib/pq",
-	}
+	serverArgs := []string{}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 	defer cancel()
 
-	// connect to database
 	{
-		// disable prepared statements
 		driverConfig := stdlib.DriverConfig{
 			ConnConfig: pgx.ConnConfig{
 				PreferSimpleProtocol: true,
@@ -103,7 +80,7 @@ func (suite *Iteration11Suite) SetupSuite() {
 		suite.dbconn = conn
 	}
 
-	suite.serverUp(ctx, suite.envs, suite.serverArgs, flagServerPort)
+	suite.serverUp(ctx, envs, serverArgs, flagServerPort)
 }
 
 func (suite *Iteration11Suite) serverUp(ctx context.Context, envs, args []string, port string) {
@@ -148,7 +125,6 @@ func (suite *Iteration11Suite) serverShutdown() {
 		suite.T().Logf("Процесс завершился с не нулевым статусом %d", exitCode)
 	}
 
-	// try to read stdout/stderr
 	ctx, cancel := context.WithTimeout(context.Background(), 500*time.Millisecond)
 	defer cancel()
 
@@ -176,15 +152,17 @@ func (suite *Iteration11Suite) TestInspectDatabase() {
 			SetHeader("Content-Type", "application/json")
 
 		var value int64
-		resp, err := suite.SetHBody(req,
-			&Metrics{
-				ID:    id,
-				MType: "counter",
-				Delta: &value,
-			}).
+		resp, err := req.
+			SetBody(
+				&Metrics{
+					ID:    id,
+					MType: "counter",
+					Delta: &value,
+				}).
 			Post("update/")
 
-		dumpErr := suite.Assert().NoError(err, "Ошибка при попытке сделать запрос с обновлением counter")
+		dumpErr := suite.Assert().NoError(err,
+			"Ошибка при попытке сделать запрос с обновлением counter")
 		dumpErr = dumpErr && suite.Assert().Equalf(http.StatusOK, resp.StatusCode(),
 			"Несоответствие статус кода ответа ожидаемому в хендлере %q: %q ", req.Method, req.URL)
 		dumpErr = dumpErr && suite.Assert().NoError(err, "Ошибка при попытке сделать запрос для сокращения URL")
@@ -196,11 +174,14 @@ func (suite *Iteration11Suite) TestInspectDatabase() {
 	})
 
 	suite.Run("inspect", func() {
-		suite.Require().NotNil(suite.dbconn, "Невозможно проинспектировать базу данных, нет подключения")
+		suite.Require().NotNil(suite.dbconn,
+			"Невозможно проинспектировать базу данных, нет подключения")
 
 		tables, err := suite.fetchTables()
-		suite.Require().NoError(err, "Ошибка получения списка таблиц базы данных")
-		suite.Require().NotEmpty(tables, "Не найдено ни одной пользовательской таблицы в БД")
+		suite.Require().NoError(err,
+			"Ошибка получения списка таблиц базы данных")
+		suite.Require().NotEmpty(tables,
+			"Не найдено ни одной пользовательской таблицы в БД")
 
 		var found bool
 		for _, table := range tables {
@@ -271,23 +252,4 @@ func (suite *Iteration11Suite) findInTable(table, name string) (bool, error) {
 		return false, nil
 	}
 	return found, err
-}
-
-func (suite *Iteration11Suite) SetHBody(r *resty.Request, m *Metrics) *resty.Request {
-	hash := suite.Hash(m)
-	m.Hash = hash
-	return r.SetBody(m)
-}
-
-func (suite *Iteration11Suite) Hash(m *Metrics) string {
-	var data string
-	switch m.MType {
-	case "counter":
-		data = fmt.Sprintf("%s:%s:%d", m.ID, m.MType, *m.Delta)
-	case "gauge":
-		data = fmt.Sprintf("%s:%s:%f", m.ID, m.MType, *m.Value)
-	}
-	h := hmac.New(sha256.New, suite.key)
-	h.Write([]byte(data))
-	return fmt.Sprintf("%x", h.Sum(nil))
 }
