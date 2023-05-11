@@ -13,7 +13,6 @@ import (
 
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
-	"golang.org/x/tools/go/ast/inspector"
 )
 
 // Iteration17Suite является сьютом с тестами и состоянием для инкремента
@@ -29,7 +28,7 @@ func (suite *Iteration17Suite) SetupSuite() {
 
 // TestDocsComments пробует проверить налиция документационных комментариев в коде
 func (suite *Iteration17Suite) TestDocsComments() {
-	var undocumentedFiles []string
+	var reports []string
 	err := filepath.WalkDir(flagTargetSourcePath, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return err
@@ -44,22 +43,26 @@ func (suite *Iteration17Suite) TestDocsComments() {
 			return nil
 		}
 
-		// проверяем только Go файлы, но не тесты
-		if strings.HasSuffix(d.Name(), ".go") &&
-			!strings.HasSuffix(d.Name(), "_test.go") &&
-			undocumentedFile(suite.T(), path) {
-			// сохраняем плохой файл в слайс
-			undocumentedFiles = append(undocumentedFiles, path)
+		// проускаем не Go файлы и Go тесты
+		if !strings.HasSuffix(d.Name(), ".go") ||
+			strings.HasSuffix(d.Name(), "_test.go") {
+			return nil
+		}
+
+		reported := undocumentedNodes(suite.T(), path)
+		if len(reported) > 0 {
+			reports = append(reports, reported...)
 		}
 
 		return nil
 	})
 
 	suite.NoError(err, "Неожиданная ошибка")
-	suite.Emptyf(undocumentedFiles,
-		"Найдены файлы с недокументированной сущностями:\n\n%s",
-		strings.Join(undocumentedFiles, "\n"),
-	)
+	if len(reports) > 0 {
+		suite.Failf("Найдены файлы с недокументированной сущностями",
+			strings.Join(reports, "\n"),
+		)
+	}
 }
 
 // TestExamplePresence пробует рекурсивно найти хотя бы один файл example_test.go в директории с исходным кодом проекта
@@ -100,7 +103,7 @@ func (suite *Iteration17Suite) TestExamplePresence() {
 	suite.T().Errorf("Неожиданная ошибка при поиске файла example_test.go: %s", err)
 }
 
-func undocumentedFile(t *testing.T, filepath string) bool {
+func undocumentedNodes(t *testing.T, filepath string) []string {
 	t.Helper()
 
 	fset := token.NewFileSet()
@@ -109,32 +112,25 @@ func undocumentedFile(t *testing.T, filepath string) bool {
 
 	// пропускаем автоматически сгенерированные файлы
 	if isGenerated(sf) {
-		return false
+		return nil
 	}
 
-	ins := inspector.New([]*ast.File{sf})
-	nodeFilter := []ast.Node{
-		(*ast.GenDecl)(nil),
-		(*ast.FuncDecl)(nil),
-	}
+	var reports []string
 
-	var undocumentedFound bool
-	ins.Nodes(nodeFilter, func(node ast.Node, push bool) (proceed bool) {
-		switch nt := node.(type) {
+	for _, decl := range sf.Decls {
+		switch node := decl.(type) {
 		case *ast.GenDecl:
-			if undocumentedGenDecl(nt) {
-				undocumentedFound = true
+			if undocumentedGenDecl(node) {
+				reports = append(reports, fset.Position(node.Pos()).String())
 			}
 		case *ast.FuncDecl:
-			if nt.Name.IsExported() && nt.Doc == nil {
-				undocumentedFound = true
+			if node.Name.IsExported() && node.Doc == nil {
+				reports = append(reports, fset.Position(node.Pos()).String())
 			}
 		}
+	}
 
-		return !undocumentedFound
-	})
-
-	return undocumentedFound
+	return reports
 }
 
 // undocumentedGenDecl проверяет, что экспортированная декларация является недокументированной
