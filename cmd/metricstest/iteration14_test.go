@@ -46,6 +46,7 @@ func (suite *Iteration14Suite) SetupSuite() {
 	suite.key = []byte(flagSHA256Key)
 
 	envs := append(os.Environ(), []string{
+		"ADDRESS=localhost:" + flagServerPort,
 		"RESTORE=true",
 		"DATABASE_DSN=" + flagDatabaseDSN,
 		"KEY=" + flagSHA256Key,

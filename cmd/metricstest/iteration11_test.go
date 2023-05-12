@@ -45,6 +45,7 @@ func (suite *Iteration11Suite) SetupSuite() {
 	suite.serverPort = flagServerPort
 
 	envs := append(os.Environ(), []string{
+		"ADDRESS=localhost:" + flagServerPort,
 		"RESTORE=true",
 		"DATABASE_DSN=" + flagDatabaseDSN,
 		"STORE_INTERVAL=1",
