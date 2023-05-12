@@ -120,7 +120,9 @@ func (suite *Iteration10ASuite) TestLibraryUsage() {
 		return
 	}
 	if err == nil || errors.Is(err, errUsageNotFound) {
-		suite.T().Errorf("Не найдено использование библиотеки database/sql по пути %q", flagTargetSourcePath)
+		suite.T().Errorf("В проекте найдено использование ни одной из библиотек для работы с БД:\n%s",
+			suite.knownLibraries.PackageList(),
+		)
 		return
 	}
 	suite.T().Errorf("Неожиданная ошибка при поиске использования библиотеки по пути %q, %v", flagTargetSourcePath, err)
