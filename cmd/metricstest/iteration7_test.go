@@ -23,7 +23,7 @@ type Iteration7Suite struct {
 	serverProcess *fork.BackgroundProcess
 	agentProcess  *fork.BackgroundProcess
 
-	knownEncodingLibs []string
+	knownEncodingLibs PackageRules
 
 	rnd *rand.Rand
 }
@@ -42,10 +42,10 @@ func (suite *Iteration7Suite) SetupSuite() {
 
 	suite.rnd = rand.New(rand.NewSource(int64(time.Now().Nanosecond())))
 
-	suite.knownEncodingLibs = []string{
-		"encoding/json",
-		"github.com/mailru/easyjson",
-		"github.com/pquerna/ffjson",
+	suite.knownEncodingLibs = PackageRules{
+		{Name: "encoding/json"},
+		{Name: "github.com/mailru/easyjson"},
+		{Name: "github.com/pquerna/ffjson"},
 	}
 
 	suite.serverAddress = "http://localhost:8080"
@@ -167,8 +167,8 @@ func (suite *Iteration7Suite) agentShutdown() {
 
 // TestEncoderUsage пробует рекурсивно найти хотя бы одно использование известных библиотек в директории с исходным кодом проекта
 func (suite *Iteration7Suite) TestEncoderUsage() {
-	err := usesKnownPackage(suite.T(), flagTargetSourcePath, suite.knownEncodingLibs)
-	if err == nil {
+	err := usesKnownPackage(suite.T(), flagTargetSourcePath, suite.knownEncodingLibs...)
+	if errors.Is(err, errUsageFound) {
 		return
 	}
 	if errors.Is(err, errUsageNotFound) {

@@ -21,7 +21,7 @@ type Iteration10ASuite struct {
 	serverAddress  string
 	serverPort     string
 	serverProcess  *fork.BackgroundProcess
-	knownLibraries []string
+	knownLibraries PackageRules
 
 	rnd *rand.Rand
 }
@@ -46,11 +46,11 @@ func (suite *Iteration10ASuite) SetupSuite() {
 
 	serverArgs := []string{}
 
-	suite.knownLibraries = []string{
-		"database/sql",
-		"github.com/jackc/pgx",
-		"github.com/lib/pq",
-		"github.com/jmoiron/sqlx",
+	suite.knownLibraries = PackageRules{
+		{Name: "database/sql", AllowBlank: true},
+		{Name: "github.com/jackc/pgx", AllowBlank: true},
+		{Name: "github.com/lib/pq", AllowBlank: true},
+		{Name: "github.com/jmoiron/sqlx"},
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
@@ -115,7 +115,7 @@ func (suite *Iteration10ASuite) serverShutdown() {
 
 // TestLibraryUsage пробует рекурсивно найти использование database/sql хотя бы в одном файле с исходным кодом проекта
 func (suite *Iteration10ASuite) TestLibraryUsage() {
-	err := usesKnownPackage(suite.T(), flagTargetSourcePath, suite.knownLibraries)
+	err := usesKnownPackage(suite.T(), flagTargetSourcePath, suite.knownLibraries...)
 	if errors.Is(err, errUsageFound) {
 		return
 	}

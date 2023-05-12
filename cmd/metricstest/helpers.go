@@ -1,9 +1,7 @@
 package main
 
 import (
-	"errors"
 	"fmt"
-	"go/ast"
 	"go/parser"
 	"go/token"
 	"io/fs"
@@ -16,9 +14,32 @@ import (
 	"golang.org/x/tools/go/ast/astutil"
 )
 
+// PackageRules это набор правил для поиска используемых пакетов
+type PackageRules []PackageRule
+
+// PackageList возвращает строковый список пакетов из правил
+func (p PackageRules) PackageList() string {
+	var b strings.Builder
+	for i, r := range p {
+		if i > 0 {
+			b.WriteByte('\n')
+		}
+		b.WriteString(r.Name)
+	}
+	return b.String()
+}
+
+// PackageRule это правило для поиска используемого пакета
+type PackageRule struct {
+	// имя пакета для поиска
+	Name string
+	// разрешать ли импортирование через "_"
+	AllowBlank bool
+}
+
 // usesKnownPackage проверяет, что хотя бы в одном файле, начиная с указанной директории rootdir,
 // содержится хотя бы один пакет из списка knownPackages
-func usesKnownPackage(t *testing.T, rootdir string, knownPackages []string) error {
+func usesKnownPackage(t *testing.T, rootdir string, rules ...PackageRule) error {
 	// запускаем рекурсивное прохождение по дереву директорий начиная с rootdir
 	err := filepath.WalkDir(rootdir, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
@@ -42,42 +63,28 @@ func usesKnownPackage(t *testing.T, rootdir string, knownPackages []string) erro
 			return nil
 		}
 
-		// пытаемся получить import запись из файла с исходным кодом
-		spec, err := importsKnownPackage(t, path, knownPackages)
-		if err != nil {
-			return fmt.Errorf("невозможно проинспектировать файл %s: %w", path, err)
-		}
-		// запись не пустая и импортирована явно
-		if spec != nil && spec.Name.String() != "_" {
-			// возвращаем специализированную ошибку, сообщающую о нахождении импорта
-			return errUsageFound
-		}
-
-		// продолжаем сканирование файлов
-		return nil
+		// проверяем файл на наличие искомых пакетов
+		return importsKnownPackage(t, path, rules...)
 	})
 
 	// рекурсия не вернула никакой ошибки = мы не нашли искомого импорта ни в одном файле
 	if err == nil {
+		// возвращаем специализированную ошибку
 		return errUsageNotFound
 	}
-	// получена специализированная ошибка = мы нашли искомый импорт в файлах
-	if errors.Is(err, errUsageFound) {
-		return nil
-	}
-	// неизвестная ошибка - возвращаем ее вызывающей функции
+	// здесь мы возращаем либо специализированную ошибку errUsageFound, либо любую другую неизвестную ошибку
 	return err
 }
 
 // importsKnownPackage возвращает import запись первого найденного импорта из списка knownPackages в файле filepath
-func importsKnownPackage(t *testing.T, filepath string, knownPackages []string) (*ast.ImportSpec, error) {
+func importsKnownPackage(t *testing.T, filepath string, rules ...PackageRule) error {
 	t.Helper()
 
 	// парсим файл с исходным кодом
 	fset := token.NewFileSet()
 	sf, err := parser.ParseFile(fset, filepath, nil, parser.ImportsOnly)
 	if err != nil {
-		return nil, fmt.Errorf("невозможно распарсить файл: %w", err)
+		return fmt.Errorf("невозможно распарсить файл: %w", err)
 	}
 
 	// итерируемся по import записям файла
@@ -85,16 +92,22 @@ func importsKnownPackage(t *testing.T, filepath string, knownPackages []string) 
 	// импорты могут быть объединены в группы внутри круглых скобок
 	for _, paragraph := range importSpecs {
 		for _, importSpec := range paragraph {
-			for _, knownImport := range knownPackages {
-				// проверяем совпадение с искомым импортом
-				if strings.Contains(importSpec.Path.Value, knownImport) {
-					return importSpec, nil
+			for _, rule := range rules {
+				// пропускаем не подходящий импорт
+				if !strings.Contains(importSpec.Path.Value, rule.Name) {
+					continue
 				}
+				// найден "пустой" импорт, хотя это запрещено правилом
+				if importSpec.Name != nil && importSpec.Name.String() == "_" && !rule.AllowBlank {
+					return nil
+				}
+				// возвращаем специализированную ошибку, сообщающую о нахождении импорта
+				return errUsageFound
 			}
 		}
 	}
 
-	return nil, nil
+	return nil
 }
 
 // dumpRequest - это httputil.DumpRequest, который возвращает только байты запроса

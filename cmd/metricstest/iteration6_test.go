@@ -9,7 +9,7 @@ import (
 type Iteration6Suite struct {
 	suite.Suite
 
-	knownLoggers []string
+	knownLoggers PackageRules
 }
 
 // SetupSuite подготавливает необходимые зависимости
@@ -18,10 +18,10 @@ func (suite *Iteration6Suite) SetupSuite() {
 	suite.Require().NotEmpty(flagTargetSourcePath, "-source-path non-empty flag required")
 
 	// список известных логгеров
-	suite.knownLoggers = []string{
-		"github.com/rs/zerolog",
-		"go.uber.org/zap",
-		"github.com/sirupsen/logrus",
+	suite.knownLoggers = PackageRules{
+		{Name: "github.com/rs/zerolog"},
+		{Name: "go.uber.org/zap"},
+		{Name: "github.com/sirupsen/logrus"},
 		// "github.com/apex",
 		// "github.com/go-kit/kit/log",
 		// "github.com/golang/glog",
@@ -37,8 +37,8 @@ func (suite *Iteration6Suite) SetupSuite() {
 // TestLoggerUsage пробует рекурсивно найти хотя бы одно использование известных логгеров в директории с исходным кодом проекта
 func (suite *Iteration6Suite) TestLoggerUsage() {
 	// проверяем наличие известных фреймворков
-	err := usesKnownPackage(suite.T(), flagTargetSourcePath, suite.knownLoggers)
-	if err == nil {
+	err := usesKnownPackage(suite.T(), flagTargetSourcePath, suite.knownLoggers...)
+	if errors.Is(err, errUsageFound) {
 		return
 	}
 	if errors.Is(err, errUsageNotFound) {
