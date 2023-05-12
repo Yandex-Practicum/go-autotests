@@ -48,8 +48,7 @@ func (suite *Iteration10ASuite) SetupSuite() {
 
 	suite.knownLibraries = PackageRules{
 		{Name: "database/sql", AllowBlank: true},
-		{Name: "github.com/jackc/pgx"},
-		{Name: "github.com/jackc/pgx/stdlib", AllowBlank: true},
+		{Name: "github.com/jackc/pgx", AllowBlank: true},
 		{Name: "github.com/lib/pq", AllowBlank: true},
 		{Name: "github.com/jmoiron/sqlx"},
 	}
