@@ -39,13 +39,13 @@ func (suite *Iteration10BSuite) SetupSuite() {
 	envs := append(os.Environ(), []string{
 		"ADDRESS=localhost:" + flagServerPort,
 		"RESTORE=true",
-		"STORE_INTERVAL=10s",
+		"STORE_INTERVAL=10",
 		"DATABASE_DSN='postgres://unknown:unknown@postgres:9999/praktikum?easter_egg_msg=you_must_prefer_this_incorrect_settings_to_those_obtained_through_arguments'",
 	}...)
 
 	serverArgs := []string{
 		"-r=false",
-		"-d" + flagDatabaseDSN,
+		"-d=" + flagDatabaseDSN,
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
@@ -70,7 +70,6 @@ func (suite *Iteration10BSuite) serverUp(ctx context.Context, envs, args []strin
 		suite.T().Logf("Не удалось дождаться пока порт %s станет доступен для запроса: %s", port, err)
 		return
 	}
-	suite.serverProcess = p
 }
 
 func (suite *Iteration10BSuite) TearDownSuite() {

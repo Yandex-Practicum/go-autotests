@@ -40,7 +40,7 @@ func (suite *Iteration10ASuite) SetupSuite() {
 	envs := append(os.Environ(), []string{
 		"ADDRESS=localhost:" + flagServerPort,
 		"RESTORE=true",
-		"STORE_INTERVAL=10s",
+		"STORE_INTERVAL=10",
 		"DATABASE_DSN=" + flagDatabaseDSN,
 	}...)
 
@@ -75,7 +75,6 @@ func (suite *Iteration10ASuite) serverUp(ctx context.Context, envs, args []strin
 		suite.T().Errorf("Не удалось дождаться пока порт %s станет доступен для запроса: %s", port, err)
 		return
 	}
-	suite.serverProcess = p
 }
 
 func (suite *Iteration10ASuite) TearDownSuite() {
