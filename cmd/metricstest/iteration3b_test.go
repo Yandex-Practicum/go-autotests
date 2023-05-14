@@ -34,27 +34,25 @@ func (suite *Iteration3BSuite) SetupSuite() {
 	envs := append(os.Environ(), []string{
 		"RESTORE=false",
 	}...)
-	p := fork.NewBackgroundProcess(context.Background(), flagServerBinaryPath,
+	suite.serverProcess = fork.NewBackgroundProcess(context.Background(), flagServerBinaryPath,
 		fork.WithEnv(envs...),
 	)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 	defer cancel()
 
-	err := p.Start(ctx)
+	err := suite.serverProcess.Start(ctx)
 	if err != nil {
-		suite.T().Errorf("Невозможно запустить процесс командой %s: %s. Переменные окружения: %+v", p, err, envs)
+		suite.T().Errorf("Невозможно запустить процесс командой %s: %s. Переменные окружения: %+v", suite.serverProcess, err, envs)
 		return
 	}
 
 	port := "8080"
-	err = p.WaitPort(ctx, "tcp", port)
+	err = suite.serverProcess.WaitPort(ctx, "tcp", port)
 	if err != nil {
 		suite.T().Errorf("Не удалось дождаться пока порт %s станет доступен для запроса: %s", port, err)
 		return
 	}
-
-	suite.serverProcess = p
 }
 
 func (suite *Iteration3BSuite) TearDownSuite() {

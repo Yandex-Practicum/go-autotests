@@ -74,22 +74,21 @@ func (suite *Iteration9Suite) serverUp(ctx context.Context, envs []string, port 
 }
 
 func (suite *Iteration9Suite) agentUp(ctx context.Context, envs []string, port string) {
-	p := fork.NewBackgroundProcess(context.Background(), flagAgentBinaryPath,
+	suite.agentProcess = fork.NewBackgroundProcess(context.Background(), flagAgentBinaryPath,
 		fork.WithEnv(envs...),
 	)
 
-	err := p.Start(ctx)
+	err := suite.agentProcess.Start(ctx)
 	if err != nil {
-		suite.T().Errorf("Невозможно запустить процесс командой %s: %s. Переменные окружения: %+v", p, err, envs)
+		suite.T().Errorf("Невозможно запустить процесс командой %s: %s. Переменные окружения: %+v", suite.agentProcess, err, envs)
 		return
 	}
 
-	err = p.ListenPort(ctx, "tcp", port)
+	err = suite.agentProcess.ListenPort(ctx, "tcp", port)
 	if err != nil {
 		suite.T().Errorf("Не удалось дождаться пока на порт %s начнут поступать данные: %s", port, err)
 		return
 	}
-	suite.agentProcess = p
 }
 
 func (suite *Iteration9Suite) TearDownSuite() {

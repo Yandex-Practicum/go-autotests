@@ -59,18 +59,18 @@ func (suite *Iteration10ASuite) SetupSuite() {
 }
 
 func (suite *Iteration10ASuite) serverUp(ctx context.Context, envs, args []string, port string) {
-	p := fork.NewBackgroundProcess(context.Background(), flagServerBinaryPath,
+	suite.serverProcess = fork.NewBackgroundProcess(context.Background(), flagServerBinaryPath,
 		fork.WithEnv(envs...),
 		fork.WithArgs(args...),
 	)
 
-	err := p.Start(ctx)
+	err := suite.serverProcess.Start(ctx)
 	if err != nil {
-		suite.T().Errorf("Невозможно запустить процесс командой %q: %s. Переменные окружения: %+v, флаги командной строки: %+v", p, err, envs, args)
+		suite.T().Errorf("Невозможно запустить процесс командой %q: %s. Переменные окружения: %+v, флаги командной строки: %+v", suite.serverProcess, err, envs, args)
 		return
 	}
 
-	err = p.WaitPort(ctx, "tcp", port)
+	err = suite.serverProcess.WaitPort(ctx, "tcp", port)
 	if err != nil {
 		suite.T().Errorf("Не удалось дождаться пока порт %s станет доступен для запроса: %s", port, err)
 		return
