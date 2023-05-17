@@ -63,43 +63,41 @@ func (suite *Iteration4Suite) SetupSuite() {
 }
 
 func (suite *Iteration4Suite) serverUp(ctx context.Context, envs, args []string, port string) {
-	p := fork.NewBackgroundProcess(context.Background(), flagServerBinaryPath,
+	suite.serverProcess = fork.NewBackgroundProcess(context.Background(), flagServerBinaryPath,
 		fork.WithEnv(envs...),
 		fork.WithArgs(args...),
 	)
 
-	err := p.Start(ctx)
+	err := suite.serverProcess.Start(ctx)
 	if err != nil {
-		suite.T().Errorf("Невозможно запустить процесс командой %q: %s. Переменные окружения: %+v, флаги командной строки: %+v", p, err, envs, args)
+		suite.T().Errorf("Невозможно запустить процесс командой %q: %s. Переменные окружения: %+v, флаги командной строки: %+v", suite.serverProcess, err, envs, args)
 		return
 	}
 
-	err = p.WaitPort(ctx, "tcp", port)
+	err = suite.serverProcess.WaitPort(ctx, "tcp", port)
 	if err != nil {
 		suite.T().Errorf("Не удалось дождаться пока порт %s станет доступен для запроса: %s", port, err)
 		return
 	}
-	suite.serverProcess = p
 }
 
 func (suite *Iteration4Suite) agentUp(ctx context.Context, envs, args []string, port string) {
-	p := fork.NewBackgroundProcess(context.Background(), flagAgentBinaryPath,
+	suite.agentProcess = fork.NewBackgroundProcess(context.Background(), flagAgentBinaryPath,
 		fork.WithEnv(envs...),
 		fork.WithArgs(args...),
 	)
 
-	err := p.Start(ctx)
+	err := suite.agentProcess.Start(ctx)
 	if err != nil {
-		suite.T().Errorf("Невозможно запустить процесс командой %q: %s. Переменные окружения: %+v, флаги командной строки: %+v", p, err, envs, args)
+		suite.T().Errorf("Невозможно запустить процесс командой %q: %s. Переменные окружения: %+v, флаги командной строки: %+v", suite.agentProcess, err, envs, args)
 		return
 	}
 
-	err = p.ListenPort(ctx, "tcp", port)
+	err = suite.agentProcess.ListenPort(ctx, "tcp", port)
 	if err != nil {
 		suite.T().Errorf("Не удалось дождаться пока на порт %s начнут поступать данные: %s", port, err)
 		return
 	}
-	suite.agentProcess = p
 }
 
 func (suite *Iteration4Suite) TearDownSuite() {

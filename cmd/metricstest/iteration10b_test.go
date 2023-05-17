@@ -39,13 +39,13 @@ func (suite *Iteration10BSuite) SetupSuite() {
 	envs := append(os.Environ(), []string{
 		"ADDRESS=localhost:" + flagServerPort,
 		"RESTORE=true",
-		"STORE_INTERVAL=10s",
+		"STORE_INTERVAL=10",
 		"DATABASE_DSN='postgres://unknown:unknown@postgres:9999/praktikum?easter_egg_msg=you_must_prefer_this_incorrect_settings_to_those_obtained_through_arguments'",
 	}...)
 
 	serverArgs := []string{
 		"-r=false",
-		"-d" + flagDatabaseDSN,
+		"-d=" + flagDatabaseDSN,
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
@@ -54,23 +54,22 @@ func (suite *Iteration10BSuite) SetupSuite() {
 }
 
 func (suite *Iteration10BSuite) serverUp(ctx context.Context, envs, args []string, port string) {
-	p := fork.NewBackgroundProcess(context.Background(), flagServerBinaryPath,
+	suite.serverProcess = fork.NewBackgroundProcess(context.Background(), flagServerBinaryPath,
 		fork.WithEnv(envs...),
 		fork.WithArgs(args...),
 	)
 
-	err := p.Start(ctx)
+	err := suite.serverProcess.Start(ctx)
 	if err != nil {
-		suite.T().Errorf("Невозможно запустить процесс командой %q: %s. Переменные окружения: %+v, флаги командной строки: %+v", p, err, envs, args)
+		suite.T().Errorf("Невозможно запустить процесс командой %q: %s. Переменные окружения: %+v, флаги командной строки: %+v", suite.serverProcess, err, envs, args)
 		return
 	}
 
-	err = p.WaitPort(ctx, "tcp", port)
+	err = suite.serverProcess.WaitPort(ctx, "tcp", port)
 	if err != nil {
 		suite.T().Logf("Не удалось дождаться пока порт %s станет доступен для запроса: %s", port, err)
 		return
 	}
-	suite.serverProcess = p
 }
 
 func (suite *Iteration10BSuite) TearDownSuite() {
