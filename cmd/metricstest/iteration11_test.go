@@ -174,7 +174,7 @@ func (suite *Iteration11Suite) TestInspectDatabase() {
 	})
 
 	suite.Run("delay", func() {
-		time.Sleep(5 * time.Second())
+		time.Sleep(5 * time.Second)
 	})
 
 	suite.Run("inspect", func() {
