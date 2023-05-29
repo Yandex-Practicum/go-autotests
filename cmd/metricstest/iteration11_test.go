@@ -173,6 +173,10 @@ func (suite *Iteration11Suite) TestInspectDatabase() {
 		}
 	})
 
+	suite.Run("delay", func() {
+		time.Sleep(5 * time.Second())
+	})
+
 	suite.Run("inspect", func() {
 		suite.Require().NotNil(suite.dbconn,
 			"Невозможно проинспектировать базу данных, нет подключения")
