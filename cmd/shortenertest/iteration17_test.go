@@ -138,7 +138,7 @@ func undocumentedGenDecl(decl *ast.GenDecl) bool {
 	for _, spec := range decl.Specs {
 		switch st := spec.(type) {
 		case *ast.TypeSpec:
-			if st.Name.IsExported() && decl.Doc == nil {
+			if st.Name.IsExported() && (st.Doc == nil && decl.Doc == nil) {
 				return true
 			}
 		case *ast.ValueSpec:
