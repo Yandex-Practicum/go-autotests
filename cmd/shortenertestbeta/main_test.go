@@ -88,3 +88,18 @@ func TestIteration15(t *testing.T) {
 	// Запускает тест-сьют для пятнадцатой итерации
 	suite.Run(t, new(Iteration15Suite))
 }
+
+func TestIteration16(t *testing.T) {
+	// Запускает тест-сьют для шестнадцатой итерации
+	suite.Run(t, new(Iteration16Suite))
+}
+
+func TestIteration17(t *testing.T) {
+	// Запускает тест-сьют для семнадцатой итерации
+	suite.Run(t, new(Iteration17Suite))
+}
+
+func TestIteration18(t *testing.T) {
+	// Запускает тест-сьют для восемнадцатой итерации
+	suite.Run(t, new(Iteration18Suite))
+}
