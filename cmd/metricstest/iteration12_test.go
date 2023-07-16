@@ -211,7 +211,9 @@ func (suite *Iteration12Suite) TestBatchAPI() {
 			},
 		}
 
+		var result []Metrics
 		resp, err := req.SetBody(metrics).
+			SetResult(&result).
 			Post("updates/")
 
 		dumpErr := suite.Assert().NoError(err,
