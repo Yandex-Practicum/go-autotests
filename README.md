@@ -34,11 +34,15 @@ metricstest -test.v -test.run=^TestIteration1$ -agent-binary-path=cmd/agent/agen
 
 Ниже приведены замечания и уточнения при запуске автотестов на Windows.
 
-1. В команде `go build` следует указывать расширение `.exe` для результирующего файла. Например, `go build -o shortener.exe *.go`, `go build -o server.exe *.go`.
+1. Для компиляции вашего сервера или агента достаточно перейти в соответствующую директорию и запустить `go build`. Если имя директории отлично от `shortener`, `agent` и т.д., то в команде `go build` следует указывать имя и расширение `.exe` для результирующего файла. Например, `go build -o shortener.exe`, `go build -o server.exe`.
 2. Скачивать файл нужно с суффиксом `-windows-amd64`. Например, `metricstest-windows-amd64.exe`, `shortenertest-windows-amd64.exe`. Лучще сразу переименовать его, убрав этот суффикс - `metricstest.exe`, `shortenertest.exe`. 
-3. Так как запуск должен происходить в корневой директории проекта (вашего репозитария), то при запуске нужно указывать полный путь к файлу автотеста. Программа может запускаться и без указания расширения `exe`. Например:
+3. Так как запуск должен происходить в корневой директории проекта (вашего репозитария), то при запуске нужно указывать полный путь к файлу автотеста. Программа может запускаться и без указания расширения `exe`. Пример запуска теста для первого инкремента:
 
 ```shell
+# сервис сокращения URL
+C:\temp\shortenertest -test.v -test.run=^TestIteration1$ -binary-path=cmd/shortener/shortener
+
+# сервис сбора метрик и алертинга
 C:\temp\metricstest -test.v -test.run=^TestIteration1$ -agent-binary-path=cmd/agent/agent
 ```
 
