@@ -45,7 +45,6 @@ func (suite *Iteration10BSuite) SetupSuite() {
 
 	serverArgs := []string{
 		"-r=false",
-		"-d=" + flagDatabaseDSN,
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
