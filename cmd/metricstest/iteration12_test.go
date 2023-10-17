@@ -140,7 +140,9 @@ func (suite *Iteration12Suite) serverShutdown() {
 }
 
 func (suite *Iteration12Suite) TestBatchAPI() {
-	httpc := resty.New().SetHostURL(suite.serverAddress)
+	httpc := resty.New().SetHostURL(suite.serverAddress).
+		SetHeader("Accept-Encoding", "gzip").
+		SetHeader("Content-Type", "application/json")
 
 	idCounter := "CounterBatchZip" + strconv.Itoa(suite.rnd.Intn(256))
 	idGauge := "GaugeBatchZip" + strconv.Itoa(suite.rnd.Intn(256))
@@ -148,12 +150,9 @@ func (suite *Iteration12Suite) TestBatchAPI() {
 	var valueCounter0 int64
 	valueGauge1, valueGauge2 := suite.rnd.Float64()*1e6, suite.rnd.Float64()*1e6
 
-	req := httpc.R().
-		SetHeader("Accept-Encoding", "gzip").
-		SetHeader("Content-Type", "application/json")
-
 	suite.Run("get random counter", func() {
 		var result Metrics
+		req := httpc.R()
 		resp, err := req.
 			SetBody(&Metrics{
 				ID:    idCounter,
@@ -211,6 +210,7 @@ func (suite *Iteration12Suite) TestBatchAPI() {
 			},
 		}
 
+		req := httpc.R()
 		resp, err := req.SetBody(metrics).
 			Post("updates/")
 
@@ -229,6 +229,7 @@ func (suite *Iteration12Suite) TestBatchAPI() {
 
 	suite.Run("check counter value", func() {
 		var result Metrics
+		req := httpc.R()
 		resp, err := req.
 			SetBody(&Metrics{
 				ID:    idCounter,
@@ -260,6 +261,7 @@ func (suite *Iteration12Suite) TestBatchAPI() {
 
 	suite.Run("check gauge value", func() {
 		var result Metrics
+		req := httpc.R()
 		resp, err := req.
 			SetBody(&Metrics{
 				ID:    idGauge,
