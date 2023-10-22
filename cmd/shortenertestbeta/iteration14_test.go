@@ -201,7 +201,7 @@ func (suite *Iteration14Suite) TestAuth() {
 			suite.Require().NoErrorf(err, "Ошибка при попытке сделать запрос для получения списка сокращенных URL:\n\n %s", dump)
 		}
 
-		suite.Assert().Equalf(http.StatusNoContent, resp.StatusCode(),
+		suite.Assert().Equalf(http.StatusUnauthorized, resp.StatusCode(),
 			"Несоответствие статус кода ответа ожидаемому в хендлере '%s %s'", req.Method, req.URL,
 		)
 	})
