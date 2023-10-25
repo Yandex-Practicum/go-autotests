@@ -7,7 +7,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/Yandex-Practicum/go-autotests/internal/random"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -59,7 +58,7 @@ func TestShowTrainingInfo(t *testing.T) {
 
 	t.Run("unknown", func(t *testing.T) {
 		actionsNum := int(rnd.Int63n(10000-1000) + 1000)
-		trainingType := random.ASCIIString(3, 15)
+		trainingType := randString(3, 15)
 		durationNum := float64(rnd.Int63n(3)) + rnd.Float64()
 		weightNum := float64(rnd.Int63n(140-80) + 80)
 		heightNum := float64(rnd.Int63n(220-150) + 150)
@@ -113,4 +112,25 @@ func TestSwimmingSpentCalories(t *testing.T) {
 
 	res := SwimmingSpentCalories(lengthPoolNum, countPoolNum, durationNum, weightNum)
 	assert.InDelta(t, expected, res, 0.05, "Значение полученное из функции SwimmingSpentCalories не совпадает с ожидаемым")
+}
+
+func randString(minLen, maxLen int) string {
+	var letters = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFJHIJKLMNOPQRSTUVWXYZ"
+
+	rnd := rand.New(rand.NewSource(time.Now().UnixNano()))
+	slen := rnd.Intn(maxLen-minLen) + minLen
+
+	s := make([]byte, 0, slen)
+	i := 0
+	for len(s) < slen {
+		idx := rnd.Intn(len(letters) - 1)
+		char := letters[idx]
+		if i == 0 && '0' <= char && char <= '9' {
+			continue
+		}
+		s = append(s, char)
+		i++
+	}
+
+	return string(s)
 }
