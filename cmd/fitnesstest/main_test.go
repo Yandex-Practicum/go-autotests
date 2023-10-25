@@ -8,9 +8,18 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/suite"
 )
 
-func TestShowTrainingInfo(t *testing.T) {
+func TestFitnessSuite(t *testing.T) {
+	suite.Run(t, new(FitnessSuite))
+}
+
+type FitnessSuite struct {
+	suite.Suite
+}
+
+func (*FitnessSuite) TestShowTrainingInfo(t *testing.T) {
 	rnd := rand.New(rand.NewSource(time.Now().UnixNano()))
 
 	actionsNum := int(rnd.Int63n(10000-1000) + 1000)
@@ -70,7 +79,7 @@ func TestShowTrainingInfo(t *testing.T) {
 	})
 }
 
-func TestWalkingSpentCalories(t *testing.T) {
+func (*FitnessSuite) TestWalkingSpentCalories(t *testing.T) {
 	rnd := rand.New(rand.NewSource(time.Now().UnixNano()))
 
 	actionsNum := int(rnd.Int63n(10000-1000) + 1000)
@@ -85,7 +94,7 @@ func TestWalkingSpentCalories(t *testing.T) {
 	assert.InDelta(t, expected, res, 0.05, "Значение полученное из функции WalkingSpentCalories не совпадает с ожидаемым")
 }
 
-func TestRunningSpentCalories(t *testing.T) {
+func (*FitnessSuite) TestRunningSpentCalories(t *testing.T) {
 	rnd := rand.New(rand.NewSource(time.Now().UnixNano()))
 
 	actionsNum := int(rnd.Int63n(10000-1000) + 1000)
@@ -99,7 +108,7 @@ func TestRunningSpentCalories(t *testing.T) {
 	assert.InDelta(t, expected, res, 0.05, "Значение полученное из функции RunningSpentCalories не совпадает с ожидаемым")
 }
 
-func TestSwimmingSpentCalories(t *testing.T) {
+func (*FitnessSuite) TestSwimmingSpentCalories(t *testing.T) {
 	rnd := rand.New(rand.NewSource(time.Now().UnixNano()))
 
 	lengthPoolNum := int(rnd.Int63n(50-10) + 10)
