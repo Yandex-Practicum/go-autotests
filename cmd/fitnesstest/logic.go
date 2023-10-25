@@ -1,6 +1,6 @@
 //go:build !acceptance
 
-package fitnesstest
+package ftracker_test
 
 const (
 	lenStep   = 0.65

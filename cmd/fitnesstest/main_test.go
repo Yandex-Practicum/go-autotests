@@ -1,4 +1,4 @@
-package fitnesstest
+package ftracker_test
 
 import (
 	"fmt"

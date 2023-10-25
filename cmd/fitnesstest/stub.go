@@ -1,6 +1,6 @@
 //go:build !acceptance
 
-package fitnesstest
+package ftracker_test
 
 // Ниже представлены стаб-функции для корректной компиляции кода тестов вне CI окружения
 
