@@ -42,10 +42,15 @@ func NewBackgroundProcess(ctx context.Context, command string, opts ...ProcessOp
 }
 
 // Start является аналогом (*exec.Cmd).Start с поддержкой контекста
-func (p *BackgroundProcess) Start(ctx context.Context) error {
+// Также предоставляет возможность контролировать выполнение процесса
+// с помощью канала waitChan
+func (p *BackgroundProcess) Start(ctx context.Context, waitChan ...chan<- error) error {
 	startChan := make(chan error, 1)
 	go func() {
 		startChan <- p.cmd.Start()
+		if len(waitChan) == 1 {
+			waitChan[0] <- p.cmd.Wait()
+		}
 	}()
 
 	for {
