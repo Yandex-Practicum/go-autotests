@@ -119,6 +119,7 @@ func (suite *Iteration8Suite) TestGzipCompress() {
 		req := httpc.R().
 			SetContext(ctx).
 			SetBody(buf.Bytes()).
+			SetHeader("Content-Type", "plain/text").
 			SetHeader("Accept-Encoding", "gzip").
 			SetHeader("Content-Encoding", "gzip")
 		resp, err := req.Post("/")
