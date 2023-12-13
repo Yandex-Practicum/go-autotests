@@ -9,7 +9,7 @@ require (
 	github.com/jackc/pgx v3.6.2+incompatible
 	github.com/jingyugao/rowserrcheck v1.1.1
 	github.com/stretchr/testify v1.8.0
-	github.com/timakin/bodyclose v0.0.0-20210704033933-f49887972144
+	github.com/timakin/bodyclose v0.0.0-20230421092635-574207250966
 	golang.org/x/sync v0.1.0
 	golang.org/x/tools v0.6.0
 	honnef.co/go/tools v0.4.3
@@ -19,7 +19,8 @@ require (
 	github.com/BurntSushi/toml v1.2.1 // indirect
 	github.com/cockroachdb/apd v1.1.0 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
-	github.com/gostaticanalysis/analysisutil v0.0.0-20190318220348-4088753ea4d3 // indirect
+	github.com/gostaticanalysis/analysisutil v0.7.1 // indirect
+	github.com/gostaticanalysis/comment v1.4.2 // indirect
 	github.com/jackc/fake v0.0.0-20150926172116-812a484cc733 // indirect
 	github.com/lib/pq v1.10.7 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
