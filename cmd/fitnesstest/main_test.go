@@ -101,7 +101,7 @@ func (s *FitnessSuite) TestRunningSpentCalories() {
 	weightNum := float64(rnd.Int63n(140-80) + 80)
 
 	meanSpeed := testMeanSpeed(actionsNum, durationNum)
-	expected := ((_runningCaloriesMeanSpeedMultiplier*meanSpeed + _runningCaloriesMeanSpeedShift) * weightNum / _mInKm * durationNum * _minInH)
+	expected := ((_runningCaloriesMeanSpeedMultiplier * meanSpeed * _runningCaloriesMeanSpeedShift) * weightNum / _mInKm * durationNum * _minInH)
 
 	res := RunningSpentCalories(actionsNum, weightNum, durationNum)
 	s.Assert().InDelta(expected, res, 0.05, "Значение полученное из функции RunningSpentCalories не совпадает с ожидаемым")
