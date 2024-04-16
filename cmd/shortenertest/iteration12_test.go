@@ -221,7 +221,7 @@ func (suite *Iteration12Suite) TestBatchShorten() {
 			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 			defer cancel()
 
-			req := resty.New().
+			req := httpc.
 				SetRedirectPolicy(redirPolicy).
 				R()
 			resp, err := req.
