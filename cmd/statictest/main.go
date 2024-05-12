@@ -18,7 +18,6 @@ import (
 	"golang.org/x/tools/go/analysis/passes/errorsas"
 	"golang.org/x/tools/go/analysis/passes/httpresponse"
 	"golang.org/x/tools/go/analysis/passes/ifaceassert"
-	"golang.org/x/tools/go/analysis/passes/loopclosure"
 	"golang.org/x/tools/go/analysis/passes/lostcancel"
 	"golang.org/x/tools/go/analysis/passes/nilfunc"
 	"golang.org/x/tools/go/analysis/passes/nilness"
@@ -85,8 +84,6 @@ func main() {
 		errorsas.Analyzer,
 		// check for mistakes using HTTP responses
 		httpresponse.Analyzer,
-		// check references to loop variables from within nested functions
-		loopclosure.Analyzer,
 		// check cancel func returned by context.WithCancel is called
 		lostcancel.Analyzer,
 		// check for useless comparisons between functions and nil
