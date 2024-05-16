@@ -22,6 +22,7 @@ func (suite *Iteration6Suite) SetupSuite() {
 		{Name: "github.com/rs/zerolog"},
 		{Name: "go.uber.org/zap"},
 		{Name: "github.com/sirupsen/logrus"},
+		{Name: "log/slog"},
 		// "github.com/apex",
 		// "github.com/go-kit/kit/log",
 		// "github.com/golang/glog",
