@@ -165,6 +165,7 @@ func (suite *Iteration5Suite) TestGauge() {
 		req := httpc.R()
 		for i := 0; i < count; i++ {
 			v := strings.TrimRight(fmt.Sprintf("%.3f", rand.Float64()*1000000), "0")
+			v = strings.TrimRight(v, ".")
 			resp, err := req.Post("update/gauge/testSetGet" + id + "/" + v)
 			noRespErr := suite.Assert().NoError(err,
 				"Ошибка при попытке сделать запрос с обновлением gauge")
