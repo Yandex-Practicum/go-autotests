@@ -116,6 +116,7 @@ func (suite *Iteration1Suite) TestHandlers() {
 		// делаем запрос к серверу для сокращения URL
 		req := httpc.R().
 			SetContext(ctx).
+			SetHeader("Content-Type", "plain/text").
 			SetBody(originalURL)
 		resp, err := req.Post("/")
 

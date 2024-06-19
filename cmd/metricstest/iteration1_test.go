@@ -92,7 +92,8 @@ func (suite *Iteration1Suite) TestGaugeHandlers() {
 	httpc := resty.New().SetHostURL(suite.serverAddress)
 
 	suite.Run("update", func() {
-		req := httpc.R()
+		req := httpc.R().
+			SetHeader("Content-Type", "plain/text")
 		resp, err := req.Post("update/gauge/testGauge/100")
 
 		noRespErr := suite.Assert().NoError(err,
@@ -108,7 +109,8 @@ func (suite *Iteration1Suite) TestGaugeHandlers() {
 	})
 
 	suite.Run("without id", func() {
-		req := httpc.R()
+		req := httpc.R().
+			SetHeader("Content-Type", "plain/text")
 		resp, err := req.Post("update/gauge/")
 
 		noRespErr := suite.Assert().NoError(err,
@@ -124,7 +126,8 @@ func (suite *Iteration1Suite) TestGaugeHandlers() {
 	})
 
 	suite.Run("invalid value", func() {
-		req := httpc.R()
+		req := httpc.R().
+			SetHeader("Content-Type", "plain/text")
 		resp, err := req.Post("update/gauge/testGauge/none")
 
 		noRespErr := suite.Assert().NoError(err,
@@ -144,7 +147,8 @@ func (suite *Iteration1Suite) TestCounterHandlers() {
 	httpc := resty.New().SetHostURL(suite.serverAddress)
 
 	suite.Run("update", func() {
-		req := httpc.R()
+		req := httpc.R().
+			SetHeader("Content-Type", "plain/text")
 		resp, err := req.Post("update/counter/testCounter/100")
 
 		noRespErr := suite.Assert().NoError(err,
@@ -160,7 +164,8 @@ func (suite *Iteration1Suite) TestCounterHandlers() {
 	})
 
 	suite.Run("without id", func() {
-		req := httpc.R()
+		req := httpc.R().
+			SetHeader("Content-Type", "plain/text")
 		resp, err := req.Post("update/counter/")
 
 		noRespErr := suite.Assert().NoError(err,
@@ -176,7 +181,8 @@ func (suite *Iteration1Suite) TestCounterHandlers() {
 	})
 
 	suite.Run("invalid value", func() {
-		req := httpc.R()
+		req := httpc.R().
+			SetHeader("Content-Type", "plain/text")
 		resp, err := req.Post("update/counter/testCounter/none")
 
 		noRespErr := suite.Assert().NoError(err,
@@ -196,7 +202,8 @@ func (suite *Iteration1Suite) TestUnknownHandlers() {
 	httpc := resty.New().SetHostURL(suite.serverAddress)
 
 	suite.Run("update invalid type", func() {
-		req := httpc.R()
+		req := httpc.R().
+			SetHeader("Content-Type", "plain/text")
 		resp, err := req.Post("update/unknown/testCounter/100")
 
 		noRespErr := suite.Assert().NoError(err,
@@ -212,7 +219,8 @@ func (suite *Iteration1Suite) TestUnknownHandlers() {
 	})
 
 	suite.Run("update invalid method", func() {
-		req := httpc.R()
+		req := httpc.R().
+			SetHeader("Content-Type", "plain/text")
 		resp, err := req.Post("updater/counter/testCounter/100")
 
 		noRespErr := suite.Assert().NoError(err,
