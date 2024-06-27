@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"os"
+	"os/exec"
 	"syscall"
 	"time"
 
@@ -83,11 +84,15 @@ func (suite *GophermartSuite) SetupSuite() {
 		ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 		defer cancel()
 
-		err := p.Start(ctx)
+		waitCh := make(chan error, 1)
+		err := p.Start(ctx, waitCh)
 		if err != nil {
 			suite.T().Errorf("Невозможно запустить процесс командой %s: %s. Переменные окружения: %+v", p, err, envs)
 			return
 		}
+
+		// Exit tests if background process returns error
+		suite.controlExecution(p, waitCh)
 
 		port := flagGophermartPort
 		err = p.WaitPort(ctx, "tcp", port)
@@ -139,4 +144,28 @@ func (suite *GophermartSuite) stopBinaryProcess(p *fork.BackgroundProcess) {
 	if len(out) > 0 {
 		suite.T().Logf("Получен STDOUT лог процесса:\n\n%s", string(out))
 	}
+}
+
+// controlExecution controls of background process exit with err code
+func (suite *GophermartSuite) controlExecution(p *fork.BackgroundProcess, waitCh <-chan error) {
+	go func() {
+		err := <-waitCh
+
+		ctx, cancel := context.WithTimeout(context.Background(), 500*time.Millisecond)
+		defer cancel()
+
+		var errExit *exec.ExitError
+		if errors.As(err, &errExit) && errExit.ExitCode() != 0 {
+			suite.T().Errorf("Процесс %s завершился с ошибкой: %v ", p.String(), errExit)
+			out := p.Stderr(ctx)
+			if len(out) > 0 {
+				suite.T().Logf("Получен STDERR лог процесса:\n\n%s", string(out))
+			}
+			out = p.Stdout(ctx)
+			if len(out) > 0 {
+				suite.T().Logf("Получен STDOUT лог процесса:\n\n%s", string(out))
+			}
+			os.Exit(1)
+		}
+	}()
 }
