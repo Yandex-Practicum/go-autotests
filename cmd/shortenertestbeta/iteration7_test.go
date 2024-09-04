@@ -9,10 +9,9 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/Yandex-Practicum/go-autotests/internal/fork"
 	"github.com/go-resty/resty/v2"
 	"github.com/stretchr/testify/suite"
-
-	"github.com/Yandex-Practicum/go-autotests/internal/fork"
 )
 
 // Iteration7Suite является сьютом с тестами и состоянием для инкремента
@@ -36,6 +35,7 @@ func (suite *Iteration7Suite) SetupSuite() {
 		"encoding/json",
 		"github.com/mailru/easyjson",
 		"github.com/pquerna/ffjson",
+		"github.com/labstack/echo",
 	}
 
 	suite.serverAddress = "http://localhost:8080"
