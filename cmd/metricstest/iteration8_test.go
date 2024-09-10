@@ -310,7 +310,7 @@ func (suite *Iteration8Suite) TestGetGzipHandlers() {
 
 	suite.Run("get info page", func() {
 		req := httpc.R().
-			SetHeader("Accept", "html/text").
+			SetHeader("Accept", "text/html").
 			SetHeader("Accept-Encoding", "gzip")
 
 		resp, err := req.
