@@ -93,6 +93,7 @@ func (suite *GophermartSuite) SetupSuite() {
 		err = p.WaitPort(ctx, "tcp", port)
 		if err != nil {
 			suite.T().Errorf("Не удалось дождаться пока порт %s станет доступен для запроса: %s", port, err)
+			return
 		}
 
 		suite.gophermartProcess = p
