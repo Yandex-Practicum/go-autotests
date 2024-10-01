@@ -3,7 +3,12 @@ SHELL=/bin/bash
 AUTOTESTS = gophermarttest metricstest devopstest shortenertest shortenertestbeta devopsmastertest
 UTILS = random statictest shortenerstress
 
+.PHONY: clear prep perm
+
 all: prep autotests utils perm
+
+clear:
+	rm -rf bin/*
 
 prep:
 	go mod tidy

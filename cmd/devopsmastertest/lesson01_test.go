@@ -27,19 +27,11 @@ func (suite *Lesson01Suite) TestServerStats() {
 
 	// генерируем набор сценариев тестирования
 	suite.T().Log("generating scenarios")
-	respSet := newResponseSet()
-
-	maxRequests := len(respSet)
-	var stats []serverStat
-	var setOutputs []string
-	for _, resp := range respSet {
-		stats = append(stats, resp.stats)
-		setOutputs = append(setOutputs, resp.expectedOutput...)
-	}
+	scenarios := newScenarios()
 
 	suite.T().Log("creating handler")
 	reqNotifier := make(chan int)
-	handler := newFaultySrvHandler(stats, reqNotifier)
+	handler := suite.newFaultySrvHandler(scenarios, reqNotifier)
 
 	// запускаем сервер
 	suite.T().Log("staring HTTP server")
@@ -72,6 +64,7 @@ func (suite *Lesson01Suite) TestServerStats() {
 	// ждем завершения
 	suite.T().Log("waiting scenarios to complete")
 	var requestsMade int
+	maxRequests := len(scenarios)
 	func() {
 		for {
 			select {
@@ -82,7 +75,6 @@ func (suite *Lesson01Suite) TestServerStats() {
 				// время вышло
 				return
 			case requestsMade = <-reqNotifier:
-				suite.T().Logf("got request %d", requestsMade)
 				if requestsMade == maxRequests {
 					// все сценарии были обработаны
 					return
@@ -100,7 +92,12 @@ func (suite *Lesson01Suite) TestServerStats() {
 	}
 
 	// сравниваем вывод скрпта в консоль с ожидаемым выводом
-	expectedOutput := strings.Join(setOutputs, "\n")
+	var combinedOutput []string
+	for _, sc := range scenarios {
+		combinedOutput = append(combinedOutput, sc.expectedOutput...)
+	}
+	expectedOutput := strings.Join(combinedOutput, "\n")
+
 	if expectedOutput != "" {
 		expectedOutput += "\n"
 	}
@@ -110,7 +107,7 @@ func (suite *Lesson01Suite) TestServerStats() {
 	suite.Assert().Equal(expectedOutput, string(stdout), "Вывод скрипта отличается от ожидаемого")
 }
 
-func newFaultySrvHandler(stats []serverStat, notifier chan<- int) http.HandlerFunc {
+func (suite *Lesson01Suite) newFaultySrvHandler(scs scenarios, notifier chan<- int) http.HandlerFunc {
 	var mu sync.Mutex
 	var receivedRequestsCount int
 	return func(w http.ResponseWriter, r *http.Request) {
@@ -118,19 +115,23 @@ func newFaultySrvHandler(stats []serverStat, notifier chan<- int) http.HandlerFu
 		mu.Lock()
 		defer mu.Unlock()
 
-		if receivedRequestsCount >= len(stats) {
+		suite.T().Logf("got HTTP request %d", receivedRequestsCount)
+
+		if receivedRequestsCount >= len(scs) {
 			// отвечаем ошибкой если у нас кончились заготовленные ответы,
 			// а запросы все еще приходят
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
-		body, err := stats[receivedRequestsCount].MarshalText()
+		scenario := scs[receivedRequestsCount]
+		body, err := scenario.stats.MarshalText()
 		if err != nil {
 			// почему-то не смогли закодировать данные сервера в строку
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
 		// отправляем ответ
+		suite.T().Logf("sending HTTP response body for scenario '%s': %s", scenario.name, string(body))
 		_, _ = w.Write(body)
 		// увеличиваем счетчик принятых запросов
 		receivedRequestsCount++
@@ -139,9 +140,10 @@ func newFaultySrvHandler(stats []serverStat, notifier chan<- int) http.HandlerFu
 	}
 }
 
-type responseSet []responsePair
+type scenarios []serverStateScenario
 
-type responsePair struct {
+type serverStateScenario struct {
+	name           string
 	stats          serverStat
 	expectedOutput []string
 }
@@ -181,7 +183,7 @@ const (
 	unitGbps = unitMbps * 1000
 )
 
-func newResponseSet() (res responseSet) {
+func newScenarios() (res scenarios) {
 	src := rand.NewSource(time.Now().UnixNano())
 	rnd := rand.New(src)
 
@@ -192,24 +194,29 @@ func newResponseSet() (res responseSet) {
 
 	{
 		// сценарий: все в порядке
-		res = append(res, responsePair{
-			stats: serverStat{
-				CurrentLA:             intInRange(rnd, 0, 29),
-				MemBytesAvailable:     memBytesAvailable,
-				MemBytesUsed:          intInRange(rnd, memBytesAvailable/3, memBytesAvailable/2),
-				DiskBytesAvailable:    diskBytesAvailable,
-				DiskBytesUsed:         intInRange(rnd, diskBytesAvailable/5, diskBytesAvailable/3),
-				NetBandwidthAvailable: netBandwidthAvailable,
-				NetBandwidthUsed:      intInRange(rnd, netBandwidthAvailable/8, netBandwidthAvailable/4),
-			},
-			expectedOutput: nil,
-		})
+		// добавляем несколько сценариев
+		for range intInRange(rnd, 1, 5) {
+			res = append(res, serverStateScenario{
+				name: "ok",
+				stats: serverStat{
+					CurrentLA:             intInRange(rnd, 0, 29),
+					MemBytesAvailable:     memBytesAvailable,
+					MemBytesUsed:          intInRange(rnd, memBytesAvailable/3, memBytesAvailable/2),
+					DiskBytesAvailable:    diskBytesAvailable,
+					DiskBytesUsed:         intInRange(rnd, diskBytesAvailable/5, diskBytesAvailable/3),
+					NetBandwidthAvailable: netBandwidthAvailable,
+					NetBandwidthUsed:      intInRange(rnd, netBandwidthAvailable/8, netBandwidthAvailable/4),
+				},
+				expectedOutput: nil,
+			})
+		}
 	}
 
 	{
 		// сценарий: слишком большое LA
 		currentLA := intInRange(rnd, 30, 99)
-		res = append(res, responsePair{
+		res = append(res, serverStateScenario{
+			name: "high_la",
 			stats: serverStat{
 				CurrentLA:             currentLA,
 				MemBytesAvailable:     memBytesAvailable,
@@ -221,6 +228,89 @@ func newResponseSet() (res responseSet) {
 			},
 			expectedOutput: []string{
 				fmt.Sprintf("Load Average is too high: %d", currentLA),
+			},
+		})
+	}
+
+	{
+		// сценарий: слишком большое потребление памяти
+		memBytesUsed := intInRange(rnd, int(float32(memBytesAvailable)*0.85), memBytesAvailable)
+		res = append(res, serverStateScenario{
+			name: "high_mem",
+			stats: serverStat{
+				CurrentLA:             intInRange(rnd, 0, 29),
+				MemBytesAvailable:     memBytesAvailable,
+				MemBytesUsed:          memBytesUsed,
+				DiskBytesAvailable:    diskBytesAvailable,
+				DiskBytesUsed:         intInRange(rnd, diskBytesAvailable/5, diskBytesAvailable/3),
+				NetBandwidthAvailable: netBandwidthAvailable,
+				NetBandwidthUsed:      intInRange(rnd, netBandwidthAvailable/8, netBandwidthAvailable/4),
+			},
+			expectedOutput: []string{
+				fmt.Sprintf("Memory usage too high: %d%%", int(float32(memBytesUsed)/float32(memBytesAvailable)*100)),
+			},
+		})
+	}
+
+	{
+		// сценарий: слишком большое потребление диска
+		diskBytesUsed := intInRange(rnd, int(float32(diskBytesAvailable)*0.91), diskBytesAvailable)
+		res = append(res, serverStateScenario{
+			name: "low_disk",
+			stats: serverStat{
+				CurrentLA:             intInRange(rnd, 0, 29),
+				MemBytesAvailable:     memBytesAvailable,
+				MemBytesUsed:          intInRange(rnd, memBytesAvailable/3, memBytesAvailable/2),
+				DiskBytesAvailable:    diskBytesAvailable,
+				DiskBytesUsed:         diskBytesUsed,
+				NetBandwidthAvailable: netBandwidthAvailable,
+				NetBandwidthUsed:      intInRange(rnd, netBandwidthAvailable/8, netBandwidthAvailable/4),
+			},
+			expectedOutput: []string{
+				fmt.Sprintf("Free disk space is too low: %d Mb left", (diskBytesAvailable-diskBytesUsed)/1024/1024),
+			},
+		})
+	}
+
+	{
+		// сценарий: слишком большое потребление сети
+		netBandwidthUsed := intInRange(rnd, int(float32(netBandwidthAvailable)*0.91), netBandwidthAvailable)
+		res = append(res, serverStateScenario{
+			name: "high_net",
+			stats: serverStat{
+				CurrentLA:             intInRange(rnd, 0, 29),
+				MemBytesAvailable:     memBytesAvailable,
+				MemBytesUsed:          intInRange(rnd, memBytesAvailable/3, memBytesAvailable/2),
+				DiskBytesAvailable:    diskBytesAvailable,
+				DiskBytesUsed:         intInRange(rnd, diskBytesAvailable/5, diskBytesAvailable/3),
+				NetBandwidthAvailable: netBandwidthAvailable,
+				NetBandwidthUsed:      netBandwidthUsed,
+			},
+			expectedOutput: []string{
+				fmt.Sprintf("Network bandwidth usage high: %d Mbit/s available", (netBandwidthAvailable-netBandwidthUsed)/1000/1000),
+			},
+		})
+	}
+
+	{
+		// сценарий: уходим в swap
+		currentLA := intInRange(rnd, 50, 90)
+		diskBytesUsed := intInRange(rnd, int(float32(diskBytesAvailable)*0.91), diskBytesAvailable)
+		res = append(res, serverStateScenario{
+			name: "swap",
+			stats: serverStat{
+				CurrentLA:             currentLA,
+				MemBytesAvailable:     memBytesAvailable,
+				MemBytesUsed:          memBytesAvailable,
+				DiskBytesAvailable:    diskBytesAvailable,
+				DiskBytesUsed:         diskBytesUsed,
+				NetBandwidthAvailable: netBandwidthAvailable,
+				NetBandwidthUsed:      intInRange(rnd, netBandwidthAvailable/8, netBandwidthAvailable/4),
+			},
+			expectedOutput: []string{
+				fmt.Sprintf("Load Average is too high: %d", currentLA),
+				fmt.Sprint("Memory usage too high: 100%"),
+				fmt.Sprintf("Free disk space is too low: %d Mb left", (diskBytesAvailable-diskBytesUsed)/1024/1024),
 			},
 		})
 	}
