@@ -16,3 +16,7 @@ func TestMain(m *testing.M) {
 func TestLesson01(t *testing.T) {
 	suite.Run(t, new(Lesson01Suite))
 }
+
+func TestLesson02(t *testing.T) {
+	suite.Run(t, new(Lesson02Suite))
+}
