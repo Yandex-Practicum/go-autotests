@@ -1,6 +1,6 @@
 package main
 
-//go:generate go test -c -o=../../bin/devopsreskill
+//go:generate go test -c -o=../../bin/devopsmastertest
 
 import (
 	"os"
@@ -15,4 +15,8 @@ func TestMain(m *testing.M) {
 
 func TestLesson01(t *testing.T) {
 	suite.Run(t, new(Lesson01Suite))
+}
+
+func TestLesson02(t *testing.T) {
+	suite.Run(t, new(Lesson02Suite))
 }
