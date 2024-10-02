@@ -70,7 +70,12 @@ func (suite *Lesson02Suite) TestValidateYAML() {
 		expectedMessages = append(expectedMessages, modification.message)
 	}
 
-	suite.Assert().ElementsMatch(expectedMessages, linesOut, "вывод скрипта (List B) не совпадает с ожидаемым (List A)")
+	matches := suite.Assert().ElementsMatch(expectedMessages, linesOut, "вывод скрипта (List B) не совпадает с ожидаемым (List A)")
+	if !matches {
+		content, err := os.ReadFile(fpath)
+		suite.Require().NoError(err, "невозможно прочитать содержимое YAML файла")
+		suite.T().Logf("Содержимое тестового YAML файла:\n\n%s\n", content)
+	}
 }
 
 func newYAMLFile(rnd *rand.Rand) (fpath string, modifications []yamlModification, err error) {
@@ -116,6 +121,8 @@ func applyYAMLModifications(rnd *rand.Rand, root *yamlast.File) ([]yamlModificat
 		modifyYAMLNop, // с определенной вероятностью файл не будет модифицирован вообще
 		modifyYAMLSpecOS,
 		modifyYAMLRemoveRequired,
+		modifyYAMLPortOutOfRange,
+		modifyYAMLInvalidType,
 	}
 
 	rnd.Shuffle(len(funcs), func(i, j int) {
@@ -139,7 +146,7 @@ func applyYAMLModifications(rnd *rand.Rand, root *yamlast.File) ([]yamlModificat
 type yamlModifierFunc func(rnd *rand.Rand, root *yamlast.File) ([]yamlModification, error)
 
 // modifyYAMLNop не делает с YAML деревом ничего
-func modifyYAMLNop(_ *rand.Rand, _ *yamlast.File) ([]yamlModification, error) {
+func modifyYAMLNop(_ *rand.Rand, root *yamlast.File) ([]yamlModification, error) {
 	return nil, nil
 }
 
@@ -158,11 +165,11 @@ func modifyYAMLSpecOS(_ *rand.Rand, root *yamlast.File) ([]yamlModification, err
 	}
 
 	lineno := node.GetToken().Position.Line
-	path.ReplaceWithReader(root, strings.NewReader("os: "+badValue))
+	path.ReplaceWithReader(root, strings.NewReader(badValue))
 	return []yamlModification{
 		{
 			lineno:  lineno,
-			message: fmt.Sprintf("%s has unsupported value '%s'", cleanYAMLPath(node.GetPath()), badValue),
+			message: fmt.Sprintf("%s has unsupported value '%s'", basename(node.GetPath()), badValue),
 		},
 	}, nil
 }
@@ -185,15 +192,79 @@ func modifyYAMLRemoveRequired(rnd *rand.Rand, root *yamlast.File) ([]yamlModific
 	}
 
 	lineno := node.GetToken().Position.Line
-	path.ReplaceWithReader(root, strings.NewReader(""))
+	path.ReplaceWithReader(root, strings.NewReader(`""`))
 	return []yamlModification{
 		{
 			lineno:  lineno,
-			message: fmt.Sprintf("%s is required", cleanYAMLPath(node.GetPath())),
+			message: fmt.Sprintf("%s is required", basename(node.GetPath())),
 		},
 	}, nil
 }
 
-func cleanYAMLPath(path string) string {
-	return strings.TrimLeft(path, "$.")
+// modifyYAMLPortOutOfRange устанавливает значение порта за пределами границ
+func modifyYAMLPortOutOfRange(rnd *rand.Rand, root *yamlast.File) ([]yamlModification, error) {
+	paths := []string{
+		"$.spec.containers[0].ports[0].containerPort",
+		"$.spec.containers[0].readinessProbe.httpGet.port",
+		"$.spec.containers[0].livenessProbe.httpGet.port",
+	}
+
+	port := rnd.Intn(100000)
+	if port < 65536 {
+		port *= -1
+	}
+
+	path, err := yaml.PathString(paths[rnd.Intn(len(paths))])
+	if err != nil {
+		return nil, fmt.Errorf("bad field path given: %w", err)
+	}
+
+	node, err := path.FilterFile(root)
+	if err != nil {
+		return nil, fmt.Errorf("cannot filter node by path '%s': %w", path, err)
+	}
+
+	lineno := node.GetToken().Position.Line
+	path.ReplaceWithReader(root, strings.NewReader(fmt.Sprint(port)))
+	return []yamlModification{
+		{
+			lineno:  lineno,
+			message: fmt.Sprintf("%s value out of range", basename(node.GetPath())),
+		},
+	}, nil
+}
+
+// modifyYAMLInvalidType меняет тип на недопустимый
+func modifyYAMLInvalidType(rnd *rand.Rand, root *yamlast.File) ([]yamlModification, error) {
+	paths := []string{
+		"$.spec.containers[0].resources.limits.cpu",
+		"$.spec.containers[0].resources.requests.cpu",
+	}
+
+	path, err := yaml.PathString(paths[rnd.Intn(len(paths))])
+	if err != nil {
+		return nil, fmt.Errorf("bad field path given: %w", err)
+	}
+
+	node, err := path.FilterFile(root)
+	if err != nil {
+		return nil, fmt.Errorf("cannot filter node by path '%s': %w", path, err)
+	}
+
+	lineno := node.GetToken().Position.Line
+	path.ReplaceWithReader(root, strings.NewReader(`"`+node.String()+`"`))
+	return []yamlModification{
+		{
+			lineno:  lineno,
+			message: fmt.Sprintf("%s must be int", basename(node.GetPath())),
+		},
+	}, nil
+}
+
+func basename(path string) string {
+	idx := strings.LastIndex(path, ".")
+	if idx == -1 {
+		return path
+	}
+	return path[idx+1:]
 }

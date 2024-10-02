@@ -1,6 +1,6 @@
 package main
 
-//go:generate go test -c -o=../../bin/devopsreskill
+//go:generate go test -c -o=../../bin/devopsmastertest
 
 import (
 	"os"
