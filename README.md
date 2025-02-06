@@ -30,6 +30,26 @@ shortenertest -test.v -test.run=^TestIteration1$ -binary-path=cmd/shortener/shor
 metricstest -test.v -test.run=^TestIteration1$ -agent-binary-path=cmd/agent/agent
 ```
 
+### Запуск на Windows
+
+Ниже приведены замечания и уточнения при запуске автотестов на Windows.
+
+1. Для компиляции вашего сервера или агента достаточно перейти в соответствующую директорию и запустить `go build`. Если имя директории отлично от `shortener`, `agent` и т.д., то в команде `go build` следует указывать имя и расширение `.exe` для результирующего файла. Например, `go build -o shortener.exe`, `go build -o server.exe`.
+2. Скачивать файл нужно с суффиксом `-windows-amd64`. Например, `metricstest-windows-amd64.exe`, `shortenertest-windows-amd64.exe`. 
+3. После скачивание переместите файл в папку тестируемого проекта и удалите у него суффикс `-windows-adm64`, т.е. файл `metricstest-windows-amd64.exe` должен называться `metricstest.exe` и находиться в корневой папке вашего проекта.
+4. Запускать тесты нужно из корневой папки вашего проекта. Пример запуска теста для первого инкремента:
+
+```shell
+cd <project-folder>
+# сервис сбора метрик и алертинга
+metricstest.exe -test.v -test.run=^TestIteration1$ -agent-binary-path=cmd/agent/agent
+
+# сервис сокращения URL
+shortenertest.exe -test.v -test.run=^TestIteration1$ -binary-path=cmd/shortener/shortener
+```
+
+Если вы не хотите копировать файл автотеста в директорию проекта, а предпочитаете разместить его в другом месте, то при запуске нужно указывать полный путь к файлу автотеста.
+
 ### Запуск на Mac с процессором Apple Silicon
 
 Если у вас возникают трудности с локальным запуском автотестов на компьютере Mac на базе процессора Apple Silicon (M1 и старше), убедитесь, что:
