@@ -1,7 +1,7 @@
 SHELL=/bin/bash
 GOTOOLCHAIN=go1.24.1
 
-AUTOTESTS = gophermarttest metricstest devopstest shortenertest shortenertestbeta devopsmastertest
+AUTOTESTS = gophermarttest metricstest devopstest shortenertest shortenertestbeta devopsmastertest firstfloortest
 UTILS = random statictest shortenerstress
 
 .PHONY: clear prep perm
