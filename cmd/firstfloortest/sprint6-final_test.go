@@ -9,9 +9,12 @@ import (
 	"path/filepath"
 	"strings"
 	"syscall"
+	"testing"
 	"time"
 
 	"github.com/go-resty/resty/v2"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
 	"github.com/Yandex-Practicum/go-autotests/internal/fork"
@@ -70,7 +73,7 @@ func (suite *Sprint6FinalSuite) serverShutdown() {
 	}
 
 	if exitCode > 0 {
-		suite.T().Logf("Процесс завершился с не нулевым статусом %d", exitCode)
+		suite.T().Logf("Процесс завершился с ненулевым статусом %d", exitCode)
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 500*time.Millisecond)
@@ -109,42 +112,18 @@ func (suite *Sprint6FinalSuite) TestSprint6Final() {
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
 
-		file, err := os.Open("test12")
-		suite.Require().NoError(err, "Ошибка при попытке открыть файл test12")
-		defer file.Close()
+		resp := sendMorseCodeRequest(suite.T(), httpc, ctx, "test12")
 
-		resp, err := httpc.R().
-			SetContext(ctx).
-			SetFileReader("myFile", "test12", file).
-			Post("/upload")
-
-		suite.Require().NoError(err, "Ошибка при попытке загрузить файл")
-		suite.Assert().Equalf(http.StatusOK, resp.StatusCode(),
-			"Несоответствие статус кода ответа ожидаемому в хендлере POST /upload")
-
-		respBody := string(resp.Body())
-		suite.Assert().Containsf(strings.TrimSpace(respBody), ".--. .-. .. .-- . -", "Ответ не содержит ожидаемый код Морзе")
+		suite.Assert().Containsf(strings.TrimSpace(resp), ".--. .-. .. .-- . -", "Ответ не содержит ожидаемый код Морзе")
 	})
 
 	suite.Run("upload_morse_to_text", func() {
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
 
-		file, err := os.Open("test")
-		suite.Require().NoError(err, "Ошибка при попытке открыть файл test")
-		defer file.Close()
+		resp := sendMorseCodeRequest(suite.T(), httpc, ctx, "test")
 
-		resp, err := httpc.R().
-			SetContext(ctx).
-			SetFileReader("myFile", "test", file).
-			Post("/upload")
-
-		suite.Require().NoError(err, "Ошибка при попытке загрузить файл")
-		suite.Assert().Equalf(http.StatusOK, resp.StatusCode(),
-			"Несоответствие статус кода ответа ожидаемому в хендлере POST /upload")
-
-		respBody := string(resp.Body())
-		suite.Assert().Containsf(strings.TrimSpace(respBody), "ПРИВЕТ", "Ответ должен не содержит ожидаемый текст")
+		suite.Assert().Containsf(strings.TrimSpace(resp), "ПРИВЕТ", "Ответ не содержит ожидаемый текст")
 	})
 
 	suite.Run("upload_random", func() {
@@ -153,9 +132,9 @@ func (suite *Sprint6FinalSuite) TestSprint6Final() {
 
 		tmpDir, err := os.MkdirTemp("", "test-dir-*")
 		suite.Require().NoError(err, "Ошибка при создании временной директории")
-		defer os.RemoveAll(tmpDir)
+		//defer os.RemoveAll(tmpDir)
 
-		alphabeth := []rune("АБВГДЕЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯ")
+		alphabeth := []rune("АБВГДЕЖЗИЙКЛМНОПРСТУФХЦЧШЩЫЭЮЯ")
 		length := rand.Intn(20) + 10
 		text := make([]rune, length)
 		for i := range text {
@@ -169,40 +148,32 @@ func (suite *Sprint6FinalSuite) TestSprint6Final() {
 		err = os.WriteFile(textFilePath, []byte(originalText), 0644)
 		suite.Require().NoError(err, "Ошибка при записи в файл с исходным текстом")
 
-		file, err := os.Open(textFilePath)
-		suite.Require().NoError(err, "Ошибка при попытке открыть файл с исходным текстом")
-		defer file.Close()
-
-		resp, err := httpc.R().
-			SetContext(ctx).
-			SetFileReader("myFile", "random.txt", file).
-			Post("/upload")
-
-		suite.Require().NoError(err, "Ошибка при попытке загрузить файл")
-		suite.Assert().Equalf(http.StatusOK, resp.StatusCode(),
-			"Несоответствие статус кода ответа ожидаемому в хендлере POST /upload")
-
-		respBody := string(resp.Body())
-		suite.Assert().Containsf(respBody, ".-", "Ответ должен содержать код Морзе")
+		resp := sendMorseCodeRequest(suite.T(), httpc, ctx, textFilePath)
+		suite.Assert().Containsf(resp, ".-", "Ответ должен содержать код Морзе")
 
 		morseFilePath := filepath.Join(tmpDir, "morse.txt")
-		err = os.WriteFile(morseFilePath, []byte(respBody), 0644)
+		err = os.WriteFile(morseFilePath, []byte(resp), 0644)
 		suite.Require().NoError(err, "Ошибка при записи кода Морзе в файл")
 
-		morseFile, err := os.Open(morseFilePath)
-		suite.Require().NoError(err, "Ошибка при попытке открыть файл с кодом Морзе")
-		defer morseFile.Close()
-
-		resp, err = httpc.R().
-			SetContext(ctx).
-			SetFileReader("myFile", "morse.txt", morseFile).
-			Post("/upload")
-
-		suite.Require().NoError(err, "Ошибка при попытке загрузить файл с кодом Морзе")
-		suite.Assert().Equalf(http.StatusOK, resp.StatusCode(),
-			"Несоответствие статус кода ответа ожидаемому в хендлере POST /upload")
-
-		respBody = string(resp.Body())
-		suite.Assert().Containsf(respBody, originalText, "Ответ должен содержать исходный текст")
+		resp = sendMorseCodeRequest(suite.T(), httpc, ctx, morseFilePath)
+		suite.Assert().Containsf(resp, originalText, "Ответ должен содержать исходный текст")
 	})
+}
+
+func sendMorseCodeRequest(t *testing.T, httpc *resty.Client, ctx context.Context, inFile string) (response string) {
+	t.Helper()
+
+	file, err := os.Open(inFile)
+	require.NoError(t, err, "Не удалось открыть файл %s", inFile)
+	defer file.Close()
+
+	resp, err := httpc.R().
+		SetContext(ctx).
+		SetFileReader("myFile", inFile, file).
+		Post("/upload")
+
+	require.NoError(t, err, "Ошибка при попытке загрузить файл")
+	assert.Equalf(t, http.StatusOK, resp.StatusCode(), "Несоответствие статус кода ответа ожидаемому в хендлере POST /upload")
+
+	return string(resp.Body())
 }
