@@ -46,6 +46,7 @@ func (suite *Iteration7Suite) SetupSuite() {
 		{Name: "github.com/mailru/easyjson"},
 		{Name: "github.com/pquerna/ffjson"},
 		{Name: "github.com/labstack/echo"},
+		{Name: "github.com/goccy/go-json"},
 	}
 
 	suite.serverAddress = "http://localhost:8080"
