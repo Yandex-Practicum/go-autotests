@@ -97,7 +97,7 @@ func (suite *Iteration10Suite) TearDownSuite() {
 
 // TestLibraryUsage пробует рекурсивно найти использование database/sql хотя бы в одном файле с исходным кодом проекта
 func (suite *Iteration10Suite) TestLibraryUsage() {
-	err := usesKnownPackage(suite.T(), ".", suite.knownLibraries)
+	err := usesKnownPackage(suite.T(), flagTargetSourcePath, suite.knownLibraries)
 	if err == nil {
 		return
 	}
