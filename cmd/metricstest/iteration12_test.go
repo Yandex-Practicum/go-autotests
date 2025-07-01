@@ -210,7 +210,8 @@ func (suite *Iteration12Suite) TestBatchAPI() {
 			},
 		}
 
-		req := httpc.R()
+		req := httpc.R().
+			SetHeader("Content-Type", "application/json")
 		resp, err := req.SetBody(metrics).
 			Post("updates/")
 

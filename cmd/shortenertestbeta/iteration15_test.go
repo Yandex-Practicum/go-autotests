@@ -163,6 +163,7 @@ func (suite *Iteration15Suite) TestDelete() {
 
 			req := httpc.R().
 				SetContext(ctx).
+				SetHeader("Content-Type", "plain/text").
 				SetBody(originalURL)
 			resp, err := req.Post("/")
 
@@ -297,6 +298,7 @@ func (suite *Iteration15Suite) TestDeleteConcurrent() {
 
 			req := httpc.R().
 				SetContext(ctx).
+				SetHeader("Content-Type", "plain/text").
 				SetBody(originalURL)
 			resp, err := req.Post("/")
 
