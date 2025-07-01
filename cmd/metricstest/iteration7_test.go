@@ -57,8 +57,8 @@ func (suite *Iteration7Suite) SetupSuite() {
 	}...)
 	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 	defer cancel()
-	suite.agentUp(ctx, envs, "8080")
 	suite.serverUp(ctx, envs, "8080")
+	suite.agentUp(ctx, envs, "8080")
 }
 
 func (suite *Iteration7Suite) serverUp(ctx context.Context, envs []string, port string) {
