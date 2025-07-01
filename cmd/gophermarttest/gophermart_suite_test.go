@@ -57,14 +57,15 @@ func (suite *GophermartSuite) SetupSuite() {
 			return
 		}
 
+		suite.accrualProcess = p
+
 		port := flagAccrualPort
 		err = p.WaitPort(ctx, "tcp", port)
 		if err != nil {
 			suite.T().Errorf("Не удалось дождаться пока порт %s станет доступен для запроса: %s", port, err)
+
 			return
 		}
-
-		suite.accrualProcess = p
 	}
 
 	// start gophermart server
@@ -89,14 +90,14 @@ func (suite *GophermartSuite) SetupSuite() {
 			return
 		}
 
+		suite.gophermartProcess = p
+
 		port := flagGophermartPort
 		err = p.WaitPort(ctx, "tcp", port)
 		if err != nil {
 			suite.T().Errorf("Не удалось дождаться пока порт %s станет доступен для запроса: %s", port, err)
 			return
 		}
-
-		suite.gophermartProcess = p
 	}
 }
 

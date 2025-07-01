@@ -9,15 +9,15 @@ jobs:
 
   release:
     runs-on: ubuntu-latest
-    container: golang:1.20
+    container: golang:1.24
     permissions:
       contents: write
     steps:
       - name: Checkout code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
 
       - name: Cache deps
-        uses: actions/cache@v2
+        uses: actions/cache@v4
         with:
           path: ~/go/pkg/mod
           key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}

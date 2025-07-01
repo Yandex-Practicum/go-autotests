@@ -8,10 +8,9 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/Yandex-Practicum/go-autotests/internal/fork"
 	"github.com/go-resty/resty/v2"
 	"github.com/stretchr/testify/suite"
-
-	"github.com/Yandex-Practicum/go-autotests/internal/fork"
 )
 
 type Iteration1Suite struct {
@@ -94,6 +93,7 @@ func (suite *Iteration1Suite) TestGaugeHandlers() {
 	suite.Run("update", func() {
 		req := httpc.R().
 			SetHeader("Content-Type", "plain/text")
+
 		resp, err := req.Post("update/gauge/testGauge/100")
 
 		noRespErr := suite.Assert().NoError(err,
@@ -111,6 +111,7 @@ func (suite *Iteration1Suite) TestGaugeHandlers() {
 	suite.Run("without id", func() {
 		req := httpc.R().
 			SetHeader("Content-Type", "plain/text")
+
 		resp, err := req.Post("update/gauge/")
 
 		noRespErr := suite.Assert().NoError(err,
@@ -128,6 +129,7 @@ func (suite *Iteration1Suite) TestGaugeHandlers() {
 	suite.Run("invalid value", func() {
 		req := httpc.R().
 			SetHeader("Content-Type", "plain/text")
+
 		resp, err := req.Post("update/gauge/testGauge/none")
 
 		noRespErr := suite.Assert().NoError(err,
@@ -149,6 +151,7 @@ func (suite *Iteration1Suite) TestCounterHandlers() {
 	suite.Run("update", func() {
 		req := httpc.R().
 			SetHeader("Content-Type", "plain/text")
+
 		resp, err := req.Post("update/counter/testCounter/100")
 
 		noRespErr := suite.Assert().NoError(err,
@@ -166,6 +169,7 @@ func (suite *Iteration1Suite) TestCounterHandlers() {
 	suite.Run("without id", func() {
 		req := httpc.R().
 			SetHeader("Content-Type", "plain/text")
+
 		resp, err := req.Post("update/counter/")
 
 		noRespErr := suite.Assert().NoError(err,
@@ -183,6 +187,7 @@ func (suite *Iteration1Suite) TestCounterHandlers() {
 	suite.Run("invalid value", func() {
 		req := httpc.R().
 			SetHeader("Content-Type", "plain/text")
+
 		resp, err := req.Post("update/counter/testCounter/none")
 
 		noRespErr := suite.Assert().NoError(err,
@@ -204,6 +209,7 @@ func (suite *Iteration1Suite) TestUnknownHandlers() {
 	suite.Run("update invalid type", func() {
 		req := httpc.R().
 			SetHeader("Content-Type", "plain/text")
+
 		resp, err := req.Post("update/unknown/testCounter/100")
 
 		noRespErr := suite.Assert().NoError(err,
@@ -221,6 +227,7 @@ func (suite *Iteration1Suite) TestUnknownHandlers() {
 	suite.Run("update invalid method", func() {
 		req := httpc.R().
 			SetHeader("Content-Type", "plain/text")
+
 		resp, err := req.Post("updater/counter/testCounter/100")
 
 		noRespErr := suite.Assert().NoError(err,

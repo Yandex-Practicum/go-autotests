@@ -12,13 +12,12 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/Yandex-Practicum/go-autotests/internal/fork"
 	"github.com/go-resty/resty/v2"
 	"github.com/jackc/pgx"
 	"github.com/jackc/pgx/stdlib"
 	"github.com/stretchr/testify/suite"
 	"golang.org/x/sync/errgroup"
-
-	"github.com/Yandex-Practicum/go-autotests/internal/fork"
 )
 
 // Iteration15Suite является сьютом с тестами и состоянием для инкремента
@@ -151,6 +150,8 @@ func (suite *Iteration15Suite) TestDelete() {
 		SetCookieJar(jar).
 		SetRedirectPolicy(redirPolicy)
 
+	var authorizationHeader string
+
 	shortenURLs := make(map[string]string)
 
 	suite.Run("shorten", func() {
@@ -183,6 +184,9 @@ func (suite *Iteration15Suite) TestDelete() {
 				dump := dumpRequest(req.RawRequest, true)
 				suite.T().Logf("Оригинальный запрос:\n\n%s", dump)
 			}
+
+			// сохраняем заголовок Authorization если он есть
+			authorizationHeader = resp.Header().Get("Authorization")
 		}
 	})
 
@@ -205,6 +209,12 @@ func (suite *Iteration15Suite) TestDelete() {
 			SetContext(ctx).
 			SetHeader("Content-Type", "application/json").
 			SetBody(body)
+
+		// устанавливаем заголовок Authorization, есчли у нас есть токен
+		if authorizationHeader != "" {
+			req.SetHeader("Authorization", authorizationHeader)
+		}
+
 		resp, err := req.Delete("/api/user/urls")
 
 		noRespErr := suite.Assert().NoError(err, "Ошибка при попытке сделать запрос для удаления URL")

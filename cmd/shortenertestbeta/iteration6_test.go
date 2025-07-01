@@ -23,6 +23,7 @@ func (suite *Iteration6Suite) SetupSuite() {
 		"github.com/rs/zerolog",
 		"go.uber.org/zap",
 		"github.com/sirupsen/logrus",
+		"log/slog",
 	}
 }
 

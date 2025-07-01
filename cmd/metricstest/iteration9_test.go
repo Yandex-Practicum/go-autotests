@@ -10,10 +10,9 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/Yandex-Practicum/go-autotests/internal/fork"
 	"github.com/go-resty/resty/v2"
 	"github.com/stretchr/testify/suite"
-
-	"github.com/Yandex-Practicum/go-autotests/internal/fork"
 )
 
 type Iteration9Suite struct {
@@ -165,6 +164,9 @@ func (suite *Iteration9Suite) TestCounterHandlers() {
 	var storage int64
 
 	suite.Run("update", func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+		defer cancel()
+
 		value1, value2 := int64(suite.rnd.Int31()), int64(suite.rnd.Int31())
 		req := httpc.R().
 			SetHeader("Content-Type", "application/json")
@@ -172,6 +174,7 @@ func (suite *Iteration9Suite) TestCounterHandlers() {
 		// Вдруг на сервере уже есть значение, на всякий случай запросим.
 		var result Metrics
 		resp, err := req.
+			SetContext(ctx).
 			SetBody(&Metrics{
 				ID:    id,
 				MType: "counter",
@@ -199,6 +202,7 @@ func (suite *Iteration9Suite) TestCounterHandlers() {
 		}
 
 		resp, err = req.
+			SetContext(ctx).
 			SetBody(&Metrics{
 				ID:    id,
 				MType: "counter",
@@ -212,6 +216,7 @@ func (suite *Iteration9Suite) TestCounterHandlers() {
 			"Несоответствие статус кода ответа ожидаемому в хендлере %q: %q ", req.Method, req.URL)
 
 		resp, err = req.
+			SetContext(ctx).
 			SetBody(&Metrics{
 				ID:    id,
 				MType: "counter",
@@ -225,6 +230,7 @@ func (suite *Iteration9Suite) TestCounterHandlers() {
 			"Несоответствие статус кода ответа ожидаемому в хендлере %q: %q ", req.Method, req.URL)
 
 		resp, err = req.
+			SetContext(ctx).
 			SetBody(&Metrics{
 				ID:    id,
 				MType: "counter",
@@ -262,12 +268,16 @@ func (suite *Iteration9Suite) TestCounterHandlers() {
 	})
 
 	suite.Run("get", func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+		defer cancel()
+
 		req := httpc.R().
 			SetHeader("Content-Type", "application/json")
 
 		// Вдруг на сервере уже есть значение, на всякий случай запросим.
 		var result Metrics
 		resp, err := req.
+			SetContext(ctx).
 			SetBody(&Metrics{
 				ID:    id,
 				MType: "counter",
@@ -307,11 +317,15 @@ func (suite *Iteration9Suite) TestGaugeHandlers() {
 	var storage float64
 
 	suite.Run("update", func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+		defer cancel()
+
 		value := suite.rnd.Float64() * 1e6
 		req := httpc.R().
 			SetHeader("Content-Type", "application/json")
 
 		resp, err := req.
+			SetContext(ctx).
 			SetBody(&Metrics{
 				ID:    id,
 				MType: "gauge",
@@ -325,6 +339,7 @@ func (suite *Iteration9Suite) TestGaugeHandlers() {
 
 		var result Metrics
 		resp, err = req.
+			SetContext(ctx).
 			SetBody(&Metrics{
 				ID:    id,
 				MType: "gauge",
@@ -363,12 +378,16 @@ func (suite *Iteration9Suite) TestGaugeHandlers() {
 	})
 
 	suite.Run("get", func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+		defer cancel()
+
 		req := httpc.R().
 			SetHeader("Content-Type", "application/json")
 
 		// Вдруг на сервере уже есть значение, на всякий случай запросим.
 		var result Metrics
 		resp, err := req.
+			SetContext(ctx).
 			SetBody(&Metrics{
 				ID:    id,
 				MType: "gauge",

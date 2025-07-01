@@ -1,0 +1,31 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: super_pod
+  namespace: super_service
+  labels:
+    dc: us-west-1
+    group: gamma
+spec:
+  os: linux
+  containers:
+    - name: my_container_name
+      image: registry.bigbrother.io/baseimage:v1.2.0
+      ports:
+        - containerPort: 8080
+          protocol: TCP
+      readinessProbe:
+        httpGet:
+          path: /_ready
+          port: 8080
+      livenessProbe:
+        httpGet:
+          path: /_alive
+          port: 8080
+      resources:
+        limits:
+          cpu: 2
+          memory: "1Gi"
+        requests:
+          cpu: 1
+          memory: "500Mi"

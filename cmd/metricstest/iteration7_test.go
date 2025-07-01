@@ -10,10 +10,9 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/Yandex-Practicum/go-autotests/internal/fork"
 	"github.com/go-resty/resty/v2"
 	"github.com/stretchr/testify/suite"
-
-	"github.com/Yandex-Practicum/go-autotests/internal/fork"
 )
 
 type Iteration7Suite struct {
@@ -46,6 +45,8 @@ func (suite *Iteration7Suite) SetupSuite() {
 		{Name: "encoding/json"},
 		{Name: "github.com/mailru/easyjson"},
 		{Name: "github.com/pquerna/ffjson"},
+		{Name: "github.com/labstack/echo"},
+		{Name: "github.com/goccy/go-json"},
 	}
 
 	suite.serverAddress = "http://localhost:8080"
