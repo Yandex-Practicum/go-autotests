@@ -190,9 +190,14 @@ func (suite *Iteration14Suite) TestAuth() {
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
 
+		// создаем cookie jar что бы сервер не возвращал 401 Unauthorized
+		jar, err := cookiejar.New(nil)
+		suite.Require().NoError(err, "Неожиданная ошибка при создании Cookie Jar")
+
 		// запрашиваем список URL без имеющихся идентификаторов
 		req := resty.New().
 			SetBaseURL(suite.serverAddress).
+			SetCookieJar(jar).
 			R()
 		resp, err := req.
 			SetContext(ctx).
