@@ -36,6 +36,7 @@ func (suite *Iteration4Suite) SetupSuite() {
 		"encoding/json",
 		"github.com/mailru/easyjson",
 		"github.com/pquerna/ffjson",
+		"github.com/go-chi/render",
 	}
 
 	suite.serverAddress = "http://localhost:8080"
