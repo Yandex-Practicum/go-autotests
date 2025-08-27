@@ -43,7 +43,7 @@ func run() error {
 	}
 
 	for _, tableName := range tables {
-		_, err = db.ExecContext(ctx, `DROP TABLE `+tableName)
+		_, err = db.ExecContext(ctx, `DROP TABLE `+tableName+` CASCADE`)
 		if err != nil {
 			return fmt.Errorf("cannot perform table wipe: %w", err)
 		}
