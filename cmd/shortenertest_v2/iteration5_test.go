@@ -136,7 +136,7 @@ func (suite *Iteration5Suite) TestEnvVars() {
 
 		req := httpc.R().
 			SetContext(ctx).
-			SetHeader("Content-Type", "plain/text").
+			SetHeader("Content-Type", "text/plain").
 			SetBody(originalURL)
 		resp, err := req.Post("/")
 

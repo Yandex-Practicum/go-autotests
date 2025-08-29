@@ -112,7 +112,7 @@ func (suite *Iteration14Suite) TestAuth() {
 
 		req := httpc.R().
 			SetContext(ctx).
-			SetHeader("Content-Type", "plain/text").
+			SetHeader("Content-Type", "text/plain").
 			SetBody(originalURL)
 		resp, err := req.Post("/")
 
