@@ -92,7 +92,7 @@ func (suite *Iteration1Suite) TestGaugeHandlers() {
 
 	suite.Run("update", func() {
 		req := httpc.R().
-			SetHeader("Content-Type", "plain/text")
+			SetHeader("Content-Type", "text/plain")
 
 		resp, err := req.Post("update/gauge/testGauge/100")
 
@@ -110,7 +110,7 @@ func (suite *Iteration1Suite) TestGaugeHandlers() {
 
 	suite.Run("without id", func() {
 		req := httpc.R().
-			SetHeader("Content-Type", "plain/text")
+			SetHeader("Content-Type", "text/plain")
 
 		resp, err := req.Post("update/gauge/")
 
@@ -128,7 +128,7 @@ func (suite *Iteration1Suite) TestGaugeHandlers() {
 
 	suite.Run("invalid value", func() {
 		req := httpc.R().
-			SetHeader("Content-Type", "plain/text")
+			SetHeader("Content-Type", "text/plain")
 
 		resp, err := req.Post("update/gauge/testGauge/none")
 
@@ -150,7 +150,7 @@ func (suite *Iteration1Suite) TestCounterHandlers() {
 
 	suite.Run("update", func() {
 		req := httpc.R().
-			SetHeader("Content-Type", "plain/text")
+			SetHeader("Content-Type", "text/plain")
 
 		resp, err := req.Post("update/counter/testCounter/100")
 
@@ -168,7 +168,7 @@ func (suite *Iteration1Suite) TestCounterHandlers() {
 
 	suite.Run("without id", func() {
 		req := httpc.R().
-			SetHeader("Content-Type", "plain/text")
+			SetHeader("Content-Type", "text/plain")
 
 		resp, err := req.Post("update/counter/")
 
@@ -186,7 +186,7 @@ func (suite *Iteration1Suite) TestCounterHandlers() {
 
 	suite.Run("invalid value", func() {
 		req := httpc.R().
-			SetHeader("Content-Type", "plain/text")
+			SetHeader("Content-Type", "text/plain")
 
 		resp, err := req.Post("update/counter/testCounter/none")
 
@@ -208,7 +208,7 @@ func (suite *Iteration1Suite) TestUnknownHandlers() {
 
 	suite.Run("update invalid type", func() {
 		req := httpc.R().
-			SetHeader("Content-Type", "plain/text")
+			SetHeader("Content-Type", "text/plain")
 
 		resp, err := req.Post("update/unknown/testCounter/100")
 
@@ -226,7 +226,7 @@ func (suite *Iteration1Suite) TestUnknownHandlers() {
 
 	suite.Run("update invalid method", func() {
 		req := httpc.R().
-			SetHeader("Content-Type", "plain/text")
+			SetHeader("Content-Type", "text/plain")
 
 		resp, err := req.Post("updater/counter/testCounter/100")
 

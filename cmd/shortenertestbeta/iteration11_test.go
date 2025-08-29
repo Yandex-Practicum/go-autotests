@@ -107,7 +107,7 @@ func (suite *Iteration11Suite) TestInspectDatabase() {
 
 		req := httpc.R().
 			SetContext(ctx).
-			SetHeader("Content-Type", "plain/text").
+			SetHeader("Content-Type", "text/plain").
 			SetBody(originalURL)
 		_, err := req.Post("/")
 		noRespErr := suite.Assert().NoError(err, "Ошибка при попытке сделать запрос для сокращения URL")
