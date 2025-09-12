@@ -35,6 +35,7 @@ func (suite *Iteration15Suite) SetupSuite() {
 	suite.Require().NotEmpty(flagServerPort, "-server-port non-empty flag required")
 	suite.Require().NotEmpty(flagSHA256Key, "-key non-empty flag required")
 	suite.Require().NotEmpty(flagDatabaseDSN, "-database-dsn non-empty flag required")
+	suite.Require().NotEmpty(flagRateLimit, "-rate-limit non-empty flag required")
 
 	suite.rnd = rand.New(rand.NewSource(int64(time.Now().Nanosecond())))
 	suite.serverAddress = "http://localhost:" + flagServerPort
@@ -51,6 +52,7 @@ func (suite *Iteration15Suite) SetupSuite() {
 
 	agentArgs := []string{
 		"-k=" + flagSHA256Key,
+		"-l=" + flagRateLimit,
 	}
 	serverArgs := []string{
 		"-k=invalidkey",
