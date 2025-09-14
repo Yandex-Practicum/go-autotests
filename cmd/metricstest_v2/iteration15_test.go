@@ -48,6 +48,7 @@ func (suite *Iteration15Suite) SetupSuite() {
 		"RESTORE=true",
 		"DATABASE_DSN=" + flagDatabaseDSN,
 		"KEY=" + flagSHA256Key,
+		"RATE_LIMIT=" + flagRateLimit,
 	}...)
 
 	agentArgs := []string{
