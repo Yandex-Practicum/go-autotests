@@ -1,165 +1,84 @@
 package main
 
 import (
+	"bytes"
 	"context"
-	"errors"
-	"math/rand"
+	"embed"
 	"os"
-	"syscall"
+	"os/exec"
+	"path/filepath"
+	"testing"
 	"time"
 
-	"github.com/Yandex-Practicum/go-autotests/internal/fork"
+	"github.com/lrsk/gopacket/bytediff"
 	"github.com/stretchr/testify/suite"
 )
 
 type Iteration21Suite struct {
 	suite.Suite
-
-	serverAddress string
-	serverPort    string
-	serverProcess *fork.BackgroundProcess
-	agentProcess  *fork.BackgroundProcess
-
-	rnd *rand.Rand
-
-	key []byte
 }
 
 func (suite *Iteration21Suite) SetupSuite() {
-	suite.Require().NotEmpty(flagTargetSourcePath, "-source-path non-empty flag required")
-	suite.Require().NotEmpty(flagServerBinaryPath, "-binary-path non-empty flag required")
-	suite.Require().NotEmpty(flagAgentBinaryPath, "-agent-binary-path non-empty flag required")
-	suite.Require().NotEmpty(flagServerPort, "-server-port non-empty flag required")
-	suite.Require().NotEmpty(flagSHA256Key, "-key non-empty flag required")
-	suite.Require().NotEmpty(flagDatabaseDSN, "-database-dsn non-empty flag required")
-
-	suite.rnd = rand.New(rand.NewSource(int64(time.Now().Nanosecond())))
-	suite.serverAddress = "http://localhost:" + flagServerPort
-	suite.serverPort = flagServerPort
-
-	suite.key = []byte(flagSHA256Key)
-
-	envs := append(os.Environ(), []string{
-		"ADDRESS=localhost:" + flagServerPort,
-		"RESTORE=true",
-		"DATABASE_DSN=" + flagDatabaseDSN,
-		"KEY=" + flagSHA256Key,
-	}...)
-
-	agentArgs := []string{
-		"-k=" + flagSHA256Key,
-	}
-	serverArgs := []string{
-		"-k=invalidkey",
-	}
-
-	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
-	defer cancel()
-	suite.agentUp(ctx, envs, agentArgs, flagServerPort)
-	suite.serverUp(ctx, envs, serverArgs, flagServerPort)
+	suite.Require().NotEmpty(flagResetBinaryPath, "-reset-path not-empty flag required")
 }
 
-func (suite *Iteration21Suite) serverUp(ctx context.Context, envs, args []string, port string) {
-	suite.serverProcess = fork.NewBackgroundProcess(context.Background(), flagServerBinaryPath,
-		fork.WithEnv(envs...),
-		fork.WithArgs(args...),
-	)
+//go:embed testdata/*
+var testFiles embed.FS
 
-	err := suite.serverProcess.Start(ctx)
-	if err != nil {
-		suite.T().Errorf("Невозможно запустить процесс командой %q: %s. Переменные окружения: %+v, флаги командной строки: %+v", suite.serverProcess, err, envs, args)
-		return
-	}
-
-	err = suite.serverProcess.WaitPort(ctx, "tcp", port)
-	if err != nil {
-		suite.T().Errorf("Не удалось дождаться пока порт %s станет доступен для запроса: %s", port, err)
-		return
-	}
+type testCase struct {
+	inputFile    string
+	expectedFile string
 }
 
-func (suite *Iteration21Suite) agentUp(ctx context.Context, envs, args []string, port string) {
-	suite.agentProcess = fork.NewBackgroundProcess(context.Background(), flagAgentBinaryPath,
-		fork.WithEnv(envs...),
-		fork.WithArgs(args...),
-	)
-
-	err := suite.agentProcess.Start(ctx)
-	if err != nil {
-		suite.T().Errorf("Невозможно запустить процесс командой %q: %s. Переменные окружения: %+v, флаги командной строки: %+v", suite.agentProcess, err, envs, args)
-		return
+func (suite *Iteration21Suite) TestResetGenerator(t *testing.T) {
+	testCases := []testCase{
+		{
+			inputFile:    "testdata/simple_struct.go",
+			expectedFile: "testdata/simple_struct.golden",
+		},
+		{
+			inputFile:    "testdata/complex_struct.go",
+			expectedFile: "testdata/complex_struct.golden",
+		},
 	}
 
-	err = suite.agentProcess.ListenPort(ctx, "tcp", port)
-	if err != nil {
-		suite.T().Errorf("Не удалось дождаться пока на порт %s начнут поступать данные: %s", port, err)
-		return
-	}
-}
+	for _, tc := range testCases {
+		t.Run(tc.inputFile, func(t *testing.T) {
+			tmpDir := t.TempDir()
+			inputPath := filepath.Join(tmpDir, "input.go")
+			outputPath := filepath.Join(tmpDir, "reset.gen.go")
 
-func (suite *Iteration21Suite) TearDownSuite() {
-	suite.agentShutdown()
-	suite.serverShutdown()
-}
+			inputData, err := testFiles.ReadFile(tc.inputFile)
+			suite.Assert().NoError(err, "Ошибка чтения входного файла")
 
-func (suite *Iteration21Suite) serverShutdown() {
-	if suite.serverProcess == nil {
-		return
-	}
+			expected, err := testFiles.ReadFile(tc.expectedFile)
+			suite.Assert().NoError(err, "Ошибка чтения данных из файла golden")
 
-	exitCode, err := suite.serverProcess.Stop(syscall.SIGINT, syscall.SIGKILL)
-	if err != nil {
-		if errors.Is(err, os.ErrProcessDone) {
-			return
-		}
-		suite.T().Logf("Не удалось остановить процесс с помощью сигнала ОС: %s", err)
-		return
-	}
+			err = os.WriteFile(inputPath, inputData, 0644)
+			suite.Assert().NoError(err, "Ошибка записи данных в файл")
 
-	if exitCode > 0 {
-		suite.T().Logf("Процесс завершился с не нулевым статусом %d", exitCode)
-	}
+			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+			defer cancel()
 
-	ctx, cancel := context.WithTimeout(context.Background(), 500*time.Millisecond)
-	defer cancel()
+			cmd := exec.CommandContext(ctx, flagResetBinaryPath, inputPath)
+			var buf bytes.Buffer
+			cmd.Stdout = &buf
+			cmd.Stderr = &buf
+			err = cmd.Run()
+			suite.Assert().NoError(err, "Ошибка запуска генератора")
 
-	out := suite.serverProcess.Stderr(ctx)
-	if len(out) > 0 {
-		suite.T().Logf("Получен STDERR лог процесса:\n\n%s", string(out))
-	}
-	out = suite.serverProcess.Stdout(ctx)
-	if len(out) > 0 {
-		suite.T().Logf("Получен STDOUT лог процесса:\n\n%s", string(out))
-	}
-}
+			actual, err := os.ReadFile(outputPath)
+			suite.Assert().NoError(err, "Ошибка чтения данных из сгенерируемого файла")
 
-func (suite *Iteration21Suite) agentShutdown() {
-	if suite.agentProcess == nil {
-		return
-	}
+			if string(actual) != string(expected) {
+				diffStr := bytediff.Diff(actual, expected)
 
-	exitCode, err := suite.agentProcess.Stop(syscall.SIGINT, syscall.SIGKILL)
-	if err != nil {
-		if errors.Is(err, os.ErrProcessDone) {
-			return
-		}
-		suite.T().Logf("Не удалось остановить процесс с помощью сигнала ОС: %s", err)
-		return
-	}
-
-	if exitCode > 0 {
-		suite.T().Logf("Процесс завершился с не нулевым статусом %d", exitCode)
-	}
-
-	ctx, cancel := context.WithTimeout(context.Background(), 500*time.Millisecond)
-	defer cancel()
-
-	out := suite.agentProcess.Stderr(ctx)
-	if len(out) > 0 {
-		suite.T().Logf("Получен STDERR лог процесса:\n\n%s", string(out))
-	}
-	out = suite.agentProcess.Stdout(ctx)
-	if len(out) > 0 {
-		suite.T().Logf("Получен STDOUT лог процесса:\n\n%s", string(out))
+				t.Errorf("Сгенерированный код не совпадает с ожидаемым:\n\n"+
+					"Ожидаемый результат:\n%s\n\n"+
+					"Полученный результат:\n%s\n\n"+
+					"Дифф:\n%v",
+					expected, actual, diffStr)
+			}
+		})
 	}
 }

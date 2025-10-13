@@ -1,0 +1,20 @@
+func (s *ComplexStruct) Reset() {
+    if s == nil {
+        return
+    }
+    s.IntSlice = s.IntSlice[:0]
+    clear(s.StringMap)
+    if s.Nested != nil {
+        s.Nested.Reset()
+    }
+    if s.Pointer != nil {
+        *s.Pointer = 0
+    }
+}
+
+func (s *NestedStruct) Reset() {
+    if s == nil {
+        return
+    }
+    s.Field = 0
+}
