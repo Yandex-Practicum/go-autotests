@@ -1,5 +1,5 @@
 SHELL=/bin/bash
-GOTOOLCHAIN=go1.24.1
+GOTOOLCHAIN=go1.25.1
 
 AUTOTESTS = gophermarttest metricstest devopstest shortenertest shortenertestbeta shortenertest_v2 metricstest_v2 devopsmastertest firstfloortest covertest
 UTILS = random statictest shortenerstress wipedb
