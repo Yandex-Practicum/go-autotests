@@ -12,9 +12,14 @@ require (
 	github.com/jingyugao/rowserrcheck v1.1.1
 	github.com/stretchr/testify v1.8.0
 	github.com/timakin/bodyclose v0.0.0-20230421092635-574207250966
-	golang.org/x/sync v0.11.0
-	golang.org/x/tools v0.30.0
+	golang.org/x/sync v0.17.0
+	golang.org/x/tools v0.38.0
 	honnef.co/go/tools v0.6.1
+)
+
+require (
+	golang.org/x/tools/go/expect v0.1.1-deprecated // indirect
+	golang.org/x/tools/go/packages/packagestest v0.1.1-deprecated // indirect
 )
 
 require (
@@ -32,18 +37,19 @@ require (
 	github.com/gostaticanalysis/comment v1.4.2 // indirect
 	github.com/jackc/fake v0.0.0-20150926172116-812a484cc733 // indirect
 	github.com/lib/pq v1.10.7 // indirect
+	github.com/lrsk/gopacket v1.1.11
 	github.com/mattn/go-colorable v0.1.8 // indirect
 	github.com/mattn/go-isatty v0.0.12 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/shopspring/decimal v1.3.1 // indirect
 	github.com/willf/pad v0.0.0-20200313202418-172aa767f2a4 // indirect
-	golang.org/x/crypto v0.33.0 // indirect
+	golang.org/x/crypto v0.43.0 // indirect
 	golang.org/x/exp/typeparams v0.0.0-20231108232855-2478ac86f678 // indirect
-	golang.org/x/mod v0.23.0 // indirect
-	golang.org/x/net v0.35.0 // indirect
-	golang.org/x/sys v0.30.0 // indirect
-	golang.org/x/text v0.22.0 // indirect
+	golang.org/x/mod v0.29.0 // indirect
+	golang.org/x/net v0.46.0 // indirect
+	golang.org/x/sys v0.37.0 // indirect
+	golang.org/x/text v0.30.0 // indirect
 	golang.org/x/xerrors v0.0.0-20200804184101-5ec99f83aff1 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )

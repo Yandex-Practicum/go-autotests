@@ -1,0 +1,8 @@
+func (s *SimpleStruct) Reset() {
+    if s == nil {
+        return
+    }
+    s.IntField = 0
+    s.StringField = ""
+    s.BoolField = false
+}
