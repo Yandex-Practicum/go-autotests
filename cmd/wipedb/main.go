@@ -8,6 +8,7 @@ import (
 	"log"
 	"os"
 	"slices"
+	"strings"
 	"time"
 
 	_ "github.com/jackc/pgx/stdlib"
@@ -43,7 +44,7 @@ func run() error {
 	}
 
 	for _, tableName := range tables {
-		_, err = db.ExecContext(ctx, `DROP TABLE `+tableName)
+		_, err = db.ExecContext(ctx, fmt.Sprintf(`DROP TABLE %s CASCADE`, tableName))
 		if err != nil {
 			return fmt.Errorf("cannot perform table wipe: %w", err)
 		}
@@ -55,6 +56,10 @@ func run() error {
 }
 
 var reservedSchemas = []string{"pg_catalog", "information_schema"}
+
+func quoteIdent(s string) string {
+	return `"` + strings.ReplaceAll(s, `"`, `""`) + `"`
+}
 
 func collectTables(ctx context.Context, db *sql.DB) ([]string, error) {
 	rows, err := db.QueryContext(ctx, `SELECT table_schema, table_name FROM information_schema.tables`)
@@ -73,7 +78,10 @@ func collectTables(ctx context.Context, db *sql.DB) ([]string, error) {
 		}
 
 		if !slices.Contains(reservedSchemas, schemaName) {
-			tables = append(tables, schemaName+"."+tableName)
+			tables = append(
+				tables,
+				fmt.Sprintf(`%s.%s`, quoteIdent(schemaName), quoteIdent(tableName)),
+			)
 		}
 	}
 
