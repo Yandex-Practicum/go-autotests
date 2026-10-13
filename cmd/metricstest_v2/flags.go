@@ -14,6 +14,7 @@ var (
 	flagFileStoragePath  string
 	flagDatabaseDSN      string
 	flagSHA256Key        string
+	flagRateLimit        string
 )
 
 func init() {
@@ -26,4 +27,5 @@ func init() {
 	flag.StringVar(&flagFileStoragePath, "file-storage-path", "", "path to persistent file storage")
 	flag.StringVar(&flagDatabaseDSN, "database-dsn", "", "connection string to database")
 	flag.StringVar(&flagSHA256Key, "key", "", "sha256 key for hashing")
+	flag.StringVar(&flagRateLimit, "rate-limit", "", "requests limit")
 }
